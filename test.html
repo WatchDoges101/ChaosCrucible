@@ -1,0 +1,54 @@
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+const world = { width: 2000, height: 2000 };
+const camera = { x: 0, y: 0, width: 800, height: 600 };
+const player = { x: 1000, y: 500, size: 20, speed: 5 };
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp") player.y -= player.speed;
+  if (e.key === "ArrowDown") player.y += player.speed;
+  if (e.key === "ArrowLeft") player.x -= player.speed;
+  if (e.key === "ArrowRight") player.x += player.speed;
+});
+
+function updateCamera() {
+  camera.x = player.x - camera.width / 2;
+  camera.y = player.y - camera.height / 2;
+
+  // Clamp to world bounds
+  camera.x = Math.max(0, Math.min(world.width - camera.width, camera.x));
+  camera.y = Math.max(0, Math.min(world.height - camera.height, camera.y));
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw background grid
+  ctx.fillStyle = "#f0f0f0";
+  for (let x = 0; x < world.width; x += 100) {
+    for (let y = 0; y < world.height; y += 100) {
+      ctx.fillRect(x - camera.x, y - camera.y, 2, 2);
+    }
+  }
+
+  // Draw player
+  ctx.fillStyle = "blue";
+  ctx.fillRect(
+    player.x - camera.x,
+    player.y - camera.y,
+    player.size,
+    player.size
+  );
+}
+
+function loop() {
+  updateCamera();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
