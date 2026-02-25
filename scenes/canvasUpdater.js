@@ -53,9 +53,11 @@ export function updatePlayer(ctx, canvas, backgroundImage,camera,character) {
     ctx.restore();
 
     // Draw debug info (screen space)
-    ctx.fillStyle = "white";
-    ctx.font = "20px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.fillText(`Character: (${Math.round(character.x)}, ${Math.round(character.y)}) Role: ${character.role}`, 10, 10);
+    if (character) {
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(`Character: (${Math.round(character.x)}, ${Math.round(character.y)}) Role: ${character.role}`, 10, 10);
+    }
 }

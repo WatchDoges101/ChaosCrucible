@@ -1,0 +1,19 @@
+{
+  "name": "chaos-crucible",
+  "version": "1.0.0",
+  "description": "A 2D action game built with Phaser and Howler",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.60.0",
+    "howler": "^2.2.4"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}

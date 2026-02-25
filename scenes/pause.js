@@ -6,7 +6,7 @@ const BUTTON_GAP = 20;
 const ANIMATION_SPEED = 0.1;
 const BORDER_RADIUS = 10;
 
-const pauseButtons = [
+export const pauseButtons = [
         {
             x: 0, y: 0,
             width: BUTTON_WIDTH, height: BUTTON_HEIGHT,
@@ -52,9 +52,7 @@ function updateAnimations() {
 }
 
 export function pause(ctx, canvas, paused) {
-    console.log("test4");
     if (paused.pause === true) {
-        console.log("test3");
         ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 

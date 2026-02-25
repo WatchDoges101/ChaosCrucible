@@ -1,4 +1,3 @@
-import * as inputHandler from "./inputHandler.js";
 import * as playerImageAssets from "../assets/playerimageAssets.js";
 
 export let character = null;
@@ -51,50 +50,53 @@ export function initializeCharacter(selectedRole, worldWidth, worldHeight) {
             frameIndex: 0,
             lastFrameTime: Date.now()
         };
-        console.log("Character initialized:", character);
     }
 }
 
-// Update animation for male role
-    if (character.role === "Male") {
-        if (vx === 0 && vy === 0) {
-            character.frameIndex = 0; // Reset to first frame when idle
-        } else {
-            // Determine animation based on movement direction
-            let newAnim;
-            if (keys["a"] && keys["w"]) {
-                newAnim = "male_left_up";
-            } else if (keys["a"] && keys["s"]) {
-                newAnim = "male_left_down";
-            } else if (keys["d"] && keys["w"]) {
-                newAnim = "male_right_up";
-            } else if (keys["d"] && keys["s"]) {
-                newAnim = "male_right_down";
-            } else if (vx < 0) {
-                newAnim = "male_left_down";
-            } else if (vx > 0) {
-                newAnim = "male_right_down";
-            } else if (vy > 0) {
-                newAnim = "male_walk_down";
-            } else if (vy < 0) {
-                newAnim = "male_walk_up";
-            }
-
-            if (newAnim !== character.currentAnimation) {
-                character.currentAnimation = newAnim;
-                character.frameIndex = 0;
-                character.lastFrameTime = Date.now();
-            } else {
-                let now = Date.now();
-                let frameRate = roleAttributes.Male.frameRate;
-                if (now - character.lastFrameTime > frameRate) {
-                    const frames = roleAttributes.Male.animations[newAnim];
-                    character.frameIndex = (character.frameIndex + 1) % frames.length;
-                    character.lastFrameTime = now;
-                }
-            }
-        }
+export function updateCharacterAnimation(keys, vx, vy) {
+    if (!character || character.role !== "Male") {
+        return;
     }
+
+    if (vx === 0 && vy === 0) {
+        character.frameIndex = 0;
+        return;
+    }
+
+    let newAnim;
+    if (keys["a"] && keys["w"]) {
+        newAnim = "male_left_up";
+    } else if (keys["a"] && keys["s"]) {
+        newAnim = "male_left_down";
+    } else if (keys["d"] && keys["w"]) {
+        newAnim = "male_right_up";
+    } else if (keys["d"] && keys["s"]) {
+        newAnim = "male_right_down";
+    } else if (vx < 0) {
+        newAnim = "male_left_down";
+    } else if (vx > 0) {
+        newAnim = "male_right_down";
+    } else if (vy > 0) {
+        newAnim = "male_walk_down";
+    } else {
+        newAnim = "male_walk_up";
+    }
+
+    if (newAnim !== character.currentAnimation) {
+        character.currentAnimation = newAnim;
+        character.frameIndex = 0;
+        character.lastFrameTime = Date.now();
+        return;
+    }
+
+    const now = Date.now();
+    const frameRate = roleAttributes.Male.frameRate;
+    if (now - character.lastFrameTime > frameRate) {
+        const frames = roleAttributes.Male.animations[newAnim];
+        character.frameIndex = (character.frameIndex + 1) % frames.length;
+        character.lastFrameTime = now;
+    }
+}
 
 
 export function drawCharacter(ctx, camera) {
@@ -102,19 +104,6 @@ export function drawCharacter(ctx, camera) {
         console.error("No character to draw!");
         return;
     }
-
-    // Add debug visualization
-    ctx.fillStyle = "yellow";
-    ctx.beginPath();
-    ctx.arc(character.x, character.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    console.log("Drawing character:", {
-        x: character.x,
-        y: character.y,
-        role: character.role,
-        animation: character.currentAnimation
-    });
 
     if (character.role === "Male") {
         const anim = roleAttributes.Male.animations[character.currentAnimation];
@@ -130,13 +119,6 @@ export function drawCharacter(ctx, camera) {
 
         const frameIndex = Math.floor(character.frameIndex) % anim.length;
         const img = anim[frameIndex];
-
-        // Debug image loading
-        console.log("Sprite details:", {
-            loaded: img.complete,
-            naturalWidth: img.naturalWidth,
-            src: img.src
-        });
 
         const size = 64; // Smaller size for testing
         ctx.drawImage(img, character.x - size/2, character.y - size/2, size, size);
