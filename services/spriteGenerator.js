@@ -351,8 +351,13 @@ export function generateEnemySprite(scene, x = 0, y = 0, type = 'slime') {
 
   if (type === 'slime') {
     drawSlimeEnemy(scene, container);
+  } else if (type === 'devil') {
+    drawDevilEnemy(scene, container);
+  } else if (type === 'skeleton') {
+    drawSkeletonEnemy(scene, container);
   }
 
+  container.setData('type', type);
   return container;
 }
 
@@ -379,6 +384,172 @@ function drawSlimeEnemy(scene, container) {
   graphics.fillCircle(-4, -6, 3);
 
   container.add(graphics);
+}
+
+/**
+ * Draw a devil enemy with wings, tail, and trident
+ */
+function drawDevilEnemy(scene, container) {
+  const glow = scene.add.graphics();
+  glow.fillStyle(0xff3a1a, 0.25);
+  glow.fillCircle(0, 0, 20);
+  container.add(glow);
+  container.glow = glow;
+
+  const body = scene.add.graphics();
+  body.fillStyle(0x6f0f12, 1);
+  body.fillEllipse(0, 6, 30, 28);
+  body.fillStyle(0x8b1a1d, 1);
+  body.fillEllipse(0, -2, 24, 20);
+  body.fillStyle(0x1c0a0a, 1);
+  body.fillCircle(-6, -6, 2.5);
+  body.fillCircle(6, -6, 2.5);
+  body.fillStyle(0xff6a00, 1);
+  body.fillCircle(-6, -6, 1);
+  body.fillCircle(6, -6, 1);
+  container.add(body);
+
+  const horns = scene.add.graphics();
+  horns.fillStyle(0xe6d6c7, 1);
+  horns.fillTriangleShape(new Phaser.Geom.Triangle(-10, -16, -4, -8, -12, -8));
+  horns.fillTriangleShape(new Phaser.Geom.Triangle(10, -16, 4, -8, 12, -8));
+  container.add(horns);
+
+  const wings = scene.add.graphics();
+  wings.fillStyle(0x3a0b0c, 0.9);
+  wings.fillTriangleShape(new Phaser.Geom.Triangle(-18, -2, -36, 8, -16, 8));
+  wings.fillTriangleShape(new Phaser.Geom.Triangle(18, -2, 36, 8, 16, 8));
+  wings.fillStyle(0x5a1315, 0.8);
+  wings.fillTriangleShape(new Phaser.Geom.Triangle(-18, 0, -30, 14, -12, 10));
+  wings.fillTriangleShape(new Phaser.Geom.Triangle(18, 0, 30, 14, 12, 10));
+  container.add(wings);
+  container.wings = wings;
+
+  const tail = scene.add.graphics();
+  tail.lineStyle(3, 0x2b0809, 1);
+  tail.beginPath();
+  tail.moveTo(6, 14);
+  tail.lineTo(18, 22);
+  tail.lineTo(24, 28);
+  tail.strokePath();
+  tail.fillStyle(0xffa319, 1);
+  tail.fillTriangleShape(new Phaser.Geom.Triangle(24, 28, 30, 30, 24, 32));
+  container.add(tail);
+  container.tail = tail;
+
+  const trident = scene.add.graphics();
+  trident.lineStyle(2, 0x2b1c1c, 1);
+  trident.lineBetween(0, 0, 0, -18);
+  trident.lineBetween(-6, -14, 6, -14);
+  trident.fillStyle(0xffaa33, 1);
+  trident.fillTriangleShape(new Phaser.Geom.Triangle(-6, -14, -3, -20, 0, -14));
+  trident.fillTriangleShape(new Phaser.Geom.Triangle(0, -14, 3, -20, 6, -14));
+  trident.fillTriangleShape(new Phaser.Geom.Triangle(6, -14, 9, -20, 12, -14));
+  trident.x = 12;
+  trident.y = 10;
+  container.add(trident);
+  container.weapon = trident;
+}
+
+/**
+ * Draw a skeleton enemy with bow
+ */
+function drawSkeletonEnemy(scene, container) {
+  // Skull
+  const skull = scene.add.graphics();
+  skull.fillStyle(0xe8dcc8, 1);
+  skull.fillEllipse(0, -8, 16, 18);
+  // Eye sockets
+  skull.fillStyle(0x1a1a1a, 1);
+  skull.fillEllipse(-4, -10, 5, 7);
+  skull.fillEllipse(4, -10, 5, 7);
+  // Glowing eyes
+  skull.fillStyle(0xff3300, 0.9);
+  skull.fillCircle(-4, -10, 2);
+  skull.fillCircle(4, -10, 2);
+  // Nose hole
+  skull.fillStyle(0x1a1a1a, 1);
+  skull.fillTriangleShape(new Phaser.Geom.Triangle(-2, -6, 2, -6, 0, -2));
+  // Jaw line
+  skull.lineStyle(1.5, 0x2a2a2a, 0.6);
+  skull.lineBetween(-6, -2, 6, -2);
+  container.add(skull);
+  container.skull = skull;
+
+  // Ribcage
+  const ribs = scene.add.graphics();
+  ribs.fillStyle(0xd4c4b0, 1);
+  ribs.fillEllipse(0, 4, 18, 20);
+  // Rib lines
+  ribs.lineStyle(1.5, 0x9a8a76, 0.8);
+  for (let i = 0; i < 4; i++) {
+    const y = -2 + i * 4;
+    ribs.beginPath();
+    ribs.arc(0, y, 8, -2.8, -0.3, false);
+    ribs.strokePath();
+    ribs.beginPath();
+    ribs.arc(0, y, 8, 0.3, 2.8, false);
+    ribs.strokePath();
+  }
+  container.add(ribs);
+
+  // Pelvis
+  const pelvis = scene.add.graphics();
+  pelvis.fillStyle(0xcab8a4, 1);
+  pelvis.fillEllipse(0, 14, 14, 8);
+  pelvis.lineStyle(1.5, 0x8a7a66, 0.6);
+  pelvis.strokeEllipse(0, 14, 14, 8);
+  container.add(pelvis);
+
+  // Left arm bones
+  const leftArm = scene.add.graphics();
+  leftArm.lineStyle(3, 0xd4c4b0, 1);
+  leftArm.lineBetween(0, 0, 0, 10);
+  leftArm.fillStyle(0xc4b4a0, 1);
+  leftArm.fillCircle(0, 0, 2.5);
+  leftArm.fillCircle(0, 10, 2);
+  leftArm.x = -10;
+  leftArm.y = 2;
+  container.add(leftArm);
+  container.leftArm = leftArm;
+
+  // Right arm bones
+  const rightArm = scene.add.graphics();
+  rightArm.lineStyle(3, 0xd4c4b0, 1);
+  rightArm.lineBetween(0, 0, 0, 10);
+  rightArm.fillStyle(0xc4b4a0, 1);
+  rightArm.fillCircle(0, 0, 2.5);
+  rightArm.fillCircle(0, 10, 2);
+  rightArm.x = 10;
+  rightArm.y = 2;
+  container.add(rightArm);
+  container.rightArm = rightArm;
+
+  // Bow
+  const bow = scene.add.graphics();
+  bow.lineStyle(2.5, 0x5a3a1a, 1);
+  bow.beginPath();
+  bow.arc(0, 0, 8, -1.2, 1.2, false);
+  bow.strokePath();
+  // Bowstring
+  bow.lineStyle(1, 0x8a8a8a, 0.9);
+  bow.lineBetween(0, -8, 0, 8);
+  bow.x = 12;
+  bow.y = 6;
+  container.add(bow);
+  container.weapon = bow;
+
+  // Arrow (initially at rest)
+  const arrow = scene.add.graphics();
+  arrow.lineStyle(1.5, 0x7a5a3a, 1);
+  arrow.lineBetween(-6, 0, 2, 0);
+  arrow.fillStyle(0x9a9a9a, 1);
+  arrow.fillTriangleShape(new Phaser.Geom.Triangle(2, 0, 4, -2, 4, 2));
+  arrow.x = 12;
+  arrow.y = 6;
+  arrow.visible = false;
+  container.add(arrow);
+  container.arrow = arrow;
 }
 
 /**

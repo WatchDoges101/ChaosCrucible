@@ -27,6 +27,11 @@ export class MenuScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
+    // Ensure tween/time systems are running after scene transitions
+    this.tweens.timeScale = 1;
+    this.tweens.resumeAll();
+    this.time.timeScale = 1;
+
     // Completely shut down any other scenes (active, paused, or sleeping)
     const scenesToShutdown = [
       'CharacterSelectionScene',
@@ -67,7 +72,7 @@ export class MenuScene extends Phaser.Scene {
       duration: 90,
       yoyo: true,
       repeat: -1,
-      ease: 'Sine.inout'
+      ease: 'Sine.inOut'
     });
 
     // Buttons with interactive areas

@@ -13,6 +13,7 @@ class GameState {
     this.currentScene = null;
     this.selectedRole = null;
     this.character = null;
+    this.score = 0;
     this.settings = { soundVolume: 0.5, musicVolume: 0.5, graphicsQuality: 'medium' };
     this._listeners = {};
   }
@@ -92,6 +93,38 @@ class GameState {
       }
     } catch (e) {
       console.error('Failed to load settings:', e);
+    }
+  }
+
+  /**
+   * Add points to the score
+   */
+  addScore(points) {
+    this.score += points;
+    this.emit('scoreChanged', this.score);
+  }
+
+  /**
+   * Reset score (for a new game)
+   */
+  resetScore() {
+    this.score = 0;
+    this.emit('scoreChanged', this.score);
+  }
+
+  /**
+   * Save high score to localStorage
+   */
+  saveHighScore() {
+    try {
+      const saved = localStorage.getItem('gameHighScore');
+      const highScore = saved ? parseInt(saved) : 0;
+      if (this.score > highScore) {
+        localStorage.setItem('gameHighScore', this.score.toString());
+        this.emit('newHighScore', this.score);
+      }
+    } catch (e) {
+      console.error('Failed to save high score:', e);
     }
   }
 
