@@ -37,7 +37,8 @@ export class MenuScene extends Phaser.Scene {
       'CharacterSelectionScene',
       'CharacterCustomizationScene',
       'ChaossCrucibleScene',
-      'HostScene'
+      'HostScene',
+      'EnemyWikiScene'
     ];
     scenesToShutdown.forEach(key => {
       const sceneInstance = this.scene.get(key);
@@ -81,6 +82,7 @@ export class MenuScene extends Phaser.Scene {
     // Buttons with interactive areas
     const buttons = [
       { label: 'Start Game', scene: 'CharacterSelectionScene', color: 0xff3300 },
+      { label: 'Enemies', scene: 'EnemyWikiScene', color: 0xff8a00 },
       { label: 'Options', scene: 'OptionsScene', color: 0xff6600 }
     ];
 
@@ -142,6 +144,13 @@ export class MenuScene extends Phaser.Scene {
           }
         } else if (config.scene === 'OptionsScene') {
           // For OptionsScene, add it first then start it
+          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
+            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
+          } else {
+            this.scene.start(config.scene);
+          }
+        } else if (config.scene === 'EnemyWikiScene') {
+          // For EnemyWikiScene, add it first then start it
           if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
             this.scene.add(config.scene, window.sceneClasses[config.scene], true);
           } else {
