@@ -1,0 +1,25 @@
+{
+  "hash": "c51e57bd",
+  "configHash": "451d04b4",
+  "lockfileHash": "3ef01244",
+  "browserHash": "32d1de8d",
+  "optimized": {
+    "phaser": {
+      "src": "../../node_modules/phaser/dist/phaser.js",
+      "file": "phaser.js",
+      "fileHash": "a1b4170f",
+      "needsInterop": true
+    },
+    "howler": {
+      "src": "../../node_modules/howler/dist/howler.js",
+      "file": "howler.js",
+      "fileHash": "40420205",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-BUSYA2B4": {
+      "file": "chunk-BUSYA2B4.js"
+    }
+  }
+}
