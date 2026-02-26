@@ -124,8 +124,16 @@ export class HostScene extends Phaser.Scene {
     const x = 150 + Math.random() * 200;
     const y = 150 + Math.random() * 200;
     
+    const rand = Math.random();
+    let enemyType = 'slime';
+    if (rand < 0.15) {
+      enemyType = 'skeleton';
+    } else if (rand < 0.3) {
+      enemyType = 'devil';
+    }
+    
     // Create enemy with procedurally generated sprite
-    const sprite = generateEnemySprite(this, x, y, 'slime');
+    const sprite = generateEnemySprite(this, x, y, enemyType);
     sprite.setData('hp', 100);
 
     const enemy = {

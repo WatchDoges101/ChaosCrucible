@@ -4,12 +4,3 @@ body {
   background-color: black;
   color: white;
 }
-
-#gameCanvas {
-  background-color: white;
-  display: block;
-  margin: 0 auto;
-  align-self: center;
-  width: 1920px;
-  height: 1080px;
-}

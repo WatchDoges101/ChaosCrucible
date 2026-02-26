@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A 2D action game built with Phaser and Howler",
   "type": "module",
-  "main": "main.js",
+  "main": "main.phaser.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
