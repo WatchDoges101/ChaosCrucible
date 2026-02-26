@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sprite Generator Test</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a1a;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    #info {
+      margin-bottom: 20px;
+      padding: 10px;
+      background: #2a2a2a;
+      border-radius: 5px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h2>Sprite Generator Test</h2>
+    <p>Click buttons to test sprite generation. Check the console (F12) for debug output.</p>
+    <button id="btnMale">Test Male Warrior</button>
+    <button id="btnArcher">Test Archer</button>
+    <button id="btnBrute">Test Brute</button>
+    <button id="btnGunner">Test Gunner</button>
+    <button id="btnSlime">Test Slime</button>
+    <button id="btnClear">Clear All</button>
+  </div>
+  <div id="game"></div>
+
+  <script type="module">
+    import Phaser from 'phaser';
+    import { generateCharacterSprite, generateEnemySprite } from './services/spriteGenerator.js';
+
+    const config = {
+      type: Phaser.AUTO,
+      width: 800,
+      height: 600,
+      backgroundColor: '#222222',
+      parent: 'game',
+      scene: {
+        create: create
+      }
+    };
+
+    const game = new Phaser.Game(config);
+    let scene;
+    let sprites = [];
+
+    function create() {
+      scene = this;
+      console.log('[Test] Scene created:', scene);
+      
+      // Add some reference text
+      this.add.text(400, 50, 'Sprites will appear below', {
+        font: '24px Arial',
+        fill: '#ffffff'
+      }).setOrigin(0.5);
+
+      // Expose to window for button clicks
+      window.testScene = scene;
+      
+      // Set up button listeners
+      setupButtons();
+    }
+
+    function setupButtons() {
+      document.getElementById('btnMale').addEventListener('click', () => {
+        console.log('[Test] Creating Male sprite...');
+        const sprite = generateCharacterSprite(window.testScene, 'Male', 150, 300);
+        sprite.setScale(3);
+        sprites.push(sprite);
+        console.log('[Test] Male sprite created:', sprite);
+      });
+
+      document.getElementById('btnArcher').addEventListener('click', () => {
+        console.log('[Test] Creating Archer sprite...');
+        const sprite = generateCharacterSprite(window.testScene, 'archer', 300, 300);
+        sprite.setScale(3);
+        sprites.push(sprite);
+        console.log('[Test] Archer sprite created:', sprite);
+      });
+
+      document.getElementById('btnBrute').addEventListener('click', () => {
+        console.log('[Test] Creating Brute sprite...');
+        const sprite = generateCharacterSprite(window.testScene, 'brute', 450, 300);
+        sprite.setScale(3);
+        sprites.push(sprite);
+        console.log('[Test] Brute sprite created:', sprite);
+      });
+
+      document.getElementById('btnGunner').addEventListener('click', () => {
+        console.log('[Test] Creating Gunner sprite...');
+        const sprite = generateCharacterSprite(window.testScene, 'gunner', 600, 300);
+        sprite.setScale(3);
+        sprites.push(sprite);
+        console.log('[Test] Gunner sprite created:', sprite);
+      });
+
+      document.getElementById('btnSlime').addEventListener('click', () => {
+        console.log('[Test] Creating Slime sprite...');
+        const sprite = generateEnemySprite(window.testScene, 400, 450, 'slime');
+        sprite.setScale(3);
+        sprites.push(sprite);
+        console.log('[Test] Slime sprite created:', sprite);
+      });
+
+      document.getElementById('btnClear').addEventListener('click', () => {
+        console.log('[Test] Clearing all sprites...');
+        sprites.forEach(s => s.destroy());
+        sprites = [];
+      });
+    }
+  </script>
+</body>
+</html>

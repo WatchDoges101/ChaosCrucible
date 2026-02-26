@@ -1,4 +1,5 @@
-import { gameState } from '../services/gameState.js';
+import { gameState } from '../../services/gameState.js';
+import { generateCharacterSprite } from '../../services/spriteGenerator.js';
 
 /**
  * CharacterSelectionScene
@@ -6,7 +7,8 @@ import { gameState } from '../services/gameState.js';
  */
 export class CharacterSelectionScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'CharacterSelectionScene' });
+    console.log('[CONSTRUCTOR] CharacterSelectionScene being instantiated');
+    super({ key: 'CharacterSelectionScene', active: false });
   }
 
   create() {
@@ -31,9 +33,9 @@ export class CharacterSelectionScene extends Phaser.Scene {
       { name: 'gunner', label: 'Gunner', color: 0xcc0000 }
     ];
 
-    const buttonWidth = 300;
-    const buttonHeight = 100;
-    const buttonGap = 20;
+    const buttonWidth = 250;
+    const buttonHeight = 120;
+    const buttonGap = 30;
     const totalHeight = roles.length * buttonHeight + (roles.length - 1) * buttonGap;
     const startY = centerY - totalHeight / 2;
 
@@ -44,27 +46,55 @@ export class CharacterSelectionScene extends Phaser.Scene {
   }
 
   createRoleButton(x, y, width, height, role) {
-    const button = this.add.rectangle(x, y, width, height, role.color, 0.8)
+    const button = this.add.rectangle(x, y, width, height, role.color, 0.7)
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1);
 
-    const text = this.add.text(x, y, role.label, {
-      font: '24px Arial',
+    // Show large sprite preview on the left side of button
+    const spriteX = x - width / 2 + 40;
+    const spritePreview = generateCharacterSprite(this, role.name, spriteX, y);
+    spritePreview.setScale(2.5);
+    spritePreview.setDepth(2);
+
+    // Role label on the right side
+    const text = this.add.text(x + 40, y - 10, role.label, {
+      font: 'bold 28px Arial',
       fill: '#ffffff',
       align: 'center'
     }).setOrigin(0.5);
+    text.setDepth(2);
 
-    const hoverTween = null;
+    // Description text
+    const descriptions = {
+      'Male': 'Balanced Warrior',
+      'archer': 'Ranged Master',
+      'brute': 'Tank Heavy',
+      'gunner': 'Tech Expert'
+    };
+
+    const desc = this.add.text(x + 40, y + 15, descriptions[role.name], {
+      font: '14px Arial',
+      fill: '#cccccc',
+      align: 'center'
+    }).setOrigin(0.5);
+    desc.setDepth(2);
 
     button.on('pointerover', () => {
-      if (hoverTween) hoverTween.stop();
       this.tweens.add({
         targets: button,
-        scaleX: 1.1,
-        scaleY: 1.1,
+        scaleX: 1.05,
+        scaleY: 1.05,
         duration: 200
       });
-      button.setStroke(0xffffff, 3);
+      this.tweens.add({
+        targets: spritePreview,
+        scaleX: 2.8,
+        scaleY: 2.8,
+        duration: 200
+      });
+      button.setAlpha(1);
+      button.setStrokeStyle(4, 0xffffff);
     });
 
     button.on('pointerout', () => {
@@ -74,13 +104,24 @@ export class CharacterSelectionScene extends Phaser.Scene {
         scaleY: 1,
         duration: 200
       });
-      button.setStroke();
+      this.tweens.add({
+        targets: spritePreview,
+        scaleX: 2.5,
+        scaleY: 2.5,
+        duration: 200
+      });
+      button.setAlpha(0.7);
+      button.setStrokeStyle();
     });
 
     button.on('pointerdown', () => {
       gameState.setSelectedRole(role.name);
-      gameState.initCharacter(role.name);
-      this.scene.start('HostScene');
+      // Add and start CharacterCustomizationScene on-demand
+      if (!this.scene.get('CharacterCustomizationScene')) {
+        this.scene.add('CharacterCustomizationScene', window.sceneClasses['CharacterCustomizationScene'], true, { role: role.name });
+      } else {
+        this.scene.start('CharacterCustomizationScene', { role: role.name });
+      }
     });
   }
 }

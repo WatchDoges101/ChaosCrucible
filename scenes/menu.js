@@ -135,10 +135,10 @@ function drawUI(ctx, canvas) {
 
     // Draw title
     ctx.fillStyle = "white";
-    ctx.font = "48px Arial";
+    ctx.font = "bold 56px Impact";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText("Luke's Games", canvas.width / 2, 50);
+    ctx.fillText("CHAOS CRUCIBLE", canvas.width / 2, 50);
     
     // Draw buttons
     buttons.forEach(button => {

@@ -1,5 +1,5 @@
-import { gameState } from '../services/gameState.js';
-import { audioManager } from '../services/audioManager.js';
+import { gameState } from '../../services/gameState.js';
+import { audioManager } from '../../services/audioManager.js';
 
 /**
  * MenuScene
@@ -13,7 +13,8 @@ import { audioManager } from '../services/audioManager.js';
  */
 export class MenuScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'MenuScene' });
+    console.log('[CONSTRUCTOR] MenuScene being instantiated');
+    super({ key: 'MenuScene', active: true });
   }
 
   preload() {
@@ -26,14 +27,48 @@ export class MenuScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Background (simple color for now)
-    this.add.rectangle(centerX, centerY, width, height, 0x0a0a0a).setOrigin(0.5);
+    // Completely shut down any other scenes (active, paused, or sleeping)
+    const scenesToShutdown = [
+      'CharacterSelectionScene',
+      'CharacterCustomizationScene',
+      'ChaossCrucibleScene',
+      'HostScene'
+    ];
+    scenesToShutdown.forEach(key => {
+      const sceneInstance = this.scene.get(key);
+      if (sceneInstance) {
+        this.scene.stop(key);
+        // Remove all display objects from that scene's display list
+        if (sceneInstance.children && sceneInstance.children.list) {
+          sceneInstance.children.list.forEach(child => {
+            try { child.destroy(); } catch(e) {}
+          });
+        }
+      }
+    });
+
+    // Background (simple color for now) - must be FIRST and FULLY OPAQUE to cover everything
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x0a0a0a, 1).setOrigin(0.5);
+    bg.setDepth(-1000); // Make sure it's behind everything
 
     // Title
-    this.add.text(centerX, 100, 'Luke\'s Games', {
-      font: '48px Arial',
-      fill: '#ffffff'
+    const titleText = this.add.text(centerX, 100, 'CHAOS CRUCIBLE', {
+      font: '64px Impact',
+      fill: '#ffffff',
+      stroke: '#550000',
+      strokeThickness: 6
     }).setOrigin(0.5);
+
+    // Subtle shake to make the title feel powerful
+    this.tweens.add({
+      targets: titleText,
+      x: centerX + 3,
+      y: 102,
+      duration: 90,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inout'
+    });
 
     // Buttons with interactive areas
     const buttons = [
@@ -88,7 +123,16 @@ export class MenuScene extends Phaser.Scene {
 
     button.on('pointerdown', () => {
       if (config.scene) {
-        this.scene.start(config.scene);
+        // For CharacterSelectionScene, add it first then start it
+        if (config.scene === 'CharacterSelectionScene') {
+          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
+            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
+          } else {
+            this.scene.start(config.scene);
+          }
+        } else {
+          this.scene.start(config.scene);
+        }
       } else if (config.action) {
         config.action();
       }

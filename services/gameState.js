@@ -28,12 +28,14 @@ class GameState {
   /**
    * Initialize character from role
    */
-  initCharacter(role) {
+  initCharacter(role, name = null, colors = null) {
     this.character = {
       x: 100,
       y: 100,
       radius: 20,
       role: role,
+      name: name || role,
+      colors: colors || null,
       hp: 100,
       maxHp: 100,
       speed: 5

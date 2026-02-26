@@ -1,5 +1,6 @@
-import { gameState } from '../services/gameState.js';
-import { GAME_CONSTANTS } from '../config/gameConfig.js';
+import { gameState } from '../../services/gameState.js';
+import { GAME_CONSTANTS } from '../../config/gameConfig.js';
+import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter } from '../../services/spriteGenerator.js';
 
 /**
  * HostScene
@@ -8,7 +9,7 @@ import { GAME_CONSTANTS } from '../config/gameConfig.js';
  */
 export class HostScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'HostScene' });
+    super({ key: 'HostScene', active: false });
   }
 
   init() {
@@ -33,9 +34,9 @@ export class HostScene extends Phaser.Scene {
     }
     grid.strokePath();
 
-    // Create player (simple circle for now)
+    // Create player with procedurally generated sprite
     const character = gameState.character;
-    this.player = this.add.circle(character.x, character.y, PLAYER_RADIUS, 0x000000);
+    this.player = createAnimatedCharacter(this, character.role, character.x, character.y, character.colors);
     this.player.setData('character', character);
 
     // Follow player with camera
@@ -58,7 +59,8 @@ export class HostScene extends Phaser.Scene {
 
     // UI layer (stays on screen)
     this.uiLayer = this.add.layer();
-    this.uiText = this.add.text(10, 10, `Role: ${character.role}`, {
+    const displayName = character.name ? `${character.name} (${character.role})` : `Role: ${character.role}`;
+    this.uiText = this.add.text(10, 10, displayName, {
       font: '16px Arial',
       fill: '#ffffff'
     }).setScrollFactor(0); // Don't scroll with camera
@@ -121,7 +123,9 @@ export class HostScene extends Phaser.Scene {
   spawnEnemy() {
     const x = 150 + Math.random() * 200;
     const y = 150 + Math.random() * 200;
-    const sprite = this.add.circle(x, y, 32, 0x00aa00);
+    
+    // Create enemy with procedurally generated sprite
+    const sprite = generateEnemySprite(this, x, y, 'slime');
     sprite.setData('hp', 100);
 
     const enemy = {
