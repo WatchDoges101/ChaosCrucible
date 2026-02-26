@@ -17,6 +17,7 @@ import { CharacterSelectionScene } from './scenes/phaser/CharacterSelectionScene
 import { CharacterCustomizationScene } from './scenes/phaser/CharacterCustomizationScene.js';
 import { ChaossCrucibleScene } from './scenes/phaser/ChaossCrucibleScene.js';
 import { HostScene } from './scenes/phaser/HostScene.js';
+import { OptionsScene } from './scenes/phaser/OptionsScene.js';
 import { gameState } from './services/gameState.js';
 import { audioManager } from './services/audioManager.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter, createAnimatedCharacterWithViews } from './services/spriteGenerator.js';
@@ -32,7 +33,8 @@ window.sceneClasses = {
   'CharacterSelectionScene': CharacterSelectionScene,
   'CharacterCustomizationScene': CharacterCustomizationScene,
   'ChaossCrucibleScene': ChaossCrucibleScene,
-  'HostScene': HostScene
+  'HostScene': HostScene,
+  'OptionsScene': OptionsScene
 };
 
 // Global exports for debugging

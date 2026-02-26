@@ -73,8 +73,7 @@ export class MenuScene extends Phaser.Scene {
     // Buttons with interactive areas
     const buttons = [
       { label: 'Start Game', scene: 'CharacterSelectionScene', color: 0xff0000 },
-      { label: 'Options', scene: 'OptionsScene', color: 0x00ff00 },
-      { label: 'Quit', action: () => this.quitGame(), color: 0x0000ff }
+      { label: 'Options', scene: 'OptionsScene', color: 0x00ff00 }
     ];
 
     const buttonWidth = 200;
@@ -130,6 +129,13 @@ export class MenuScene extends Phaser.Scene {
           } else {
             this.scene.start(config.scene);
           }
+        } else if (config.scene === 'OptionsScene') {
+          // For OptionsScene, add it first then start it
+          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
+            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
+          } else {
+            this.scene.start(config.scene);
+          }
         } else {
           this.scene.start(config.scene);
         }
@@ -137,10 +143,6 @@ export class MenuScene extends Phaser.Scene {
         config.action();
       }
     });
-  }
-
-  quitGame() {
-    console.log('Quit game (would close window in production)');
   }
 
   shutdown() {
