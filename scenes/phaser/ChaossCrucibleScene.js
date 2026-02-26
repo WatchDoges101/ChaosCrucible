@@ -917,6 +917,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== CREATE OBSTACLES =====
 		this.createObstacles();
+
+		// ===== FLOATING PARTICLES FOR DEPTH =====
+		this.createFloatingParticles();
 	}
 
 	createTorchEffect(x, y) {
@@ -1005,6 +1008,45 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			width: width,
 			height: height
 		});
+	}
+
+	createFloatingParticles() {
+		const textureKey = 'arenaDustParticle';
+		if (!this.textures.exists(textureKey)) {
+			const particleGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+			particleGraphics.fillStyle(0xffffff, 1);
+			particleGraphics.fillCircle(8, 8, 3);
+			particleGraphics.generateTexture(textureKey, 16, 16);
+			particleGraphics.destroy();
+		}
+
+		const particles = this.add.particles(0, 0, textureKey);
+		particles.setDepth(2);
+
+		const padding = this.ARENA_PADDING + 80;
+		const emitZone = new Phaser.Geom.Rectangle(
+			padding,
+			padding,
+			this.ARENA_WIDTH - 2 * padding,
+			this.ARENA_HEIGHT - 2 * padding
+		);
+
+		particles.createEmitter({
+			x: 0,
+			y: 0,
+			emitZone: { type: 'random', source: emitZone },
+			frequency: 90,
+			lifespan: 7000,
+			quantity: 1,
+			speedX: { min: -12, max: 12 },
+			speedY: { min: -18, max: -6 },
+			alpha: { start: 0.25, end: 0 },
+			scale: { start: 0.6, end: 0.15 },
+			tint: [0xffffff, 0xffe0b8, 0xffc68a],
+			blendMode: 'ADD'
+		});
+
+		this.arenaObjects.push(particles);
 	}
 
 	/**

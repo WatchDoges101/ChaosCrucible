@@ -112,18 +112,18 @@ export class CharacterSelectionScene extends Phaser.Scene {
     // Create flame particle emitters for background
     this.createFlameBackground();
 
-    // Title with exciting font and glow
-    const title = this.add.text(centerX, 40, '⚔ CHOOSE YOUR CHAMPION ⚔', {
+    // Title with exciting font and glow - larger
+    const title = this.add.text(centerX, 60, '⚔ CHOOSE YOUR CHAMPION ⚔', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '56px',
+      fontSize: '72px',
       fill: '#ffaa00',
       stroke: '#ff4400',
-      strokeThickness: 4,
+      strokeThickness: 5,
       shadow: {
         offsetX: 0,
         offsetY: 0,
         color: '#ff6600',
-        blur: 20,
+        blur: 25,
         fill: true
       }
     }).setOrigin(0.5);
@@ -146,23 +146,24 @@ export class CharacterSelectionScene extends Phaser.Scene {
       { name: 'gunner', label: 'GUNNER', color: 0xcc0000, gradientColor: 0xff3333 }
     ];
 
-    const buttonWidth = 280;
-    const buttonHeight = 100;
-    const buttonGap = 15;
+    const buttonWidth = 400;
+    const buttonHeight = 140;
+    const buttonGap = 25;
     const totalHeight = roles.length * buttonHeight + (roles.length - 1) * buttonGap;
-    const startY = centerY - totalHeight / 2 + 40;
+    const startY = centerY - totalHeight / 2 + 50;
     
-    // Adjusted positions - characters closer to details panel
-    const leftColumnX = width * 0.3;
-    const detailsPanelX = width * 0.65;
+    // Center the layout - buttons on left side of center, details on right
+    const leftColumnX = centerX - 250;
+    const detailsPanelX = centerX + 280;
+    const panelWidth = 520;
 
     roles.forEach((role, idx) => {
       const y = startY + idx * (buttonHeight + buttonGap);
       this.createRoleButton(leftColumnX, y, buttonWidth, buttonHeight, role);
     });
     
-    // Create details panel on the right, closer to buttons
-    this.createDetailsPanel(detailsPanelX, startY, width * 0.32);
+    // Create details panel on the right, aligned with buttons (same total height)
+    this.createDetailsPanel(detailsPanelX, startY, panelWidth, totalHeight);
   }
   
   createFlameBackground() {
@@ -231,7 +232,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
     const buttonGraphics = this.add.graphics();
     buttonGraphics.fillStyle(role.color, 0.85);
     buttonGraphics.fillRoundedRect(x - width/2, y - height/2, width, height, radius);
-    buttonGraphics.lineStyle(3, role.gradientColor, 1);
+    buttonGraphics.lineStyle(4, role.gradientColor, 1);
     buttonGraphics.strokeRoundedRect(x - width/2, y - height/2, width, height, radius);
     
     // Create interactive zone for the button
@@ -244,36 +245,36 @@ export class CharacterSelectionScene extends Phaser.Scene {
     button.graphics = buttonGraphics;
     button.roleData = role;
 
-    // Show sprite preview
-    const spriteX = x - width / 2 + 50;
+    // Show sprite preview - larger
+    const spriteX = x - width / 2 + 70;
     const spritePreview = generateCharacterSprite(this, role.name, spriteX, y);
-    spritePreview.setScale(2.8);
+    spritePreview.setScale(3.5);
     spritePreview.setDepth(3);
     button.sprite = spritePreview;
 
-    // Role label with exciting font
-    const text = this.add.text(x + 20, y - 15, role.label, {
+    // Role label with exciting font - larger
+    const text = this.add.text(x + 40, y - 20, role.label, {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '32px',
+      fontSize: '42px',
       fill: '#ffffff',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 4,
       shadow: {
         offsetX: 2,
         offsetY: 2,
         color: '#000000',
-        blur: 5,
+        blur: 8,
         fill: true
       }
     }).setOrigin(0.5);
     text.setDepth(3);
     button.text = text;
 
-    // Tagline
+    // Tagline - larger
     const charData = this.characterData[role.name];
-    const tagline = this.add.text(x + 20, y + 18, charData.description.substring(0, 28) + '...', {
+    const tagline = this.add.text(x + 40, y + 25, charData.description.substring(0, 32) + '...', {
       fontFamily: 'Arial',
-      fontSize: '11px',
+      fontSize: '14px',
       fill: '#dddddd',
       fontStyle: 'italic'
     }).setOrigin(0.5);
@@ -286,11 +287,17 @@ export class CharacterSelectionScene extends Phaser.Scene {
       buttonGraphics.clear();
       buttonGraphics.fillStyle(role.gradientColor, 1);
       buttonGraphics.fillRoundedRect(x - width/2, y - height/2, width, height, radius);
-      buttonGraphics.lineStyle(4, 0xffffff, 1);
+      buttonGraphics.lineStyle(5, 0xffffff, 1);
       buttonGraphics.strokeRoundedRect(x - width/2, y - height/2, width, height, radius);
       
       this.tweens.add({
-        targets: [spritePreview, text, tagline],
+        targets: spritePreview,
+        scale: 3.85,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+      this.tweens.add({
+        targets: [text, tagline],
         scale: 1.1,
         duration: 200,
         ease: 'Back.easeOut'
@@ -305,12 +312,12 @@ export class CharacterSelectionScene extends Phaser.Scene {
       buttonGraphics.clear();
       buttonGraphics.fillStyle(role.color, 0.85);
       buttonGraphics.fillRoundedRect(x - width/2, y - height/2, width, height, radius);
-      buttonGraphics.lineStyle(3, role.gradientColor, 1);
+      buttonGraphics.lineStyle(4, role.gradientColor, 1);
       buttonGraphics.strokeRoundedRect(x - width/2, y - height/2, width, height, radius);
       
       this.tweens.add({
         targets: spritePreview,
-        scale: 2.8,
+        scale: 3.5,
         duration: 200
       });
       this.tweens.add({
@@ -339,24 +346,24 @@ export class CharacterSelectionScene extends Phaser.Scene {
     });
   }
   
-  createDetailsPanel(x, y, panelWidth) {
-    const panelHeight = 520;
+  createDetailsPanel(x, y, panelWidth, panelHeight) {
     const radius = 25;
+    const buttonHeight = 140; // Match button height for alignment
     
-    // Create rounded rectangle panel using graphics
+    // Create rounded rectangle panel using graphics - aligned with button heights
     this.detailsPanelGraphics = this.add.graphics();
     this.detailsPanelGraphics.fillStyle(0x1a1a1a, 0.95);
     this.detailsPanelGraphics.fillRoundedRect(
       x - panelWidth/2, 
-      y - 10, 
+      y - buttonHeight/2, 
       panelWidth, 
       panelHeight, 
       radius
     );
-    this.detailsPanelGraphics.lineStyle(4, 0xffaa00, 0.8);
+    this.detailsPanelGraphics.lineStyle(5, 0xffaa00, 0.8);
     this.detailsPanelGraphics.strokeRoundedRect(
       x - panelWidth/2, 
-      y - 10, 
+      y - buttonHeight/2, 
       panelWidth, 
       panelHeight, 
       radius
@@ -372,7 +379,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
     };
     
     // Container for all detail text elements
-    this.detailsContainer = this.add.container(x, y);
+    this.detailsContainer = this.add.container(x, y - buttonHeight/2 + 20);
     this.detailsContainer.setDepth(2);
     
     // Initialize with first character
@@ -399,48 +406,48 @@ export class CharacterSelectionScene extends Phaser.Scene {
     // Clear existing details
     this.detailsContainer.removeAll(true);
     
-    let yOffset = 5;
-    const leftMargin = -panelWidth/2 + 15;
+    let yOffset = 10;
+    const leftMargin = -panelWidth/2 + 20;
     
-    // Character name with exciting font
+    // Character name with exciting font - larger
     const nameText = this.add.text(0, yOffset, data.name.toUpperCase(), {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '36px',
+      fontSize: '52px',
       fill: '#ffaa00',
       stroke: '#663300',
-      strokeThickness: 3,
+      strokeThickness: 4,
       shadow: {
         offsetX: 0,
         offsetY: 0,
         color: '#ffcc00',
-        blur: 10,
+        blur: 15,
         fill: true
       }
     }).setOrigin(0.5, 0);
     this.detailsContainer.add(nameText);
-    yOffset += 42;
+    yOffset += 58;
     
-    // Description
+    // Description - larger
     const descText = this.add.text(leftMargin, yOffset, data.description, {
       fontFamily: 'Arial',
-      fontSize: '13px',
+      fontSize: '17px',
       fill: '#dddddd',
       fontStyle: 'italic',
-      wordWrap: { width: panelWidth - 30 }
+      wordWrap: { width: panelWidth - 40 }
     }).setOrigin(0, 0);
     this.detailsContainer.add(descText);
-    yOffset += 32;
+    yOffset += 40;
     
-    // Stats header
+    // Stats header - larger
     const statsHeader = this.add.text(leftMargin, yOffset, '⚡ STATS', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '20px',
+      fontSize: '26px',
       fill: '#ffcc00'
     }).setOrigin(0, 0);
     this.detailsContainer.add(statsHeader);
-    yOffset += 24;
+    yOffset += 32;
     
-    // Stats bars with rounded corners
+    // Stats bars with rounded corners - larger
     const stats = [
       { name: 'Damage', value: data.stats.damage, color: 0xff4444 },
       { name: 'Health', value: data.stats.health, color: 0x44ff44 },
@@ -448,117 +455,117 @@ export class CharacterSelectionScene extends Phaser.Scene {
     ];
     
     stats.forEach(stat => {
-      // Stat name and value
+      // Stat name and value - larger
       const statText = this.add.text(leftMargin, yOffset, `${stat.name}: ${stat.value}`, {
         fontFamily: 'Arial',
-        fontSize: '14px',
+        fontSize: '19px',
         fill: '#ffffff',
         fontStyle: 'bold'
       }).setOrigin(0, 0);
       this.detailsContainer.add(statText);
       
-      // Stat bar with rounded corners
-      const barWidth = panelWidth - 30;
-      const barHeight = 14;
-      const barRadius = 7;
+      // Stat bar with rounded corners - larger
+      const barWidth = panelWidth - 40;
+      const barHeight = 22;
+      const barRadius = 11;
       
       // Background bar
       const barBg = this.add.graphics();
       barBg.fillStyle(0x333333, 0.8);
-      barBg.fillRoundedRect(leftMargin, yOffset + 16, barWidth, barHeight, barRadius);
+      barBg.fillRoundedRect(leftMargin, yOffset + 22, barWidth, barHeight, barRadius);
       this.detailsContainer.add(barBg);
       
       // Fill bar (normalized to 150 max)
       const fillWidth = Math.max(5, (stat.value / 150) * barWidth);
       const barFill = this.add.graphics();
       barFill.fillStyle(stat.color, 1);
-      barFill.fillRoundedRect(leftMargin, yOffset + 16, fillWidth, barHeight, barRadius);
+      barFill.fillRoundedRect(leftMargin, yOffset + 22, fillWidth, barHeight, barRadius);
       
       // Add glow effect
-      barFill.lineStyle(2, stat.color, 0.5);
-      barFill.strokeRoundedRect(leftMargin, yOffset + 16, fillWidth, barHeight, barRadius);
+      barFill.lineStyle(3, stat.color, 0.5);
+      barFill.strokeRoundedRect(leftMargin, yOffset + 22, fillWidth, barHeight, barRadius);
       this.detailsContainer.add(barFill);
       
-      yOffset += 34;
+      yOffset += 48;
     });
     
-    yOffset += 5;
+    yOffset += 10;
     
-    // Abilities section
+    // Abilities section - larger
     const abilityHeader = this.add.text(leftMargin, yOffset, '⚔ ABILITIES', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '16px',
+      fontSize: '22px',
       fill: '#66ccff'
     }).setOrigin(0, 0);
     this.detailsContainer.add(abilityHeader);
-    yOffset += 20;
+    yOffset += 28;
     
     const abilityText = this.add.text(leftMargin + 5, yOffset, data.abilities, {
       fontFamily: 'Arial',
-      fontSize: '12px',
+      fontSize: '16px',
       fill: '#aaddff',
-      wordWrap: { width: panelWidth - 35 }
+      wordWrap: { width: panelWidth - 45 }
     }).setOrigin(0, 0);
     this.detailsContainer.add(abilityText);
-    yOffset += abilityText.height + 12;
+    yOffset += abilityText.height + 16;
     
-    // Enemy Effects section
+    // Enemy Effects section - larger
     const effectsHeader = this.add.text(leftMargin, yOffset, '💥 ENEMY EFFECTS', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '16px',
+      fontSize: '22px',
       fill: '#ff6633'
     }).setOrigin(0, 0);
     this.detailsContainer.add(effectsHeader);
-    yOffset += 20;
+    yOffset += 28;
     
     const effectsText = this.add.text(leftMargin + 5, yOffset, data.enemyEffects, {
       fontFamily: 'Arial',
-      fontSize: '12px',
+      fontSize: '16px',
       fill: '#ffaa88',
-      wordWrap: { width: panelWidth - 35 }
+      wordWrap: { width: panelWidth - 45 }
     }).setOrigin(0, 0);
     this.detailsContainer.add(effectsText);
-    yOffset += effectsText.height + 12;
+    yOffset += effectsText.height + 16;
     
-    // Pros section
+    // Pros section - larger
     const prosHeader = this.add.text(leftMargin, yOffset, '✓ PROS', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '16px',
+      fontSize: '22px',
       fill: '#44ff44'
     }).setOrigin(0, 0);
     this.detailsContainer.add(prosHeader);
-    yOffset += 20;
+    yOffset += 28;
     
     data.pros.forEach(pro => {
-      const proText = this.add.text(leftMargin + 8, yOffset, `+ ${pro}`, {
+      const proText = this.add.text(leftMargin + 10, yOffset, `+ ${pro}`, {
         fontFamily: 'Arial',
-        fontSize: '12px',
+        fontSize: '16px',
         fill: '#88ff88',
         fontStyle: 'bold'
       }).setOrigin(0, 0);
       this.detailsContainer.add(proText);
-      yOffset += 18;
+      yOffset += 24;
     });
     
-    yOffset += 4;
+    yOffset += 8;
     
-    // Cons section
+    // Cons section - larger
     const consHeader = this.add.text(leftMargin, yOffset, '✗ CONS', {
       fontFamily: 'Impact, Arial Black, sans-serif',
-      fontSize: '16px',
+      fontSize: '22px',
       fill: '#ff4444'
     }).setOrigin(0, 0);
     this.detailsContainer.add(consHeader);
-    yOffset += 20;
+    yOffset += 28;
     
     data.cons.forEach(con => {
-      const conText = this.add.text(leftMargin + 8, yOffset, `- ${con}`, {
+      const conText = this.add.text(leftMargin + 10, yOffset, `- ${con}`, {
         fontFamily: 'Arial',
-        fontSize: '12px',
+        fontSize: '16px',
         fill: '#ff8888'
       }).setOrigin(0, 0);
       this.detailsContainer.add(conText);
-      yOffset += 18;
+      yOffset += 24;
     });
   }
 }

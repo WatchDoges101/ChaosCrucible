@@ -23,29 +23,83 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Background
-    this.add.rectangle(centerX, centerY, width, height, 0x1a1a1a).setOrigin(0.5);
+    // Background with gradient effect
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x1a1a1a).setOrigin(0.5);
+    
+    // Animated particle background for chaos effect
+    this.createChaosParticles();
 
-    // Title
-    this.add.text(centerX, 50, 'Customize Your Character', {
-      font: 'bold 40px Arial',
-      fill: '#ffffff'
+    // Title with chaotic styling and animations
+    const title = this.add.text(centerX, 60, 'CUSTOMIZE YOUR CHAOS', {
+      font: 'bold 56px Arial',
+      fill: '#ff0000',
+      stroke: '#ffff00',
+      strokeThickness: 4,
+      shadow: {
+        offsetX: 3,
+        offsetY: 3,
+        color: '#000',
+        blur: 5,
+        fill: true
+      }
     }).setOrigin(0.5);
+    
+    // Chaotic title animations
+    this.tweens.add({
+      targets: title,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    this.tweens.add({
+      targets: title,
+      angle: { from: -2, to: 2 },
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Color cycle animation for title
+    this.time.addEvent({
+      delay: 100,
+      callback: () => {
+        const colors = ['#ff0000', '#ff6600', '#ffff00', '#00ff00', '#0000ff', '#ff00ff'];
+        const currentColor = colors[Math.floor(Date.now() / 500) % colors.length];
+        title.setFill(currentColor);
+      },
+      loop: true
+    });
 
     // ===== CHARACTER NAME INPUT =====
-    this.add.text(centerX, 120, 'Character Name:', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff'
+    const nameLabel = this.add.text(centerX, 145, 'NAME YOUR WARRIOR:', {
+      font: 'bold 28px Arial',
+      fill: '#ffff00',
+      stroke: '#ff0000',
+      strokeThickness: 2
     }).setOrigin(0.5);
+    
+    // Pulse animation for label
+    this.tweens.add({
+      targets: nameLabel,
+      alpha: { from: 0.7, to: 1 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1
+    });
 
-    // Create input field
-    const inputWidth = 350;
-    const inputBox = this.add.rectangle(centerX, 170, inputWidth, 45, 0x333333, 1)
+    // Create input field - larger
+    const inputWidth = 450;
+    const inputBox = this.add.rectangle(centerX, 200, inputWidth, 55, 0x333333, 1)
       .setOrigin(0.5)
-      .setStrokeStyle(2, 0xffffff);
+      .setStrokeStyle(3, 0xffffff);
 
-    this.characterNameText = this.add.text(centerX - inputWidth / 2 + 15, 170, '', {
-      font: '20px Arial',
+    this.characterNameText = this.add.text(centerX - inputWidth / 2 + 15, 200, '', {
+      font: 'bold 24px Arial',
       fill: '#ffffff'
     }).setOrigin(0, 0.5);
 
@@ -56,7 +110,16 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     inputBox.setInteractive({ useHandCursor: true });
     inputBox.on('pointerdown', () => {
       isInputFocused = true;
-      inputBox.setStrokeStyle(2, 0xffff00);
+      inputBox.setStrokeStyle(3, 0xff00ff);
+      
+      // Shake animation on focus
+      this.tweens.add({
+        targets: inputBox,
+        x: centerX + 5,
+        duration: 50,
+        yoyo: true,
+        repeat: 2
+      });
     });
 
     // Use the scene's keyboard input
@@ -65,7 +128,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
       if (event.keyCode === 13) { // Enter
         isInputFocused = false;
-        inputBox.setStrokeStyle(2, 0xffffff);
+        inputBox.setStrokeStyle(3, 0xffffff);
       } else if (event.keyCode === 8) { // Backspace
         this.characterName = this.characterName.slice(0, -1);
       } else if (this.characterName.length < 20 && event.key.length === 1) {
@@ -82,40 +145,85 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     console.log('[CharacterCustomization] Name input created');
 
     // ===== CHARACTER PREVIEW =====
-    this.add.text(centerX, 230, 'Preview:', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff'
+    const previewLabel = this.add.text(centerX, 270, 'YOUR CHAMPION:', {
+      font: 'bold 32px Arial',
+      fill: '#00ffff',
+      stroke: '#0000ff',
+      strokeThickness: 3
     }).setOrigin(0.5);
+    
+    // Wiggle animation for preview label
+    this.tweens.add({
+      targets: previewLabel,
+      x: centerX + 3,
+      duration: 300,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     console.log('[CharacterCustomization] Creating preview sprite for role:', this.selectedRole);
-    this.previewSprite = generateCharacterSprite(this, this.selectedRole, centerX, 310, this.selectedColorScheme);
-    this.previewSprite.setScale(4.5);
+    this.previewSprite = generateCharacterSprite(this, this.selectedRole, centerX, 370, this.selectedColorScheme);
+    this.previewSprite.setScale(6); // Much larger preview
     console.log('[CharacterCustomization] Preview sprite created');
+    
+    // Floating animation for preview sprite
+    this.tweens.add({
+      targets: this.previewSprite,
+      y: 360,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+    
+    // Slight rotation for chaos effect
+    this.tweens.add({
+      targets: this.previewSprite,
+      angle: { from: -5, to: 5 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     // ===== COLOR SCHEME SELECTOR =====
-    this.add.text(centerX, 475, 'Color Scheme:', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff'
+    const colorLabel = this.add.text(centerX, 500, 'CHAOS COLORS:', {
+      font: 'bold 32px Arial',
+      fill: '#ff00ff',
+      stroke: '#ffff00',
+      strokeThickness: 3
     }).setOrigin(0.5);
+    
+    // Rainbow effect for color label
+    this.time.addEvent({
+      delay: 150,
+      callback: () => {
+        const colors = ['#ff0000', '#ff7700', '#ffff00', '#00ff00', '#0077ff', '#ff00ff'];
+        const index = Math.floor(Date.now() / 150) % colors.length;
+        colorLabel.setFill(colors[index]);
+      },
+      loop: true
+    });
 
     const colorSchemes = [
-      { name: 'Blue', primary: 0x2c3e50, secondary: 0x3498db, accent: 0x95a5a6, skin: 0xf4a460 },
-      { name: 'Green', primary: 0x27ae60, secondary: 0x2ecc71, accent: 0x95a5a6, skin: 0xf4a460 },
-      { name: 'Red', primary: 0xc0392b, secondary: 0xe74c3c, accent: 0xf39c12, skin: 0xf4a460 },
-      { name: 'Purple', primary: 0x8e44ad, secondary: 0x9b59b6, accent: 0xbdc3c7, skin: 0xf4a460 },
-      { name: 'Orange', primary: 0xd68910, secondary: 0xe67e22, accent: 0xf39c12, skin: 0xf4a460 },
-      { name: 'Gray', primary: 0x34495e, secondary: 0x7f8c8d, accent: 0xbdc3c7, skin: 0xf4a460 }
+      { name: 'AZURE', primary: 0x2c3e50, secondary: 0x3498db, accent: 0x95a5a6, skin: 0xf4a460 },
+      { name: 'EMERALD', primary: 0x27ae60, secondary: 0x2ecc71, accent: 0x95a5a6, skin: 0xf4a460 },
+      { name: 'CRIMSON', primary: 0xc0392b, secondary: 0xe74c3c, accent: 0xf39c12, skin: 0xf4a460 },
+      { name: 'VOID', primary: 0x8e44ad, secondary: 0x9b59b6, accent: 0xbdc3c7, skin: 0xf4a460 },
+      { name: 'INFERNO', primary: 0xd68910, secondary: 0xe67e22, accent: 0xf39c12, skin: 0xf4a460 },
+      { name: 'SHADOW', primary: 0x34495e, secondary: 0x7f8c8d, accent: 0xbdc3c7, skin: 0xf4a460 }
     ];
 
-    const colorButtonWidth = 110;
-    const colorButtonHeight = 55;
-    const colorGapX = 25;
-    const colorGapY = 35;
+    const colorButtonWidth = 130;
+    const colorButtonHeight = 65;
+    const colorGapX = 30;
+    const colorGapY = 40;
 
     // Calculate grid dimensions
     const colorGridWidth = 3 * colorButtonWidth + 2 * colorGapX;
     const colorGridStartX = centerX - colorGridWidth / 2;
-    const colorStartY = 525;
+    const colorStartY = 560;
     const buttonRefs = [];
 
     colorSchemes.forEach((scheme, idx) => {
@@ -151,25 +259,69 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
       buttonRefs.push({ button, scheme, idx });
 
-      // Label below button
-      this.add.text(x, y + colorButtonHeight / 2 + 15, scheme.name, {
-        font: 'bold 13px Arial',
-        fill: '#ffffff'
+      // Label below button with chaotic styling
+      const label = this.add.text(x, y + colorButtonHeight / 2 + 20, scheme.name, {
+        font: 'bold 15px Arial',
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2
       }).setOrigin(0.5);
+
+      // Hover animations for buttons
+      button.on('pointerover', () => {
+        this.tweens.add({
+          targets: button,
+          scaleX: 1.1,
+          scaleY: 1.1,
+          duration: 150,
+          ease: 'Back.easeOut'
+        });
+        this.tweens.add({
+          targets: label,
+          scaleX: 1.2,
+          scaleY: 1.2,
+          duration: 150
+        });
+      });
+
+      button.on('pointerout', () => {
+        this.tweens.add({
+          targets: button,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 150
+        });
+        this.tweens.add({
+          targets: label,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 150
+        });
+      });
 
       button.on('pointerdown', () => {
         // Clear all borders
         buttonRefs.forEach(ref => ref.button.setStrokeStyle());
 
-        // Set new selection
+        // Set new selection with flash effect
         this.selectedColorScheme = scheme;
-        button.setStrokeStyle(3, 0xffff00);
+        button.setStrokeStyle(4, 0xffff00);
+        
+        // Flash animation on selection
+        this.tweens.add({
+          targets: button,
+          alpha: 0.5,
+          duration: 100,
+          yoyo: true,
+          repeat: 2
+        });
+        
         this.updatePreview(scheme);
       });
 
       // Highlight initial selection
       if (idx === 0) {
-        button.setStrokeStyle(3, 0xffff00);
+        button.setStrokeStyle(4, 0xffff00);
       }
     });
 
@@ -180,49 +332,92 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
     // ===== START GAME BUTTON =====
     const buttonGap = 40;
-    const buttonY = height - 80;
+    const buttonY = height - 90;
 
-    const backButton = this.add.rectangle(centerX - 120, buttonY, 120, 60, 0xc0392b, 0.8)
+    const backButton = this.add.rectangle(centerX - 160, buttonY, 160, 70, 0xc0392b, 0.9)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(centerX - 120, buttonY, 'Back', {
-      font: 'bold 24px Arial',
-      fill: '#ffffff'
+    const backText = this.add.text(centerX - 160, buttonY, 'BACK', {
+      font: 'bold 28px Arial',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0.5);
 
     backButton.on('pointerover', () => {
-      backButton.setAlpha(1);
-      backButton.setScale(1.05);
+      this.tweens.add({
+        targets: [backButton, backText],
+        scaleX: 1.15,
+        scaleY: 1.15,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+      backButton.setFillStyle(0xe74c3c);
     });
 
     backButton.on('pointerout', () => {
-      backButton.setAlpha(0.8);
-      backButton.setScale(1);
+      this.tweens.add({
+        targets: [backButton, backText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 200
+      });
+      backButton.setFillStyle(0xc0392b);
     });
 
     backButton.on('pointerdown', () => {
       console.log('[CharacterCustomization] Back clicked');
-      this.scene.start('CharacterSelectionScene');
+      this.cameras.main.flash(200, 255, 0, 0);
+      this.time.delayedCall(200, () => {
+        this.scene.start('CharacterSelectionScene');
+      });
     });
 
-    const startButton = this.add.rectangle(centerX + 120, buttonY, 150, 60, 0x27ae60, 0.8)
+    const startButton = this.add.rectangle(centerX + 160, buttonY, 200, 70, 0x27ae60, 0.9)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(centerX + 120, buttonY, 'Start Game', {
-      font: 'bold 24px Arial',
-      fill: '#ffffff'
+    const startText = this.add.text(centerX + 160, buttonY, 'UNLEASH CHAOS!', {
+      font: 'bold 28px Arial',
+      fill: '#ffff00',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0.5);
+    
+    // Pulsing glow effect on start button
+    this.tweens.add({
+      targets: startButton,
+      alpha: { from: 0.9, to: 1 },
+      scaleX: { from: 1, to: 1.05 },
+      scaleY: { from: 1, to: 1.05 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
 
     startButton.on('pointerover', () => {
-      startButton.setAlpha(1);
-      startButton.setScale(1.05);
+      this.tweens.add({
+        targets: [startButton, startText],
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 200,
+        ease: 'Back.easeOut'
+      });
+      startButton.setFillStyle(0x2ecc71);
+      startText.setFill('#ffffff');
     });
 
     startButton.on('pointerout', () => {
-      startButton.setAlpha(0.8);
-      startButton.setScale(1);
+      this.tweens.add({
+        targets: [startButton, startText],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 200
+      });
+      startButton.setFillStyle(0x27ae60);
+      startText.setFill('#ffff00');
     });
 
     startButton.on('pointerdown', () => {
@@ -231,25 +426,97 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       console.log('[CharacterCustomization] Role:', this.selectedRole);
       console.log('[CharacterCustomization] Color scheme:', this.selectedColorScheme);
       
+      // Epic screen shake and flash
+      this.cameras.main.shake(500, 0.01);
+      this.cameras.main.flash(500, 255, 255, 0);
+      
       // Save character customization
       gameState.initCharacter(this.selectedRole, this.characterName, this.selectedColorScheme);
       console.log('[CharacterCustomization] Starting ChaossCrucibleScene...');
       
-      // Add and start ChaossCrucibleScene on-demand
-      if (!this.scene.get('ChaossCrucibleScene')) {
-        this.scene.add('ChaossCrucibleScene', window.sceneClasses['ChaossCrucibleScene'], true);
-      } else {
-        this.scene.start('ChaossCrucibleScene');
-      }
+      this.time.delayedCall(500, () => {
+        // Add and start ChaossCrucibleScene on-demand
+        if (!this.scene.get('ChaossCrucibleScene')) {
+          this.scene.add('ChaossCrucibleScene', window.sceneClasses['ChaossCrucibleScene'], true);
+        } else {
+          this.scene.start('ChaossCrucibleScene');
+        }
+      });
     });
 
     console.log('[CharacterCustomization] Scene fully created!');
   }
 
+  createChaosParticles() {
+    // Create floating particles for chaotic background effect
+    // Fallback: if 'pixel' texture doesn't exist, create simple graphics
+    if (!this.textures.exists('pixel')) {
+      const graphics = this.add.graphics();
+      graphics.fillStyle(0xffffff, 1);
+      graphics.fillCircle(2, 2, 2);
+      graphics.generateTexture('pixel', 4, 4);
+      graphics.destroy();
+    }
+    
+    const particles = this.add.particles(0, 0, 'pixel', {
+      x: { min: 0, max: this.scale.width },
+      y: { min: 0, max: this.scale.height },
+      lifespan: 3000,
+      speed: { min: 20, max: 50 },
+      scale: { start: 1, end: 0 },
+      alpha: { start: 0.3, end: 0 },
+      tint: [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff],
+      frequency: 100,
+      blendMode: 'ADD'
+    });
+  }
+
   updatePreview(colorScheme) {
     this.selectedColorScheme = colorScheme;
-    this.previewSprite.destroy();
-    this.previewSprite = generateCharacterSprite(this, this.selectedRole, this.scale.width / 2, 310, colorScheme);
-    this.previewSprite.setScale(4.5);
+    
+    // Destroy old sprite with fade out
+    this.tweens.add({
+      targets: this.previewSprite,
+      alpha: 0,
+      scaleX: 0,
+      scaleY: 0,
+      duration: 200,
+      onComplete: () => {
+        this.previewSprite.destroy();
+        
+        // Create new sprite with fade in
+        this.previewSprite = generateCharacterSprite(this, this.selectedRole, this.scale.width / 2, 370, colorScheme);
+        this.previewSprite.setScale(0).setAlpha(0);
+        
+        this.tweens.add({
+          targets: this.previewSprite,
+          scaleX: 6,
+          scaleY: 6,
+          alpha: 1,
+          duration: 300,
+          ease: 'Back.easeOut'
+        });
+        
+        // Re-add floating animation
+        this.tweens.add({
+          targets: this.previewSprite,
+          y: 360,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+        
+        // Re-add rotation animation
+        this.tweens.add({
+          targets: this.previewSprite,
+          angle: { from: -5, to: 5 },
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut'
+        });
+      }
+    });
   }
 }
