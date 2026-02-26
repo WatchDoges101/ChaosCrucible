@@ -1,24 +1,15 @@
 body {
   margin: 0;
   overflow: hidden;
-  background-color: black; /* Set the background to black */
-  color: white; /* Optional: make text easier to read on black */
-}
-canvas {
-  border: 0px solid black;
-  background-color: white; /* Canvas background stays white */
-  display: block;
-  margin: 0 auto; /* Center the canvas horizontally */
+  background-color: black;
+  color: white;
 }
 
 #gameCanvas {
-  border: 0px solid black;
-  background-color: white; /* Canvas background stays white */
+  background-color: white;
   display: block;
-  margin: 0 auto; /* Center the canvas horizontally */
+  margin: 0 auto;
   align-self: center;
-  border: 0px;
-  border-color: black;
-  width : 1920px;
-  height : 1080px;
+  width: 1920px;
+  height: 1080px;
 }

@@ -3,12 +3,8 @@ import * as pause from "./pause.js";
 export function handleKeyDown(e, keys, paused) {
     keys[e.key.toLowerCase()] = true;
     if (e.key === "Escape") {
-        console.log("escape pressed");
-        console.log("Before toggle:", paused);
-        paused.pause = !paused.pause; // Toggle the paused state
-        console.log("After toggle:", paused);
+        paused.pause = !paused.pause;
     }
-    return paused; // Return the paused object
 }
 
 export function handleKeyUp(e, keys) {
@@ -16,7 +12,7 @@ export function handleKeyUp(e, keys) {
 }
 
 export function handleClick(e, paused, sceneCanvas) {
-    if (paused.pause === "true") {
+    if (paused.pause === true) {
         const rect = sceneCanvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -37,11 +33,6 @@ export function handleClick(e, paused, sceneCanvas) {
                 button.onClick();
             }
         });
-    } else {
-        const rect = sceneCanvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        console.log(`Clicked at ${mouseX}, ${mouseY}`);
     }
 }
 
@@ -66,14 +57,14 @@ export function handleClick(e, paused, sceneCanvas) {
  //   });
 //}
 
-export function updateCharacter(state, character, keys, moveSpeed, gameState, camera, centerCameraOn) {
+export function updateCharacter(character, keys, moveSpeed, gameState, camera, centerCameraOn) {
     if (!character) {
         console.error("No character to update!");
         return;
     }
 
     let vx = 0, vy = 0;
-    const speed = 5; // Increase speed for testing
+    const speed = moveSpeed;
 
     if (keys["w"]) vy -= speed;
     if (keys["s"]) vy += speed;
@@ -87,25 +78,14 @@ export function updateCharacter(state, character, keys, moveSpeed, gameState, ca
         vy *= factor;
     }
 
-    // Update position with console logging
-    const oldX = character.x;
-    const oldY = character.y;
     character.x += vx;
     character.y += vy;
-
-    if (oldX !== character.x || oldY !== character.y) {
-        console.log("Character moved:", {
-            from: { x: oldX, y: oldY },
-            to: { x: character.x, y: character.y }
-        });
-    }
 
     // Clamp to world bounds
     character.x = Math.max(0, Math.min(character.x, gameState.worldWidth));
     character.y = Math.max(0, Math.min(character.y, gameState.worldHeight));
 
-    // Update camera and log position
+    // Update camera
     centerCameraOn(camera, character.x, character.y);
-    console.log("Camera position:", camera);
 }
 

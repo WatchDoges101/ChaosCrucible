@@ -7,8 +7,6 @@ export function createEntity(camera, gameState, enemies, spriteArray) {
         y: 150,
         width: 64,
         height: 64,
-        hp: 0,
-        maxHp: 0,
         speed: 0,
         direction: "down",
         action: "idle",
@@ -27,7 +25,7 @@ export function createEntity(camera, gameState, enemies, spriteArray) {
 
 export function updateEnemy(ctx, canvas, camera, gamestate, enemies, spriteArray) {
     if (enemies.length < 10) {
-        if (enemies.length != 0) {
+        if (enemies.length !== 0) {
             if (camera.frame === 60) {
                 createEntity(camera, gamestate, enemies, spriteArray);
             }
@@ -44,17 +42,15 @@ export function updateEnemy(ctx, canvas, camera, gamestate, enemies, spriteArray
             enemies[i].x -= 2;
         }
         if (enemies[i].x >= 900) {
-            if (enemies[i].action != "idle" && enemies[i].timer === 0) {
+            if (enemies[i].action !== "idle" && enemies[i].timer === 0) {
                 enemies[i].direction = "down";
                 enemies[i].action = "attack";
                 enemies[i].timer = 6;
                 enemies[i].lastAction = camera.megaFrame;
-                console.log("testspot1");
             } else {
                 if (enemies[i].timer === 0) {
                     enemies[i].action = "walk";
                     enemies[i].direction = "left";
-                    console.log("testspot");
                 }
             }
         }
@@ -82,8 +78,8 @@ export function updateEnemy(ctx, canvas, camera, gamestate, enemies, spriteArray
     }
 }
 
-export function animationHandler(array,camera){
-    for (let i = 0; i < array.length; i++){
+export function animationHandler(array, camera) {
+    for (let i = 0; i < array.length; i++) {
         const currentFrameIndex = Math.floor((camera.frame / 60) * array[i].spriteFrames) % array[i].spriteFrames;
         let A = 0;
         if (array[i].action === "idle"){
@@ -131,17 +127,17 @@ export function animationHandler(array,camera){
         if (array[i].action === "death"){
             //run death animation here//
         }
-        if (array[i].timer > 0){
+        if (array[i].timer > 0) {
             const ind = Math.floor(array[i].spriteFrames - array[i].timer);
             array[i].sprite = array[i].spriteList[A][ind];
             const gameFramesPerFrame = 60 / array[i].spriteFrames;
             array[i].timer -= 1 / gameFramesPerFrame;
-            if (array[i].timer <= 0){
+            if (array[i].timer <= 0) {
                 array[i].action = "idle";
                 array[i].timer = 0;
             }
         }
-        if (array[i].timer <= 0){
+        if (array[i].timer <= 0) {
             array[i].sprite = array[i].spriteList[A][currentFrameIndex];
         }
         
