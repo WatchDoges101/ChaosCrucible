@@ -44,6 +44,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.arenaObjects = [];
 		this.obstacles = []; // Obstacles for collision detection
 		this.lavaPools = []; // Lava pools for damage detection
+		this.structures = []; // Structures player can enter
+		this.isInsideStructure = false;
+		this.currentStructure = null;
+		this.interiorContainer = null;
 	}
 
 	create() {
@@ -712,34 +716,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	flashPlayer() {
 		if (!this.player) return;
 		
-		// Flash both front and back sprites
-		const flashSprite = (sprite) => {
-			if (!sprite) return;
-			if (sprite.getChildren) {
-				sprite.getChildren().forEach(child => {
-					if (child.setTint) child.setTint(0xff3333);
+		// Tint all player character parts red
+		const children = this.player.getChildren ? this.player.getChildren() : [this.player];
+		children.forEach(child => {
+			if (child.setTint) {
+				child.setTint(0xff4444);
+				this.tweens.add({
+					targets: child,
+					tint: 0xffffff,
+					duration: 120,
+					ease: 'Sine.out'
 				});
-			} else if (sprite.setTint) {
-				sprite.setTint(0xff3333);
 			}
-		};
-
-		flashSprite(this.player.frontSprite);
-		flashSprite(this.player.backSprite);
-
-		this.time.delayedCall(120, () => {
-			const clearSprite = (sprite) => {
-				if (!sprite) return;
-				if (sprite.getChildren) {
-					sprite.getChildren().forEach(child => {
-						if (child.clearTint) child.clearTint();
-					});
-				} else if (sprite.clearTint) {
-					sprite.clearTint();
-				}
-			};
-			clearSprite(this.player.frontSprite);
-			clearSprite(this.player.backSprite);
 		});
 	}
 
@@ -918,6 +906,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// ===== CREATE OBSTACLES =====
 		this.createObstacles();
 
+		// ===== CREATE STRUCTURES =====
+		this.createStructures();
+
 		// ===== FLOATING PARTICLES FOR DEPTH =====
 		this.createFloatingParticles();
 	}
@@ -1011,42 +1002,221 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	createFloatingParticles() {
-		const textureKey = 'arenaDustParticle';
-		if (!this.textures.exists(textureKey)) {
-			const particleGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-			particleGraphics.fillStyle(0xffffff, 1);
-			particleGraphics.fillCircle(8, 8, 3);
-			particleGraphics.generateTexture(textureKey, 16, 16);
-			particleGraphics.destroy();
+		const padding = this.ARENA_PADDING + 80;
+		const spawnArea = {
+			minX: padding,
+			maxX: this.ARENA_WIDTH - 2 * padding,
+			minY: padding,
+			maxY: this.ARENA_HEIGHT - 2 * padding
+		};
+
+		// Create diverse floating particles using graphics and tweens
+		const particleCount = 100;
+		const particleGroup = this.add.container(0, 0);
+		particleGroup.setDepth(2);
+
+		for (let i = 0; i < particleCount; i++) {
+			const x = spawnArea.minX + Math.random() * spawnArea.maxX;
+			const y = spawnArea.minY + Math.random() * spawnArea.maxY;
+			
+			// Randomly choose particle type with varied properties
+			const particleType = Math.random();
+			let particleConfig = {};
+			
+			if (particleType < 0.2) {
+				// Small dust particles (circles, fast upward drift)
+				particleConfig = {
+					shape: 'circle',
+					size: 1 + Math.random() * 1.5,
+					color: [0xffffff, 0xffe0b8, 0xffc68a][Math.floor(Math.random() * 3)],
+					speedX: (Math.random() - 0.5) * 25,
+					speedY: -40 - Math.random() * 30,
+					duration: 5000,
+					alpha: 0.5
+				};
+			} else if (particleType < 0.35) {
+				// Medium dust clouds (larger circles, slow upward)
+				particleConfig = {
+					shape: 'circle',
+					size: 3 + Math.random() * 3,
+					color: [0xffd9a3, 0xffe0b8, 0xffccaa][Math.floor(Math.random() * 3)],
+					speedX: (Math.random() - 0.5) * 35,
+					speedY: -20 - Math.random() * 15,
+					duration: 8000,
+					alpha: 0.35
+				};
+			} else if (particleType < 0.5) {
+				// Embers (orange circles/squares, settling)
+				particleConfig = {
+					shape: Math.random() > 0.5 ? 'circle' : 'square',
+					size: 2 + Math.random() * 3,
+					color: [0xff4400, 0xff6600, 0xff8800, 0xffaa00][Math.floor(Math.random() * 4)],
+					speedX: (Math.random() - 0.5) * 20,
+					speedY: 8 + Math.random() * 12,
+					duration: 9000,
+					alpha: 0.7
+				};
+			} else if (particleType < 0.65) {
+				// Vapor particles (purple/blue, chaotic motion)
+				particleConfig = {
+					shape: Math.random() > 0.6 ? 'circle' : 'triangle',
+					size: 2 + Math.random() * 4,
+					color: [0x8844ff, 0xaa66ff, 0xcc88ff, 0x6655dd][Math.floor(Math.random() * 4)],
+					speedX: (Math.random() - 0.5) * 40,
+					speedY: (Math.random() - 0.5) * 30,
+					duration: 7000,
+					alpha: 0.4
+				};
+			} else if (particleType < 0.8) {
+				// Ash particles (dark, large, settling slowly)
+				particleConfig = {
+					shape: Math.random() > 0.7 ? 'circle' : 'square',
+					size: 2 + Math.random() * 4,
+					color: [0x5a5a5a, 0x4a4a4a, 0x3a3a3a, 0x6a6a6a][Math.floor(Math.random() * 4)],
+					speedX: (Math.random() - 0.5) * 15,
+					speedY: 3 + Math.random() * 8,
+					duration: 10000,
+					alpha: 0.45
+				};
+			} else if (particleType < 0.9) {
+				// Intense fire sparks (red/yellow, very small, upward burst)
+				particleConfig = {
+					shape: 'circle',
+					size: 1 + Math.random() * 1,
+					color: [0xff0000, 0xff4400, 0xffaa00, 0xffdd00][Math.floor(Math.random() * 4)],
+					speedX: (Math.random() - 0.5) * 50,
+					speedY: -60 - Math.random() * 40,
+					duration: 4000,
+					alpha: 0.8
+				};
+			} else {
+				// Mystical energy (cyan/magenta, medium, random movement)
+				particleConfig = {
+					shape: Math.random() > 0.5 ? 'circle' : 'triangle',
+					size: 2 + Math.random() * 2.5,
+					color: [0x00ffff, 0xff00ff, 0xcc66ff, 0x66ffcc][Math.floor(Math.random() * 4)],
+					speedX: (Math.random() - 0.5) * 35,
+					speedY: (Math.random() - 0.5) * 25,
+					duration: 6000,
+					alpha: 0.5
+				};
+			}
+			
+			// Create particle with specified shape
+			const particleGfx = this.make.graphics({ x: 0, y: 0, add: false });
+			particleGfx.fillStyle(particleConfig.color, particleConfig.alpha);
+			
+			if (particleConfig.shape === 'circle') {
+				particleGfx.fillCircle(particleConfig.size + 3, particleConfig.size + 3, particleConfig.size);
+			} else if (particleConfig.shape === 'square') {
+				particleGfx.fillRect(3, 3, particleConfig.size * 2, particleConfig.size * 2);
+			} else if (particleConfig.shape === 'triangle') {
+				const triSize = particleConfig.size + 2;
+				particleGfx.fillTriangleShape(
+					new Phaser.Geom.Triangle(
+						triSize + 3,
+						3,
+						3,
+						triSize * 2 + 3,
+						triSize * 2 + 3,
+						triSize * 2 + 3
+					)
+				);
+			}
+			
+			particleGroup.add(particleGfx);
+			particleGfx.x = x;
+			particleGfx.y = y;
+			particleGfx.originalAlpha = particleConfig.alpha;
+			particleGfx.originalSize = particleConfig.size;
+			
+			// Animate particle
+			this.tweens.add({
+				targets: particleGfx,
+				x: x + particleConfig.speedX,
+				y: y + particleConfig.speedY,
+				alpha: 0,
+				scale: 0.3 + Math.random() * 0.3,
+				duration: particleConfig.duration,
+				ease: 'Linear',
+				onComplete: () => {
+					// Respawn particle at random location
+					const newX = spawnArea.minX + Math.random() * spawnArea.maxX;
+					const newY = spawnArea.minY + Math.random() * spawnArea.maxY;
+					particleGfx.x = newX;
+					particleGfx.y = newY;
+					particleGfx.alpha = particleGfx.originalAlpha;
+					particleGfx.scale = 1;
+					
+					// Pick new random motion for respawned particle
+					const nextType = Math.random();
+					let nextConfig = {};
+					
+					if (nextType < 0.2) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 25,
+							speedY: -40 - Math.random() * 30,
+							duration: 5000,
+							alpha: 0.5
+						};
+					} else if (nextType < 0.35) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 35,
+							speedY: -20 - Math.random() * 15,
+							duration: 8000,
+							alpha: 0.35
+						};
+					} else if (nextType < 0.5) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 20,
+							speedY: 8 + Math.random() * 12,
+							duration: 9000,
+							alpha: 0.7
+						};
+					} else if (nextType < 0.65) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 40,
+							speedY: (Math.random() - 0.5) * 30,
+							duration: 7000,
+							alpha: 0.4
+						};
+					} else if (nextType < 0.8) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 15,
+							speedY: 3 + Math.random() * 8,
+							duration: 10000,
+							alpha: 0.45
+						};
+					} else if (nextType < 0.9) {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 50,
+							speedY: -60 - Math.random() * 40,
+							duration: 4000,
+							alpha: 0.8
+						};
+					} else {
+						nextConfig = {
+							speedX: (Math.random() - 0.5) * 35,
+							speedY: (Math.random() - 0.5) * 25,
+							duration: 6000,
+							alpha: 0.5
+						};
+					}
+					
+					this.tweens.add({
+						targets: particleGfx,
+						x: newX + nextConfig.speedX,
+						y: newY + nextConfig.speedY,
+						alpha: 0,
+						scale: 0.3 + Math.random() * 0.3,
+						duration: nextConfig.duration,
+						ease: 'Linear'
+					});
+				}
+			});
 		}
 
-		const particles = this.add.particles(0, 0, textureKey);
-		particles.setDepth(2);
-
-		const padding = this.ARENA_PADDING + 80;
-		const emitZone = new Phaser.Geom.Rectangle(
-			padding,
-			padding,
-			this.ARENA_WIDTH - 2 * padding,
-			this.ARENA_HEIGHT - 2 * padding
-		);
-
-		particles.createEmitter({
-			x: 0,
-			y: 0,
-			emitZone: { type: 'random', source: emitZone },
-			frequency: 90,
-			lifespan: 7000,
-			quantity: 1,
-			speedX: { min: -12, max: 12 },
-			speedY: { min: -18, max: -6 },
-			alpha: { start: 0.25, end: 0 },
-			scale: { start: 0.6, end: 0.15 },
-			tint: [0xffffff, 0xffe0b8, 0xffc68a],
-			blendMode: 'ADD'
-		});
-
-		this.arenaObjects.push(particles);
+		this.arenaObjects.push(particleGroup);
 	}
 
 	/**
@@ -1542,6 +1712,388 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	/**
+	 * Creates interactive structures in the arena
+	 */
+	createStructures() {
+		const padding = this.ARENA_PADDING + 500;
+		const spawnArea = {
+			minX: padding,
+			maxX: this.ARENA_WIDTH - padding,
+			minY: padding,
+			maxY: this.ARENA_HEIGHT - padding
+		};
+
+		// Ancient Temple
+		const templeX = spawnArea.minX + (spawnArea.maxX - spawnArea.minX) * 0.25;
+		const templeY = spawnArea.minY + (spawnArea.maxY - spawnArea.minY) * 0.25;
+		this.createTemple(templeX, templeY, 'Ancient Temple');
+
+		// Dark Dungeon
+		const dungeonX = spawnArea.minX + (spawnArea.maxX - spawnArea.minX) * 0.75;
+		const dungeonY = spawnArea.minY + (spawnArea.maxY - spawnArea.minY) * 0.25;
+		this.createDungeon(dungeonX, dungeonY, 'Dark Dungeon');
+
+		// Mystical Tower
+		const towerX = spawnArea.minX + (spawnArea.maxX - spawnArea.minX) * 0.5;
+		const towerY = spawnArea.minY + (spawnArea.maxY - spawnArea.minY) * 0.75;
+		this.createTower(towerX, towerY, 'Mystical Tower');
+	}
+
+	createTemple(x, y, name) {
+		const width = 150;
+		const height = 200;
+		const templeGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+
+		// Stone foundation
+		templeGraphics.fillStyle(0x8b7355, 1);
+		templeGraphics.fillRect(x - width / 2, y + height / 2 - 20, width, 20);
+
+		// Main temple body
+		templeGraphics.fillStyle(0xa89968, 1);
+		templeGraphics.fillRect(x - width / 2, y - height / 2, width, height);
+
+		// Columns (4 pillars)
+		const columnWidth = 15;
+		const columnHeight = height - 30;
+		templeGraphics.fillStyle(0xb8a878, 1);
+		templeGraphics.fillRect(x - width / 2 + 20, y - height / 2 + 15, columnWidth, columnHeight);
+		templeGraphics.fillRect(x + width / 2 - 35, y - height / 2 + 15, columnWidth, columnHeight);
+		templeGraphics.fillRect(x - 20, y - height / 2 + 15, columnWidth, columnHeight);
+		templeGraphics.fillRect(x + 5, y - height / 2 + 15, columnWidth, columnHeight);
+
+		// Roof (triangular gable)
+		templeGraphics.fillStyle(0x8b7555, 1);
+		templeGraphics.beginPath();
+		templeGraphics.moveTo(x - width / 2, y - height / 2);
+		templeGraphics.lineTo(x, y - height / 2 - 50);
+		templeGraphics.lineTo(x + width / 2, y - height / 2);
+		templeGraphics.closePath();
+		templeGraphics.fill();
+
+		// Entrance doorway
+		templeGraphics.fillStyle(0x2a2a2a, 1);
+		templeGraphics.fillRect(x - 25, y, 50, 80);
+
+		// Door frame gold
+		templeGraphics.lineStyle(2, 0xffd700, 1);
+		templeGraphics.strokeRect(x - 27, y - 2, 54, 84);
+
+		// Mystical glow around entrance
+		const entranceGlow = this.add.circle(x, y + 40, 35, 0xffd700, 0.15);
+		this.tweens.add({
+			targets: entranceGlow,
+			alpha: { from: 0.1, to: 0.25 },
+			duration: 1500,
+			yoyo: true,
+			repeat: -1
+		});
+
+		this.add.existing(templeGraphics);
+		this.arenaObjects.push(templeGraphics, entranceGlow);
+
+		// Store structure data
+		this.structures.push({
+			x: x,
+			y: y,
+			width: width,
+			height: height,
+			name: name,
+			type: 'temple',
+			entranceX: x,
+			entranceY: y + 40,
+			entranceRadius: 40,
+			description: 'An ancient stone temple\nPress [ENTER] to explore'
+		});
+	}
+
+	createDungeon(x, y, name) {
+		const width = 120;
+		const height = 180;
+		const dungeonGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+
+		// Dark stone walls
+		dungeonGraphics.fillStyle(0x3a3a3a, 1);
+		dungeonGraphics.fillRect(x - width / 2, y - height / 2, width, height);
+
+		// Brick pattern
+		dungeonGraphics.lineStyle(1, 0x2a2a2a, 0.5);
+		for (let i = 0; i < 8; i++) {
+			dungeonGraphics.lineBetween(x - width / 2, y - height / 2 + i * 22, x + width / 2, y - height / 2 + i * 22);
+		}
+		for (let j = 0; j < 6; j++) {
+			dungeonGraphics.lineBetween(x - width / 2 + j * 20, y - height / 2, x - width / 2 + j * 20, y + height / 2);
+		}
+
+		// Iron fortifications
+		dungeonGraphics.fillStyle(0x555555, 1);
+		dungeonGraphics.fillRect(x - width / 2 - 5, y - height / 2 - 5, width + 10, 5);
+		dungeonGraphics.fillRect(x - width / 2 - 5, y + height / 2, width + 10, 5);
+
+		// Dark entrance (iron grated door)
+		dungeonGraphics.fillStyle(0x1a1a1a, 1);
+		dungeonGraphics.fillRect(x - 20, y - 10, 40, 60);
+
+		// Iron bars on entrance
+		dungeonGraphics.lineStyle(3, 0x555555, 1);
+		for (let i = 0; i < 5; i++) {
+			dungeonGraphics.lineBetween(x - 15 + i * 8, y - 10, x - 15 + i * 8, y + 50);
+		}
+
+		// Eerie red glow
+		const entranceGlow = this.add.circle(x, y + 20, 30, 0xff0000, 0.1);
+		this.tweens.add({
+			targets: entranceGlow,
+			alpha: { from: 0.05, to: 0.2 },
+			duration: 2000,
+			yoyo: true,
+			repeat: -1
+		});
+
+		this.add.existing(dungeonGraphics);
+		this.arenaObjects.push(dungeonGraphics, entranceGlow);
+
+		// Store structure data
+		this.structures.push({
+			x: x,
+			y: y,
+			width: width,
+			height: height,
+			name: name,
+			type: 'dungeon',
+			entranceX: x,
+			entranceY: y + 20,
+			entranceRadius: 35,
+			description: 'A dark, ominous dungeon\nPress [ENTER] to enter'
+		});
+	}
+
+	createTower(x, y, name) {
+		const width = 100;
+		const height = 220;
+		const towerGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+
+		// Tower base
+		towerGraphics.fillStyle(0x5a4a3a, 1);
+		towerGraphics.fillRect(x - width / 2, y - height / 2, width, height);
+
+		// Stone rings/bands
+		towerGraphics.lineStyle(3, 0x3a2a1a, 1);
+		for (let i = 0; i < 8; i++) {
+			towerGraphics.lineBetween(x - width / 2, y - height / 2 + i * 27, x + width / 2, y - height / 2 + i * 27);
+		}
+
+		// Spiral staircase pattern
+		towerGraphics.lineStyle(2, 0x7a6a5a, 0.7);
+		for (let i = 0; i < 4; i++) {
+			towerGraphics.lineBetween(x - 15, y - height / 2 + 15 + i * 55, x + 15, y - height / 2 + 45 + i * 55);
+		}
+
+		// Conical roof
+		towerGraphics.fillStyle(0x4a3a2a, 1);
+		towerGraphics.beginPath();
+		towerGraphics.moveTo(x - width / 2, y - height / 2);
+		towerGraphics.lineTo(x, y - height / 2 - 60);
+		towerGraphics.lineTo(x + width / 2, y - height / 2);
+		towerGraphics.closePath();
+		towerGraphics.fill();
+
+		// Tower window (entrance)
+		towerGraphics.fillStyle(0x8844ff, 0.6);
+		towerGraphics.fillCircle(x, y - 30, 20);
+
+		// Mystical energy at entrance
+		const entranceGlow = this.add.circle(x, y - 30, 30, 0x8844ff, 0.2);
+		this.tweens.add({
+			targets: entranceGlow,
+			scale: { from: 0.9, to: 1.1 },
+			alpha: { from: 0.15, to: 0.3 },
+			duration: 1800,
+			yoyo: true,
+			repeat: -1
+		});
+
+		this.add.existing(towerGraphics);
+		this.arenaObjects.push(towerGraphics, entranceGlow);
+
+		// Store structure data
+		this.structures.push({
+			x: x,
+			y: y,
+			width: width,
+			height: height,
+			name: name,
+			type: 'tower',
+			entranceX: x,
+			entranceY: y - 30,
+			entranceRadius: 40,
+			description: 'A mystical tower of magic\nPress [ENTER] to ascend'
+		});
+	}
+
+	/**
+	 * Check if player is near any structure entrance
+	 */
+	checkStructureProximity() {
+		if (this.isInsideStructure) return;
+
+		for (const structure of this.structures) {
+			const dx = this.playerData.x - structure.entranceX;
+			const dy = this.playerData.y - structure.entranceY;
+			const dist = Math.hypot(dx, dy);
+
+			if (dist < structure.entranceRadius) {
+				// Show entrance prompt
+				if (!this.structurePrompt) {
+					this.structurePrompt = this.add.text(
+						this.playerData.x,
+						this.playerData.y - 60,
+						`${structure.description}`,
+						{
+							font: 'bold 14px Arial',
+							fill: '#ffffff',
+							backgroundColor: '#000000aa',
+							padding: { x: 10, y: 5 }
+						}
+					);
+					this.structurePrompt.setOrigin(0.5);
+					this.structurePrompt.setDepth(1000);
+					this.uiCamera.ignore(this.structurePrompt);
+				}
+
+				// Check if player pressed E to enter
+				if (Phaser.Input.Keyboard.JustDown(this.keys.e)) {
+					this.enterStructure(structure);
+				}
+				return;
+			}
+		}
+
+		// Remove prompt if not near any entrance
+		if (this.structurePrompt) {
+			this.structurePrompt.destroy();
+			this.structurePrompt = null;
+		}
+	}
+
+	/**
+	 * Enter a structure and show interior
+	 */
+	enterStructure(structure) {
+		this.isInsideStructure = true;
+		this.currentStructure = structure;
+
+		// Create interior container
+		this.interiorContainer = this.add.container(0, 0);
+		this.interiorContainer.setDepth(500);
+
+		// Semi-transparent overlay
+		const overlay = this.add.rectangle(this.ARENA_WIDTH / 2, this.ARENA_HEIGHT / 2, this.ARENA_WIDTH, this.ARENA_HEIGHT, 0x000000, 0.7);
+		this.interiorContainer.add(overlay);
+
+		// Interior background
+		const interiorBg = this.add.rectangle(this.ARENA_WIDTH / 2, this.ARENA_HEIGHT / 2, 800, 600, 0x2a3a4a, 1);
+		this.interiorContainer.add(interiorBg);
+
+		// Interior border
+		const border = this.add.rectangle(this.ARENA_WIDTH / 2, this.ARENA_HEIGHT / 2, 800, 600, 0x8844ff);
+		border.setStrokeStyle(3, 0x8844ff);
+		border.setFilled(false);
+		this.interiorContainer.add(border);
+
+		// Structure name
+		const titleText = this.add.text(
+			this.ARENA_WIDTH / 2,
+			this.ARENA_HEIGHT / 2 - 250,
+			structure.name,
+			{
+				font: 'bold 32px Arial',
+				fill: '#8844ff'
+			}
+		);
+		titleText.setOrigin(0.5);
+		this.interiorContainer.add(titleText);
+
+		// Interior content based on type
+		let contentText = '';
+		let bgColor = 0x2a3a4a;
+
+		if (structure.type === 'temple') {
+			contentText = 'An ancient place of worship.\nSpiritual energy fills the air.\n\nYour wounds heal (partially restored).';
+			bgColor = 0x4a5a6a;
+		} else if (structure.type === 'dungeon') {
+			contentText = 'Dark corridors stretch before you.\nThe faint sound of chains echoes...\n\nYou gain insight! (Temporary power boost).';
+			bgColor = 0x2a2a2a;
+		} else if (structure.type === 'tower') {
+			contentText = 'You ascend the spiral stairs,\nreaching the top chamber.\nPowerful magic swirls around you.\n\nYour abilities are enhanced!';
+			bgColor = 0x3a3a5a;
+		}
+
+		const contentArea = this.add.rectangle(this.ARENA_WIDTH / 2, this.ARENA_HEIGHT / 2, 700, 300, bgColor, 0.8);
+		contentArea.setStrokeStyle(2, 0x8844ff);
+		this.interiorContainer.add(contentArea);
+
+		const contentTextObj = this.add.text(
+			this.ARENA_WIDTH / 2,
+			this.ARENA_HEIGHT / 2,
+			contentText,
+			{
+				font: 'bold 16px Arial',
+				fill: '#ffffff',
+				align: 'center'
+			}
+		);
+		contentTextObj.setOrigin(0.5);
+		this.interiorContainer.add(contentTextObj);
+
+		// Exit instruction
+		const exitText = this.add.text(
+			this.ARENA_WIDTH / 2,
+			this.ARENA_HEIGHT / 2 + 220,
+			'Press [E] to exit',
+			{
+				font: 'bold 14px Arial',
+				fill: '#ffd700'
+			}
+		);
+		exitText.setOrigin(0.5);
+		this.interiorContainer.add(exitText);
+
+		// Make sure interior is on UI camera
+		this.uiCamera.ignore(this.interiorContainer);
+
+		// Pause enemy movement
+		this.enemies.forEach(enemy => {
+			enemy.paused = true;
+		});
+
+		// Remove structure prompt
+		if (this.structurePrompt) {
+			this.structurePrompt.destroy();
+			this.structurePrompt = null;
+		}
+	}
+
+	/**
+	 * Exit current structure
+	 */
+	exitStructure() {
+		if (!this.isInsideStructure) return;
+
+		this.isInsideStructure = false;
+		this.currentStructure = null;
+
+		if (this.interiorContainer) {
+			this.interiorContainer.destroy();
+			this.interiorContainer = null;
+		}
+
+		// Resume enemies
+		this.enemies.forEach(enemy => {
+			enemy.paused = false;
+		});
+	}
+
 	spawnRandomSlime() {
 		const padding = this.ARENA_PADDING + 200;
 		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
@@ -1587,7 +2139,16 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			}
 		}
 
-		this.enemies.push({ enemy, healthBar, sizeScale, vx, vy, type: 'slime' });
+		this.enemies.push({
+			enemy,
+			healthBar,
+			sizeScale,
+			vx,
+			vy,
+			type: 'slime',
+			lastAttackTime: -Infinity,
+			attackCooldown: 600
+		});
 	}
 
 	spawnRandomDevil() {
@@ -1816,6 +2377,17 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Check if player is standing in lava
 		this.checkLavaDamage(time);
 
+		// Check structure proximity and handle entry/exit
+		if (this.isInsideStructure) {
+			// Check if player wants to exit structure
+			if (Phaser.Input.Keyboard.JustDown(this.keys.e)) {
+				this.exitStructure();
+			}
+		} else {
+			// Check if player is near any structure entrance
+			this.checkStructureProximity();
+		}
+
 		const pointer = this.input.activePointer;
 		const worldPoint = pointer.positionToCamera(this.cameras.main);
 		const aim = this.getAimDirection(worldPoint?.x, worldPoint?.y);
@@ -1844,6 +2416,20 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				// Enemy is touching player - deal damage
 				const enemyDamage = 5 * enemyData.sizeScale; // Bigger enemies deal more damage
 				this.damagePlayer(enemyDamage);
+
+				// Calculate knockback direction
+				const knockbackDist = dist || 1;
+				const knockX = (this.playerData.x - enemyData.enemy.x) / knockbackDist;
+				const knockY = (this.playerData.y - enemyData.enemy.y) / knockbackDist;
+
+				// Trigger attack animation and effects
+				if (enemyData.type === 'slime') {
+					this.triggerSlimeAttack(enemyData, knockX, knockY);
+				}
+
+				// Apply knockback to player
+				this.playerData.vx += knockX * 4 * enemyData.sizeScale;
+				this.playerData.vy += knockY * 4 * enemyData.sizeScale;
 			}
 		});
 
@@ -1851,6 +2437,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.enemies.forEach((enemyData) => {
 			const { enemy, healthBar, sizeScale } = enemyData;
 			if (!enemy) return;
+			if (enemyData.paused) return; // Skip if paused (inside structure)
 
 			// Light steering toward player
 			const dx = this.player.x - enemy.x;
@@ -1926,9 +2513,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Update player health bar
 		if (this.playerHealthFg) {
 			const character = gameState.character;
-			const hpPercent = character.hp / character.maxHp;
-			this.playerHealthFg.width = 300 * hpPercent;
-			this.playerHealthText.setText(`${character.hp} / ${character.maxHp}`);
+			const hpPercentRaw = character.maxHp ? character.hp / character.maxHp : 0;
+			const hpPercent = Phaser.Math.Clamp(hpPercentRaw, 0, 1);
+			const hpPercentInt = Math.round(hpPercent * 100);
+			this.playerHealthFg.width = 300 * (hpPercentInt / 100);
+			this.playerHealthText.setText(`${hpPercentInt}%`);
 		}
 	}
 
@@ -2078,6 +2667,43 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			alpha: 0,
 			duration: 220,
 			onComplete: () => burst.destroy()
+		});
+	}
+
+	triggerSlimeAttack(enemyData, knockX, knockY) {
+		const now = this.time.now;
+		if (now < enemyData.lastAttackTime + enemyData.attackCooldown) return;
+		enemyData.lastAttackTime = now;
+
+		const { enemy, sizeScale } = enemyData;
+
+		// Smooth hop-back animation (natural recoil)
+		this.tweens.add({
+			targets: enemy,
+			x: enemy.x - knockX * 20,
+			y: enemy.y - knockY * 20,
+			duration: 200,
+			ease: 'Sine.inOut'
+		});
+
+		// Smooth squash-stretch: compress on impact, expand back
+		this.tweens.add({
+			targets: enemy,
+			scaleX: sizeScale * 0.75,
+			scaleY: sizeScale * 1.25,
+			duration: 100,
+			ease: 'Sine.out'
+		});
+
+		// Resume normal bounce after
+		this.time.delayedCall(100, () => {
+			this.tweens.add({
+				targets: enemy,
+				scaleX: sizeScale,
+				scaleY: sizeScale,
+				duration: 150,
+				ease: 'Sine.inOut'
+			});
 		});
 	}
 }
