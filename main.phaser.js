@@ -19,6 +19,8 @@ import { ChaossCrucibleScene } from './scenes/phaser/ChaossCrucibleScene.js';
 import { HostScene } from './scenes/phaser/HostScene.js';
 import { OptionsScene } from './scenes/phaser/OptionsScene.js';
 import { EnemyWikiScene } from './scenes/phaser/EnemyWikiScene.js';
+import { PowerupWikiScene } from './scenes/phaser/PowerupWikiScene.js';
+import { ComingSoonScene } from './scenes/phaser/ComingSoonScene.js';
 import { gameState } from './services/gameState.js';
 import { audioManager } from './services/audioManager.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter, createAnimatedCharacterWithViews } from './services/spriteGenerator.js';
@@ -36,7 +38,9 @@ window.sceneClasses = {
   'ChaossCrucibleScene': ChaossCrucibleScene,
   'HostScene': HostScene,
   'OptionsScene': OptionsScene,
-  'EnemyWikiScene': EnemyWikiScene
+  'EnemyWikiScene': EnemyWikiScene,
+  'PowerupWikiScene': PowerupWikiScene,
+  'ComingSoonScene': ComingSoonScene
 };
 
 // Global exports for debugging

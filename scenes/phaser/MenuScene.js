@@ -40,6 +40,7 @@ export class MenuScene extends Phaser.Scene {
       'ChaossCrucibleScene',
       'HostScene',
       'EnemyWikiScene',
+      'PowerupWikiScene',
       'OptionsScene'
     ];
     scenesToShutdown.forEach(key => {
@@ -82,6 +83,8 @@ export class MenuScene extends Phaser.Scene {
     const buttons = [
       { label: 'Start Game', scene: 'CharacterSelectionScene', color: 0xff3300 },
       { label: 'Enemies', scene: 'EnemyWikiScene', color: 0xff8a00 },
+      { label: 'Powerups', scene: 'PowerupWikiScene', color: 0xff7a00 },
+      { label: 'Online', scene: 'ComingSoonScene', color: 0xff5500 },
       { label: 'Options', scene: 'OptionsScene', color: 0xff6600 }
     ];
 
@@ -160,6 +163,20 @@ export class MenuScene extends Phaser.Scene {
           }
         } else if (config.scene === 'EnemyWikiScene') {
           // For EnemyWikiScene, add it first then start it
+          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
+            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
+          } else {
+            this.scene.start(config.scene);
+          }
+        } else if (config.scene === 'PowerupWikiScene') {
+          // For PowerupWikiScene, add it first then start it
+          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
+            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
+          } else {
+            this.scene.start(config.scene);
+          }
+        } else if (config.scene === 'ComingSoonScene') {
+          // For ComingSoonScene, add it first then start it
           if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
             this.scene.add(config.scene, window.sceneClasses[config.scene], true);
           } else {
