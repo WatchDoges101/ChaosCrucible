@@ -204,7 +204,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Reset score at start of game
 		gameState.resetScore();
 
-		const displayName = character.name ? `${character.name} (${character.role})` : character.role;
+		const displayName = character.name || 'Player';
 		const nameText = this.add.text(20, 20, displayName, {
 			font: 'bold 28px Arial',
 			fill: '#ffffff'

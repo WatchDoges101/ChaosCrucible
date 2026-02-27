@@ -111,6 +111,9 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     inputBox.on('pointerdown', () => {
       isInputFocused = true;
       inputBox.setStrokeStyle(3, 0xff00ff);
+
+      this.characterName = '';
+      this.characterNameText.setText(this.characterName);
       
       // Shake animation on focus
       this.tweens.add({
