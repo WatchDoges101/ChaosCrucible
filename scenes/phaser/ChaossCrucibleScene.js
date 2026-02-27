@@ -38,6 +38,56 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			nextDamageTime: 0,
 			damageCooldown: 500 // 0.5 seconds between lava damage
 		};
+		this.powerups = [];
+		this.powerupSpawnState = {
+			nextSpawnTime: 0,
+			lastSpawnTime: 0,
+			hasSpawned: false
+		};
+		this.powerupConfig = {
+			spawnInterval: 3500,
+			spawnChance: 0.45,
+			guaranteedInterval: 8000,
+			maxPowerups: 5,
+			despawnTime: 18000,
+			minPlayerDistance: 260
+		};
+		this.powerupCatalog = {
+			blood_orb: {
+				name: 'Blood Orb',
+				color: 0xff4d4d,
+				healAmount: 30
+			},
+			fury_totem: {
+				name: 'Fury Totem',
+				color: 0xffaa33,
+				duration: 10000
+			},
+			time_shard: {
+				name: 'Time Shard',
+				color: 0x66ccff,
+				duration: 8000
+			},
+			iron_aegis: {
+				name: 'Iron Aegis',
+				color: 0x99ccff,
+				shieldAmount: 40
+			}
+		};
+		this.buffState = {
+			damageUntil: 0,
+			cooldownUntil: 0,
+			speedUntil: 0
+		};
+		this.buffConfig = {
+			damageMultiplier: 1.35,
+			cooldownScale: 0.7,
+			speedMultiplier: 1.25
+		};
+		this.playerShield = {
+			value: 0,
+			max: 60
+		};
 
 		// Constants
 		this.uiCamera = null;
@@ -307,6 +357,76 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		);
 		this.playerHealthText.setOrigin(0.5, 0.5);
 
+		// ===== POWERUP/BUFF INDICATOR (on UI camera, below health bar) =====
+		const buffPanelY = gameConfig.height - 100;
+		const buffPanelX = 40;
+
+		// Shield indicator panel
+		this.shieldPanelBg = this.add.rectangle(buffPanelX + 35, buffPanelY + 5, 60, 28, 0x001a33, 0.8);
+		this.shieldPanelBg.setOrigin(0, 0.5);
+		this.shieldPanelBorder = this.add.rectangle(buffPanelX + 35, buffPanelY + 5, 60, 28);
+		this.shieldPanelBorder.setOrigin(0, 0.5);
+		this.shieldPanelBorder.setStrokeStyle(2, 0x88ccff);
+		this.shieldPanelBorder.setFillStyle(0, 0);
+
+		this.shieldIcon = this.add.text(buffPanelX + 42, buffPanelY + 5, '⬡', {
+			font: 'bold 16px Arial',
+			fill: '#88ccff'
+		});
+		this.shieldIcon.setOrigin(0.5, 0.5);
+
+		this.shieldText = this.add.text(buffPanelX + 58, buffPanelY + 5, '0/60', {
+			font: 'bold 11px Arial',
+			fill: '#88ccff',
+			stroke: '#000000',
+			strokeThickness: 2
+		});
+		this.shieldText.setOrigin(0.5, 0.5);
+
+		// Active buffs panel (will show up to 3 active buffs)
+		this.activeBuffPanels = [];
+		for (let i = 0; i < 3; i++) {
+			const buffX = buffPanelX + 135 + i * 85;
+			const buffBg = this.add.rectangle(buffX, buffPanelY + 5, 80, 28, 0x1a1a1a, 0.9);
+			buffBg.setOrigin(0, 0.5);
+			buffBg.setStrokeStyle(2, 0x666666);
+			
+			const buffIcon = this.add.text(buffX + 8, buffPanelY + 5, '●', {
+				font: 'bold 14px Arial',
+				fill: '#ffffff'
+			});
+			buffIcon.setOrigin(0.5, 0.5);
+
+			const buffName = this.add.text(buffX + 25, buffPanelY - 2, '', {
+				font: 'bold 10px Arial',
+				fill: '#ffffff'
+			});
+			buffName.setOrigin(0, 0.5);
+
+			const buffTimeBg = this.add.rectangle(buffX + 25, buffPanelY + 10, 50, 4, 0x000000, 0.9);
+			buffTimeBg.setOrigin(0, 0.5);
+
+			const buffTimeBar = this.add.rectangle(buffX + 25, buffPanelY + 10, 50, 4, 0x00ff00, 1);
+			buffTimeBar.setOrigin(0, 0.5);
+
+			const buffTimeText = this.add.text(buffX + 78, buffPanelY + 5, '0s', {
+				font: 'bold 9px Arial',
+				fill: '#cccccc'
+			});
+			buffTimeText.setOrigin(1, 0.5);
+
+			this.activeBuffPanels.push({
+				bg: buffBg,
+				icon: buffIcon,
+				name: buffName,
+				timeBg: buffTimeBg,
+				timeBar: buffTimeBar,
+				timeText: buffTimeText,
+				visible: false,
+				type: null
+			});
+		}
+
 		// Hide HUD elements from the main camera (UI camera only)
 		const hudElements = [
 			nameText,
@@ -315,8 +435,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.playerHealthBg,
 			this.playerHealthBorder,
 			this.playerHealthFg,
-			this.playerHealthText
+			this.playerHealthText,
+			this.shieldPanelBg,
+			this.shieldPanelBorder,
+			this.shieldIcon,
+			this.shieldText
 		];
+		this.activeBuffPanels.forEach(panel => {
+			hudElements.push(panel.bg, panel.icon, panel.name, panel.timeBg, panel.timeBar, panel.timeText);
+		});
 		hudElements.forEach(element => this.cameras.main.ignore(element));
 
 		// ===== INPUT HANDLING =====
@@ -328,6 +455,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.keys.space = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 		this.keys.e = this.input.keyboard.addKey('E');
 		this.keys.shift = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+		this.powerupSpawnState.lastSpawnTime = this.time.now;
+		this.scheduleNextPowerupSpawn(2000);
 	}
 
 	getRoleConfig(role) {
@@ -388,10 +518,24 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		return this.player.scaleX >= 0 ? { x: 1, y: 0 } : { x: -1, y: 0 };
 	}
 
+	getDamageMultiplier(now = this.time.now) {
+		return now < this.buffState.damageUntil ? this.buffConfig.damageMultiplier : 1;
+	}
+
+	getCooldownScale(now = this.time.now) {
+		return now < this.buffState.cooldownUntil ? this.buffConfig.cooldownScale : 1;
+	}
+
+	getSpeedMultiplier(now = this.time.now) {
+		return now < this.buffState.speedUntil ? this.buffConfig.speedMultiplier : 1;
+	}
+
 	queueBasicAttack(aim) {
 		const now = this.time.now;
 		if (now < this.attackState.nextBasicTime) return;
-		this.attackState.nextBasicTime = now + this.roleConfig.basicCooldown;
+		const cooldownScale = this.getCooldownScale(now);
+		this.attackState.nextBasicTime = now + this.roleConfig.basicCooldown * cooldownScale;
+		const damageMultiplier = this.getDamageMultiplier(now);
 
 		switch (gameState.character.role) {
 			case 'archer':
@@ -400,7 +544,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					y: this.playerData.y,
 					vx: aim.x * this.roleConfig.projectileSpeed,
 					vy: aim.y * this.roleConfig.projectileSpeed,
-					damage: this.roleConfig.basicDamage,
+					damage: this.roleConfig.basicDamage * damageMultiplier,
 					color: 0xd4af37,
 					radius: 3,
 					range: 520,
@@ -413,7 +557,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					y: this.playerData.y,
 					vx: aim.x * this.roleConfig.projectileSpeed,
 					vy: aim.y * this.roleConfig.projectileSpeed,
-					damage: this.roleConfig.basicDamage,
+					damage: this.roleConfig.basicDamage * damageMultiplier,
 					color: 0xffdd55,
 					radius: 2,
 					range: 480
@@ -422,7 +566,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			case 'brute':
 			case 'Male':
 			default:
-				this.performMeleeSlash(aim, this.roleConfig.meleeRange, this.roleConfig.basicDamage);
+				this.performMeleeSlash(aim, this.roleConfig.meleeRange, this.roleConfig.basicDamage * damageMultiplier);
 				break;
 		}
 
@@ -432,21 +576,23 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	queueAbility(aim) {
 		const now = this.time.now;
 		if (now < this.attackState.nextAbilityTime) return;
-		this.attackState.nextAbilityTime = now + this.roleConfig.abilityCooldown;
+		const cooldownScale = this.getCooldownScale(now);
+		this.attackState.nextAbilityTime = now + this.roleConfig.abilityCooldown * cooldownScale;
+		const damageMultiplier = this.getDamageMultiplier(now);
 
 		switch (gameState.character.role) {
 			case 'archer':
-				this.fireArcherVolley(aim);
+				this.fireArcherVolley(aim, damageMultiplier);
 				break;
 			case 'gunner':
-				this.fireGunnerBurst(aim);
+				this.fireGunnerBurst(aim, damageMultiplier);
 				break;
 			case 'brute':
-				this.performShockwave(this.roleConfig.abilityRadius, this.roleConfig.abilityDamage);
+				this.performShockwave(this.roleConfig.abilityRadius, this.roleConfig.abilityDamage * damageMultiplier);
 				break;
 			case 'Male':
 			default:
-				this.performShockwave(this.roleConfig.abilityRadius, this.roleConfig.abilityDamage);
+				this.performShockwave(this.roleConfig.abilityRadius, this.roleConfig.abilityDamage * damageMultiplier);
 				break;
 		}
 
@@ -498,12 +644,28 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const ring = this.add.circle(this.playerData.x, this.playerData.y, radius, 0xffcc55, 0.15);
 		ring.setStrokeStyle(3, 0xffaa00, 0.8);
 		if (this.uiCamera) this.uiCamera.ignore(ring);
+		
+		// Add glow flash
+		const glow = this.add.circle(this.playerData.x, this.playerData.y, radius * 0.8, 0xffcc55, 0.4);
+		if (this.uiCamera) this.uiCamera.ignore(glow);
+		
+		// Screen shake on shockwave
+		this.cameras.main.shake(100, 0.8);
+		
 		this.tweens.add({
 			targets: ring,
 			scale: 1.1,
 			alpha: 0,
 			duration: 220,
 			onComplete: () => ring.destroy()
+		});
+		
+		this.tweens.add({
+			targets: glow,
+			scale: 1.3,
+			alpha: 0,
+			duration: 280,
+			onComplete: () => glow.destroy()
 		});
 
 		this.enemies.forEach(enemyData => {
@@ -516,9 +678,24 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 	}
 
-	fireArcherVolley(aim) {
+	fireArcherVolley(aim, damageMultiplier = 1) {
 		const shots = this.roleConfig.abilityShots;
 		const spread = this.roleConfig.abilitySpread;
+		
+		// Create a burst of light at player position
+		const burstLight = this.add.circle(this.playerData.x, this.playerData.y, 30, 0xffcc55, 0.3);
+		if (this.uiCamera) this.uiCamera.ignore(burstLight);
+		this.tweens.add({
+			targets: burstLight,
+			scale: 1.8,
+			alpha: 0,
+			duration: 200,
+			onComplete: () => burstLight.destroy()
+		});
+		
+		// Screen shake for volley
+		this.cameras.main.shake(80, 0.5);
+		
 		for (let i = 0; i < shots; i++) {
 			const offset = (i - (shots - 1) / 2) * spread;
 			const angle = Math.atan2(aim.y, aim.x) + offset;
@@ -527,7 +704,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				y: this.playerData.y,
 				vx: Math.cos(angle) * this.roleConfig.projectileSpeed,
 				vy: Math.sin(angle) * this.roleConfig.projectileSpeed,
-				damage: this.roleConfig.abilityDamage,
+				damage: this.roleConfig.abilityDamage * damageMultiplier,
 				color: 0xffcc55,
 				radius: 3,
 				range: 600,
@@ -536,8 +713,23 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
-	fireGunnerBurst(aim) {
+	fireGunnerBurst(aim, damageMultiplier = 1) {
 		const shots = this.roleConfig.abilityBurst;
+		
+		// Muzzle flash
+		const muzzle = this.add.circle(this.playerData.x + aim.x * 15, this.playerData.y + aim.y * 15, 12, 0xffdd00, 0.9);
+		if (this.uiCamera) this.uiCamera.ignore(muzzle);
+		this.tweens.add({
+			targets: muzzle,
+			scale: 1.5,
+			alpha: 0,
+			duration: 150,
+			onComplete: () => muzzle.destroy()
+		});
+		
+		// Screen shake multiple times as rounds fire
+		this.cameras.main.shake(50, 0.3);
+		
 		for (let i = 0; i < shots; i++) {
 			this.time.delayedCall(i * 60, () => {
 				this.spawnProjectile({
@@ -545,28 +737,69 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					y: this.playerData.y,
 					vx: aim.x * (this.roleConfig.projectileSpeed + 2),
 					vy: aim.y * (this.roleConfig.projectileSpeed + 2),
-					damage: this.roleConfig.abilityDamage,
+					damage: this.roleConfig.abilityDamage * damageMultiplier,
 					color: 0xffee88,
 					radius: 2,
 					range: 520
 				});
+				// Small shake between shots
+				if (i > 0) {
+					this.cameras.main.shake(30, 0.2);
+				}
 			});
 		}
 	}
 
 	createSlashEffect(aim, range) {
-		const arc = this.add.graphics();
-		arc.lineStyle(3, 0xffffff, 0.7);
 		const baseAngle = Math.atan2(aim.y, aim.x);
+		
+		// Primary slash arc (white)
+		const arc = this.add.graphics();
+		arc.lineStyle(3, 0xffffff, 0.8);
 		arc.beginPath();
 		arc.arc(this.playerData.x, this.playerData.y, range, baseAngle - 0.6, baseAngle + 0.6);
 		arc.strokePath();
 		if (this.uiCamera) this.uiCamera.ignore(arc);
+		
+		// Secondary flash arcs (golden)
+		const arcFlash = this.add.graphics();
+		arcFlash.lineStyle(2, 0xffcc55, 0.5);
+		arcFlash.beginPath();
+		arcFlash.arc(this.playerData.x, this.playerData.y, range * 0.85, baseAngle - 0.55, baseAngle + 0.55);
+		arcFlash.strokePath();
+		if (this.uiCamera) this.uiCamera.ignore(arcFlash);
+		
+		// Mini sparkles at arc edges
+		for (let i = 0; i < 3; i++) {
+			const angle = baseAngle - 0.6 + (i * 0.6);
+			const sparkX = this.playerData.x + Math.cos(angle) * range;
+			const sparkY = this.playerData.y + Math.sin(angle) * range;
+			const spark = this.add.circle(sparkX, sparkY, 2, 0xffff88, 0.9);
+			if (this.uiCamera) this.uiCamera.ignore(spark);
+			this.tweens.add({
+				targets: spark,
+				alpha: 0,
+				scale: 0.5,
+				duration: 200,
+				onComplete: () => spark.destroy()
+			});
+		}
+		
+		// Screen shake on slash
+		this.cameras.main.shake(60, 0.4);
+		
 		this.tweens.add({
 			targets: arc,
 			alpha: 0,
 			duration: 140,
 			onComplete: () => arc.destroy()
+		});
+		
+		this.tweens.add({
+			targets: arcFlash,
+			alpha: 0,
+			duration: 200,
+			onComplete: () => arcFlash.destroy()
 		});
 	}
 
@@ -743,6 +976,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		
 		this.playerDamageState.nextDamageTime = now + this.playerDamageState.damageCooldown;
 		
+		if (this.playerShield.value > 0) {
+			const absorbed = Math.min(this.playerShield.value, damage);
+			this.playerShield.value -= absorbed;
+			damage -= absorbed;
+			this.spawnShieldAbsorbEffect();
+		}
+		
+		if (damage <= 0) return;
+		
 		gameState.character.hp = Math.max(0, gameState.character.hp - damage);
 		this.flashPlayer();
 		
@@ -878,6 +1120,67 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			floorGraphics.lineBetween(startX, startY, endX, endY);
 		}
 
+		// Lava cracks with bright glow
+		const lavaCracks = this.make.graphics({ x: 0, y: 0, add: false });
+		const crackCount = 28;
+		for (let i = 0; i < crackCount; i++) {
+			const startX = this.ARENA_PADDING + 120 + Math.random() * (this.ARENA_WIDTH - 2 * this.ARENA_PADDING - 240);
+			const startY = this.ARENA_PADDING + 120 + Math.random() * (this.ARENA_HEIGHT - 2 * this.ARENA_PADDING - 240);
+			const segments = 4 + Math.floor(Math.random() * 4);
+			const segmentLength = 40 + Math.random() * 60;
+			const points = [{ x: startX, y: startY }];
+
+			let angle = Math.random() * Math.PI * 2;
+			for (let s = 0; s < segments; s++) {
+				angle += (Math.random() - 0.5) * 0.9;
+				const last = points[points.length - 1];
+				const nx = last.x + Math.cos(angle) * (segmentLength + Math.random() * 30);
+				const ny = last.y + Math.sin(angle) * (segmentLength + Math.random() * 30);
+				points.push({ x: nx, y: ny });
+			}
+
+			// Outer dark fissure
+			lavaCracks.lineStyle(8, 0x2a0a00, 0.55);
+			lavaCracks.beginPath();
+			lavaCracks.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) {
+				lavaCracks.lineTo(points[p].x, points[p].y);
+			}
+			lavaCracks.strokePath();
+
+			// Hot core glow
+			lavaCracks.lineStyle(4, 0xff4400, 0.85);
+			lavaCracks.beginPath();
+			lavaCracks.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) {
+				lavaCracks.lineTo(points[p].x, points[p].y);
+			}
+			lavaCracks.strokePath();
+
+			// Bright inner filament
+			lavaCracks.lineStyle(2, 0xffcc66, 1);
+			lavaCracks.beginPath();
+			lavaCracks.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) {
+				lavaCracks.lineTo(points[p].x, points[p].y);
+			}
+			lavaCracks.strokePath();
+
+			// Small branching cracks
+			if (Math.random() > 0.4) {
+				const branchIndex = 1 + Math.floor(Math.random() * (points.length - 2));
+				const branchStart = points[branchIndex];
+				const branchAngle = angle + (Math.random() > 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.6);
+				const branchLength = 30 + Math.random() * 50;
+				const bx = branchStart.x + Math.cos(branchAngle) * branchLength;
+				const by = branchStart.y + Math.sin(branchAngle) * branchLength;
+				lavaCracks.lineStyle(3, 0xff6600, 0.75);
+				lavaCracks.lineBetween(branchStart.x, branchStart.y, bx, by);
+				lavaCracks.lineStyle(1.5, 0xffdd88, 0.9);
+				lavaCracks.lineBetween(branchStart.x, branchStart.y, bx, by);
+			}
+		}
+
 		// Blood stains (dark red circles)
 		for (let i = 0; i < 15; i++) {
 			const bx = this.ARENA_PADDING + 150 + Math.random() * (this.ARENA_WIDTH - 2 * this.ARENA_PADDING - 300);
@@ -888,6 +1191,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 
 		this.add.existing(floorGraphics);
+		this.add.existing(lavaCracks);
 
 		// ===== CREATE ARENA BORDER =====
 		const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
@@ -944,7 +1248,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(borderGraphics);
 
 		// Store references for later camera filtering
-		this.arenaObjects = [arenaBg, floorGraphics, borderGraphics];
+		this.arenaObjects = [arenaBg, floorGraphics, lavaCracks, borderGraphics];
 
 		// ===== LAVA POOLS =====
 		const lavaPoolCount = 6;
@@ -970,6 +1274,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== FLOATING PARTICLES FOR DEPTH =====
 		this.createFloatingParticles();
+
+		// ===== LASER AND FOG AMBIENCE =====
+		this.createLaserEffects();
+		this.createFogLayers();
+		this.createArenaLighting();
 	}
 
 	createTorchEffect(x, y) {
@@ -1012,11 +1321,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const base = this.add.ellipse(x, y, width + 20, height + 20, 0x4a4a4a, 1).setOrigin(0.5);
 
 		// Outer glow
-		const glow = this.add.ellipse(x, y, width + 10, height + 10, 0xffaa00, 0.25).setOrigin(0.5);
+		const glow = this.add.ellipse(x, y, width + 14, height + 14, 0xffaa00, 0.45).setOrigin(0.5);
+		const glowRing = this.add.ellipse(x, y, width + 28, height + 28, 0xff6600, 0.2).setOrigin(0.5);
 		// Mid layer
 		const mid = this.add.ellipse(x, y, width, height, 0xff5500, 0.7).setOrigin(0.5);
 		// Core
 		const core = this.add.ellipse(x, y, width - 20, height - 20, 0xff2200, 0.9).setOrigin(0.5);
+		const heatHaze = this.add.ellipse(x, y, width + 6, height + 6, 0xffdd88, 0.15).setOrigin(0.5);
 
 		// Bubble highlights
 		const bubbles = [];
@@ -1031,8 +1342,19 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Animate glow and bubbles
 		this.tweens.add({
 			targets: glow,
-			alpha: { from: 0.2, to: 0.5 },
-			duration: 900,
+			alpha: { from: 0.35, to: 0.65 },
+			scale: { from: 0.98, to: 1.05 },
+			duration: 700,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+
+		this.tweens.add({
+			targets: [glowRing, heatHaze],
+			alpha: { from: 0.08, to: 0.25 },
+			scale: { from: 0.95, to: 1.08 },
+			duration: 1200,
 			yoyo: true,
 			repeat: -1,
 			ease: 'Sine.inOut'
@@ -1049,14 +1371,14 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		});
 
-		this.arenaObjects.push(base, glow, mid, core, ...bubbles);
+		this.arenaObjects.push(base, glowRing, glow, mid, core, heatHaze, ...bubbles);
 
-		// Store lava pool collision data for damage detection
+		// Store lava pool collision data for damage detection (use actual hot core size)
 		this.lavaPools.push({
 			x: x,
 			y: y,
-			width: width,
-			height: height
+			width: width - 20,
+			height: height - 20
 		});
 	}
 
@@ -1278,6 +1600,163 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.arenaObjects.push(particleGroup);
 	}
 
+	createLaserEffects() {
+		const laserGroup = this.add.container(0, 0);
+		laserGroup.setDepth(3);
+
+		const padding = this.ARENA_PADDING + 120;
+		const minX = padding;
+		const maxX = this.ARENA_WIDTH - padding;
+		const minY = padding;
+		const maxY = this.ARENA_HEIGHT - padding;
+
+		const laserCount = 10;
+		for (let i = 0; i < laserCount; i++) {
+			const isVertical = Math.random() > 0.5;
+			const beamLength = 900 + Math.random() * 600;
+			const beamThickness = 5 + Math.random() * 3;
+			const baseAlpha = 0.2 + Math.random() * 0.2;
+			const laserColor = [0x44ccff, 0x66ffcc, 0xff66cc][Math.floor(Math.random() * 3)];
+
+			const beam = this.add.rectangle(0, 0, isVertical ? beamThickness : beamLength, isVertical ? beamLength : beamThickness, laserColor, baseAlpha);
+			beam.setOrigin(0.5);
+			beam.setBlendMode('ADD');
+
+			const glow = this.add.rectangle(0, 0, isVertical ? beamThickness * 3 : beamLength, isVertical ? beamLength : beamThickness * 3, laserColor, baseAlpha * 0.6);
+			glow.setOrigin(0.5);
+			glow.setBlendMode('ADD');
+
+			const resetLaser = () => {
+				const x = minX + Math.random() * (maxX - minX);
+				const y = minY + Math.random() * (maxY - minY);
+				const angle = Math.random() * Math.PI;
+				beam.setPosition(x, y);
+				glow.setPosition(x, y);
+				beam.setRotation(angle);
+				glow.setRotation(angle);
+			};
+
+			resetLaser();
+
+			const burstDistance = 300 + Math.random() * 300;
+			const burstAngle = Math.random() * Math.PI * 2;
+			const targetX = Phaser.Math.Clamp(beam.x + Math.cos(burstAngle) * burstDistance, minX, maxX);
+			const targetY = Phaser.Math.Clamp(beam.y + Math.sin(burstAngle) * burstDistance, minY, maxY);
+
+			this.tweens.add({
+				targets: [beam, glow],
+				x: targetX,
+				y: targetY,
+				alpha: { from: baseAlpha * 0.2, to: baseAlpha * 1.8 },
+				duration: 800 + Math.random() * 700,
+				ease: 'Sine.inOut',
+				yoyo: true,
+				repeat: -1
+			});
+
+			this.tweens.add({
+				targets: [beam, glow],
+				scaleX: { from: 0.9, to: 1.2 },
+				scaleY: { from: 0.9, to: 1.2 },
+				duration: 600 + Math.random() * 500,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+
+			this.time.addEvent({
+				delay: 1200 + Math.random() * 1500,
+				loop: true,
+				callback: resetLaser
+			});
+
+			laserGroup.add([glow, beam]);
+		}
+
+		this.arenaObjects.push(laserGroup);
+	}
+
+	createArenaLighting() {
+		const lightGroup = this.add.container(0, 0);
+		lightGroup.setDepth(2);
+
+		const padding = this.ARENA_PADDING + 120;
+		const minX = padding;
+		const maxX = this.ARENA_WIDTH - padding;
+		const minY = padding;
+		const maxY = this.ARENA_HEIGHT - padding;
+
+		const orbCount = 14;
+		for (let i = 0; i < orbCount; i++) {
+			const radius = 60 + Math.random() * 100;
+			const color = [0xffaa44, 0x66ccff, 0x8844ff, 0xff6688][Math.floor(Math.random() * 4)];
+			const orb = this.add.circle(0, 0, radius, color, 0.12 + Math.random() * 0.08);
+			orb.setBlendMode('ADD');
+
+			const x = minX + Math.random() * (maxX - minX);
+			const y = minY + Math.random() * (maxY - minY);
+			orb.setPosition(x, y);
+
+			this.tweens.add({
+				targets: orb,
+				x: x + (Math.random() - 0.5) * 220,
+				y: y + (Math.random() - 0.5) * 180,
+				alpha: { from: orb.alpha * 0.5, to: orb.alpha * 1.6 },
+				scale: { from: 0.9, to: 1.15 },
+				yoyo: true,
+				repeat: -1,
+				duration: 6000 + Math.random() * 4000,
+				ease: 'Sine.inOut'
+			});
+
+			lightGroup.add(orb);
+		}
+
+		this.arenaObjects.push(lightGroup);
+	}
+
+	createFogLayers() {
+		const fogGroup = this.add.container(0, 0);
+		fogGroup.setDepth(1);
+
+		const padding = this.ARENA_PADDING + 100;
+		const minX = padding;
+		const maxX = this.ARENA_WIDTH - padding;
+		const minY = padding;
+		const maxY = this.ARENA_HEIGHT - padding;
+
+		const fogCount = 10;
+		for (let i = 0; i < fogCount; i++) {
+			const fogWidth = 260 + Math.random() * 320;
+			const fogHeight = 120 + Math.random() * 180;
+			const fogColor = [0x334455, 0x2a3a4a, 0x3a3a4a][Math.floor(Math.random() * 3)];
+			const fog = this.add.ellipse(0, 0, fogWidth, fogHeight, fogColor, 0.08 + Math.random() * 0.08);
+			fog.setOrigin(0.5);
+
+			const x = minX + Math.random() * (maxX - minX);
+			const y = minY + Math.random() * (maxY - minY);
+			fog.setPosition(x, y);
+
+			const driftX = x + (Math.random() - 0.5) * 250;
+			const driftY = y + (Math.random() - 0.5) * 120;
+
+			this.tweens.add({
+				targets: fog,
+				x: driftX,
+				y: driftY,
+				alpha: { from: fog.alpha * 0.5, to: fog.alpha * 1.4 },
+				yoyo: true,
+				repeat: -1,
+				duration: 9000 + Math.random() * 5000,
+				ease: 'Sine.inOut'
+			});
+
+			fogGroup.add(fog);
+		}
+
+		this.arenaObjects.push(fogGroup);
+	}
+
 	/**
 	 * Creates various obstacles that block player and enemy movement
 	 */
@@ -1374,13 +1853,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(obstacleGraphics);
 		this.arenaObjects.push(obstacleGraphics);
 
-		// Store collision data (circular collision)
-		this.obstacles.push({
-			x: x,
-			y: y,
-			radius: size * 0.85,
-			type: 'circle'
-		});
+		// Store collision data - circular collision matching visual size
+		this.addObstacle(x, y, 'circle', size * 0.8, 0, 'rock');
 	}
 
 	createPillarObstacle(x, y) {
@@ -1424,14 +1898,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(pillarGraphics);
 		this.arenaObjects.push(pillarGraphics);
 
-		// Store collision data (rectangular collision)
-		this.obstacles.push({
-			x: x,
-			y: y,
-			width: width,
-			height: height,
-			type: 'rect'
-		});
+		// Store collision data - narrow rectangular collision for thin pillar
+		this.addObstacle(x, y, 'rect', width * 0.6, height * 0.85, 'pillar');
 	}
 
 	createObeliskObstacle(x, y) {
@@ -1495,14 +1963,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(obeliskGraphics);
 		this.arenaObjects.push(obeliskGraphics, glowCircle);
 
-		// Store collision data
-		this.obstacles.push({
-			x: x,
-			y: y,
-			width: baseWidth,
-			height: height,
-			type: 'rect'
-		});
+		// Store collision data - use average width since obelisk tapers
+		const avgWidth = (baseWidth + topWidth) / 2;
+		this.addObstacle(x, y, 'rect', avgWidth * 0.9, height * 0.9, 'obelisk');
 	}
 
 	createStatueObstacle(x, y) {
@@ -1548,13 +2011,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(statueGraphics);
 		this.arenaObjects.push(statueGraphics);
 
-		// Store collision data
-		this.obstacles.push({
-			x: x,
-			y: y,
-			radius: 45,
-			type: 'circle'
-		});
+		// Store collision data - circular collision for broken statue base
+		this.addObstacle(x, y, 'circle', 35, 0, 'statue');
 	}
 
 	createAltarObstacle(x, y) {
@@ -1621,14 +2079,36 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.add.existing(altarGraphics);
 		this.arenaObjects.push(altarGraphics, flame, flameGlow);
 
-		// Store collision data
-		this.obstacles.push({
+		// Store collision data - rectangular collision matching altar footprint
+		this.addObstacle(x, y, 'rect', 110, 50, 'altar');
+	}
+
+	/**
+	 * Helper function to add obstacle collision box with proper sizing
+	 * Ensures collision zones match visual footprints exactly
+	 * @param {number} x - Center X position
+	 * @param {number} y - Center Y position
+	 * @param {string} shapeType - 'circle' or 'rect'
+	 * @param {number} sizeParam1 - Radius (for circle) or Width (for rect)
+	 * @param {number} sizeParam2 - Height (for rect only, ignored for circle)
+	 * @param {string} marker - Unique identifier for debugging
+	 */
+	addObstacle(x, y, shapeType, sizeParam1, sizeParam2 = 0, marker = '') {
+		const obstacle = {
 			x: x,
 			y: y,
-			width: 120,
-			height: 40,
-			type: 'rect'
-		});
+			type: shapeType,
+			marker: marker
+		};
+
+		if (shapeType === 'circle') {
+			obstacle.radius = sizeParam1;
+		} else if (shapeType === 'rect') {
+			obstacle.width = sizeParam1;
+			obstacle.height = sizeParam2;
+		}
+
+		this.obstacles.push(obstacle);
 	}
 
 	/**
@@ -1849,6 +2329,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 
 		this.add.existing(templeGraphics);
+		templeGraphics.setDepth(6);
+		entranceGlow.setDepth(5);
 		this.arenaObjects.push(templeGraphics, entranceGlow);
 
 		// Store structure data
@@ -1864,6 +2346,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			entranceRadius: 40,
 			description: 'An ancient stone temple\nPress [ENTER] to explore'
 		});
+
+		// Create precise collision perimeter for temple
+		// Top block
+		this.addObstacle(x, y - height / 2 - 10, 'rect', width + 20, 20, 'temple_top');
+		// Left side
+		this.addObstacle(x - width / 2 - 10, y - 20, 'rect', 20, 100, 'temple_left');
+		// Right side
+		this.addObstacle(x + width / 2 + 10, y - 20, 'rect', 20, 100, 'temple_right');
+		// Bottom left (entrance gap at center)
+		this.addObstacle(x - 45, y + height / 2 + 5, 'rect', 40, 15, 'temple_bottom_left');
+		// Bottom right (entrance gap at center)
+		this.addObstacle(x + 45, y + height / 2 + 5, 'rect', 40, 15, 'temple_bottom_right');
 	}
 
 	createDungeon(x, y, name) {
@@ -1910,6 +2404,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 
 		this.add.existing(dungeonGraphics);
+		dungeonGraphics.setDepth(6);
+		entranceGlow.setDepth(5);
 		this.arenaObjects.push(dungeonGraphics, entranceGlow);
 
 		// Store structure data
@@ -1925,6 +2421,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			entranceRadius: 35,
 			description: 'A dark, ominous dungeon\nPress [ENTER] to enter'
 		});
+
+		// Create precise collision perimeter for dungeon
+		// Top block
+		this.addObstacle(x, y - height / 2 - 10, 'rect', width + 20, 20, 'dungeon_top');
+		// Left side
+		this.addObstacle(x - width / 2 - 10, y - 15, 'rect', 20, 90, 'dungeon_left');
+		// Right side
+		this.addObstacle(x + width / 2 + 10, y - 15, 'rect', 20, 90, 'dungeon_right');
+		// Bottom left (entrance gap at center)
+		this.addObstacle(x - 35, y + height / 2 + 5, 'rect', 35, 15, 'dungeon_bottom_left');
+		// Bottom right (entrance gap at center)
+		this.addObstacle(x + 35, y + height / 2 + 5, 'rect', 35, 15, 'dungeon_bottom_right');
 	}
 
 	createTower(x, y, name) {
@@ -1973,6 +2481,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 
 		this.add.existing(towerGraphics);
+		towerGraphics.setDepth(6);
+		entranceGlow.setDepth(5);
 		this.arenaObjects.push(towerGraphics, entranceGlow);
 
 		// Store structure data
@@ -1988,6 +2498,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			entranceRadius: 40,
 			description: 'A mystical tower of magic\nPress [ENTER] to ascend'
 		});
+
+		// Create precise collision perimeter for tower
+		// Top block (includes roof cone)
+		this.addObstacle(x, y - height / 2 - 40, 'rect', width + 20, 35, 'tower_top');
+		// Left side
+		this.addObstacle(x - width / 2 - 10, y - 10, 'rect', 20, height - 70, 'tower_left');
+		// Right side
+		this.addObstacle(x + width / 2 + 10, y - 10, 'rect', 20, height - 70, 'tower_right');
+		// Bottom left (entrance gap at center)
+		this.addObstacle(x - 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_left');
+		// Bottom right (entrance gap at center)
+		this.addObstacle(x + 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_right');
 	}
 
 	/**
@@ -2379,6 +2901,375 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	scheduleNextPowerupSpawn(delayOverride = null) {
+		const jitter = Phaser.Math.Between(-1200, 1400);
+		const delay = delayOverride === null ? this.powerupConfig.spawnInterval + jitter : delayOverride;
+		this.powerupSpawnState.nextSpawnTime = this.time.now + Math.max(1000, delay);
+	}
+
+	updatePowerups(time) {
+		if (time >= this.powerupSpawnState.nextSpawnTime) {
+			const timeSinceLast = time - this.powerupSpawnState.lastSpawnTime;
+			const shouldForce = timeSinceLast >= this.powerupConfig.guaranteedInterval;
+			const shouldSpawn = shouldForce || !this.powerupSpawnState.hasSpawned || Math.random() < this.powerupConfig.spawnChance;
+			if (this.powerups.length < this.powerupConfig.maxPowerups && shouldSpawn) {
+				this.spawnRandomPowerup();
+				this.powerupSpawnState.lastSpawnTime = time;
+				this.powerupSpawnState.hasSpawned = true;
+			}
+			this.scheduleNextPowerupSpawn();
+		}
+
+		for (let i = this.powerups.length - 1; i >= 0; i--) {
+			const powerup = this.powerups[i];
+			const powerupX = powerup.container ? powerup.container.x : powerup.x;
+			const powerupY = powerup.container ? powerup.container.y : powerup.y;
+			const dx = this.playerData.x - powerupX;
+			const dy = this.playerData.y - powerupY;
+			const dist = Math.hypot(dx, dy);
+			if (dist <= powerup.pickupRadius) {
+				this.collectPowerup({ ...powerup, x: powerupX, y: powerupY }, time);
+				this.powerups.splice(i, 1);
+				continue;
+			}
+
+			if (time >= powerup.expiresAt) {
+				if (powerup.container) {
+					this.tweens.add({
+						targets: powerup.container,
+						alpha: 0,
+						scale: 0.6,
+						duration: 400,
+						onComplete: () => powerup.container.destroy()
+					});
+				}
+				this.powerups.splice(i, 1);
+			}
+		}
+	}
+
+	spawnRandomPowerup() {
+		const types = Object.keys(this.powerupCatalog);
+		const type = types[Math.floor(Math.random() * types.length)];
+		const position = this.findPowerupSpawn();
+		if (!position) return;
+		this.spawnPowerup(type, position.x, position.y);
+	}
+
+	findPowerupSpawn() {
+		const padding = this.ARENA_PADDING + 220;
+		for (let attempt = 0; attempt < 8; attempt++) {
+			const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
+			const y = padding + Math.random() * (this.ARENA_HEIGHT - 2 * padding);
+			const dist = Math.hypot(x - this.playerData.x, y - this.playerData.y);
+			if (dist < this.powerupConfig.minPlayerDistance) continue;
+			if (this.checkObstacleCollision(x, y, 20)) continue;
+			if (this.isPositionInLava(x, y)) continue;
+			return { x, y };
+		}
+		return null;
+	}
+
+	isPositionInLava(x, y) {
+		for (const lavaPool of this.lavaPools) {
+			const dx = Math.abs(x - lavaPool.x);
+			const dy = Math.abs(y - lavaPool.y);
+			const normalizedDist = (dx * dx) / ((lavaPool.width / 2) * (lavaPool.width / 2)) +
+				(dy * dy) / ((lavaPool.height / 2) * (lavaPool.height / 2));
+			if (normalizedDist <= 1) return true;
+		}
+		return false;
+	}
+
+	spawnPowerup(type, x, y) {
+		const container = this.createPowerupVisuals(type, x, y);
+		container.setDepth(6);
+		const powerup = {
+			type,
+			x,
+			y,
+			container,
+			pickupRadius: 26,
+			expiresAt: this.time.now + this.powerupConfig.despawnTime
+		};
+		this.powerups.push(powerup);
+	}
+
+	createPowerupVisuals(type, x, y) {
+		const container = this.add.container(x, y);
+		const tint = this.powerupCatalog[type]?.color || 0xffffff;
+		let applyFloat = true;
+
+		if (type === 'blood_orb') {
+			const glow = this.add.circle(0, 0, 18, tint, 0.25);
+			const core = this.add.circle(0, 0, 10, tint, 0.9);
+			const highlight = this.add.circle(-3, -4, 3, 0xffffff, 0.9);
+			const ring = this.add.circle(0, 0, 13, 0xff2222, 0.6).setStrokeStyle(2, 0xff7777, 0.9);
+			container.add([glow, ring, core, highlight]);
+			this.tweens.add({
+				targets: glow,
+				scale: { from: 0.9, to: 1.15 },
+				alpha: { from: 0.2, to: 0.4 },
+				duration: 900,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+			this.tweens.add({
+				targets: ring,
+				angle: { from: 0, to: 360 },
+				duration: 2600,
+				repeat: -1
+			});
+		} else if (type === 'fury_totem') {
+			const base = this.add.circle(0, 0, 16, 0x4a1a00, 0.8);
+			const flame = this.add.triangle(0, -4, 0, 18, 14, -10, -14, -10, tint, 0.9);
+			const ember = this.add.circle(0, -10, 5, 0xffdd55, 0.9);
+			container.add([base, flame, ember]);
+			this.tweens.add({
+				targets: [flame, ember],
+				scaleY: { from: 0.9, to: 1.15 },
+				alpha: { from: 0.7, to: 1 },
+				duration: 320,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+			this.tweens.add({
+				targets: container,
+				y: y - 6,
+				duration: 1400,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+			applyFloat = false;
+		} else if (type === 'time_shard') {
+			const shard = this.add.polygon(0, 0, [0, -16, 12, 0, 0, 16, -12, 0], tint, 0.95);
+			const outline = this.add.polygon(0, 0, [0, -18, 14, 0, 0, 18, -14, 0], 0x224455, 0.6);
+			const spark = this.add.circle(0, -12, 3, 0xffffff, 0.9);
+			container.add([outline, shard, spark]);
+			this.tweens.add({
+				targets: container,
+				angle: { from: -8, to: 8 },
+				duration: 1200,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+			this.tweens.add({
+				targets: spark,
+				y: -16,
+				alpha: { from: 0.4, to: 1 },
+				duration: 600,
+				yoyo: true,
+				repeat: -1
+			});
+		} else if (type === 'iron_aegis') {
+			const ring = this.add.circle(0, 0, 18, 0x1b2d3d, 0.7).setStrokeStyle(3, tint, 0.9);
+			const sigil = this.add.star(0, 0, 6, 4, 9, tint, 0.9);
+			const core = this.add.circle(0, 0, 5, 0xffffff, 0.7);
+			container.add([ring, sigil, core]);
+			this.tweens.add({
+				targets: ring,
+				scale: { from: 0.9, to: 1.1 },
+				alpha: { from: 0.6, to: 0.9 },
+				duration: 900,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+			this.tweens.add({
+				targets: sigil,
+				angle: { from: 0, to: 360 },
+				duration: 2400,
+				repeat: -1
+			});
+		} else {
+			const glow = this.add.circle(0, 0, 16, tint, 0.4);
+			const core = this.add.circle(0, 0, 8, tint, 0.9);
+			container.add([glow, core]);
+		}
+
+		if (applyFloat) {
+			this.tweens.add({
+				targets: container,
+				y: y - 8,
+				duration: 1600,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+		}
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(container);
+			container.list.forEach(child => this.uiCamera.ignore(child));
+		}
+
+		return container;
+	}
+
+	collectPowerup(powerup, time) {
+		const catalog = this.powerupCatalog[powerup.type];
+		this.spawnPowerupBurst(powerup.x, powerup.y, catalog?.color || 0xffffff);
+		if (powerup.container) {
+			powerup.container.destroy();
+		}
+
+		if (powerup.type === 'blood_orb') {
+			const heal = catalog?.healAmount || 30;
+			const character = gameState.character;
+			character.hp = Math.min(character.maxHp, character.hp + heal);
+			this.showPowerupText(powerup.x, powerup.y, `+${heal} HP`, '#ff6666');
+		} else if (powerup.type === 'fury_totem') {
+			this.buffState.damageUntil = time + (catalog?.duration || 10000);
+			this.showPowerupText(powerup.x, powerup.y, 'Fury Surge', '#ffcc66');
+		} else if (powerup.type === 'time_shard') {
+			this.buffState.cooldownUntil = time + (catalog?.duration || 8000);
+			this.showPowerupText(powerup.x, powerup.y, 'Time Warp', '#88ddff');
+		} else if (powerup.type === 'iron_aegis') {
+			const shield = catalog?.shieldAmount || 40;
+			this.playerShield.value = Math.min(this.playerShield.max, this.playerShield.value + shield);
+			this.showPowerupText(powerup.x, powerup.y, 'Aegis Shield', '#b3ddff');
+		}
+	}
+
+	showPowerupText(x, y, text, color) {
+		const label = this.add.text(x, y - 18, text, {
+			font: 'bold 18px Arial',
+			fill: color,
+			stroke: '#000000',
+			strokeThickness: 3
+		});
+		label.setOrigin(0.5, 0.5);
+		label.setDepth(1002);
+		if (this.uiCamera) this.uiCamera.ignore(label);
+		this.tweens.add({
+			targets: label,
+			y: y - 60,
+			alpha: 0,
+			duration: 900,
+			ease: 'Quad.easeOut',
+			onComplete: () => label.destroy()
+		});
+	}
+
+	spawnPowerupBurst(x, y, color) {
+		const burst = this.add.circle(x, y, 8, color, 0.8);
+		if (this.uiCamera) this.uiCamera.ignore(burst);
+		this.tweens.add({
+			targets: burst,
+			scale: 2.2,
+			alpha: 0,
+			duration: 260,
+			onComplete: () => burst.destroy()
+		});
+
+		for (let i = 0; i < 6; i++) {
+			const angle = (i / 6) * Math.PI * 2;
+			const spark = this.add.circle(x, y, 2.5, color, 0.9);
+			if (this.uiCamera) this.uiCamera.ignore(spark);
+			this.tweens.add({
+				targets: spark,
+				x: x + Math.cos(angle) * 26,
+				y: y + Math.sin(angle) * 26,
+				alpha: 0,
+				duration: 320,
+				onComplete: () => spark.destroy()
+			});
+		}
+	}
+
+	spawnShieldAbsorbEffect() {
+		const ring = this.add.circle(this.playerData.x, this.playerData.y, 16, 0x66ccff, 0.2);
+		ring.setStrokeStyle(2, 0x99ddff, 0.8);
+		if (this.uiCamera) this.uiCamera.ignore(ring);
+		this.tweens.add({
+			targets: ring,
+			scale: 1.6,
+			alpha: 0,
+			duration: 240,
+			onComplete: () => ring.destroy()
+		});
+	}
+
+	updateBuffUI(time) {
+		// Update shield display
+		this.shieldText.setText(`${Math.round(this.playerShield.value)}/${this.playerShield.max}`);
+		if (this.playerShield.value > 0) {
+			this.shieldIcon.setFill('#88ff88');
+			this.shieldText.setFill('#88ff88');
+		} else {
+			this.shieldIcon.setFill('#888888');
+			this.shieldText.setFill('#888888');
+		}
+
+		// Collect active buffs
+		const activeBuffs = [];
+		if (time < this.buffState.damageUntil) {
+			activeBuffs.push({
+				type: 'fury',
+				name: 'Fury',
+				remaining: Math.max(0, this.buffState.damageUntil - time),
+				color: '#ffaa33',
+				icon: '⚡'
+			});
+		}
+		if (time < this.buffState.cooldownUntil) {
+			activeBuffs.push({
+				type: 'cooldown',
+				name: 'Warp',
+				remaining: Math.max(0, this.buffState.cooldownUntil - time),
+				color: '#66ccff',
+				icon: '⏱'
+			});
+		}
+		if (time < this.buffState.speedUntil) {
+			activeBuffs.push({
+				type: 'speed',
+				name: 'Speed',
+				remaining: Math.max(0, this.buffState.speedUntil - time),
+				color: '#ffff66',
+				icon: '→'
+			});
+		}
+
+		// Update buff panels
+		for (let i = 0; i < this.activeBuffPanels.length; i++) {
+			const panel = this.activeBuffPanels[i];
+			if (i < activeBuffs.length) {
+				const buff = activeBuffs[i];
+				const maxDuration = buff.type === 'fury' ? 10000 : buff.type === 'cooldown' ? 8000 : 0;
+				const percent = Math.max(0, Math.min(1, buff.remaining / maxDuration));
+
+				panel.icon.setText(buff.icon);
+				panel.icon.setFill(buff.color);
+				panel.name.setText(buff.name);
+				panel.name.setFill(buff.color);
+				panel.timeBar.width = 50 * percent;
+				panel.timeBar.setFill(buff.color);
+				const seconds = Math.ceil(buff.remaining / 1000);
+				panel.timeText.setText(`${Math.max(0, seconds)}s`);
+				panel.timeText.setFill(buff.color);
+
+				panel.bg.setVisible(true);
+				panel.icon.setVisible(true);
+				panel.name.setVisible(true);
+				panel.timeBg.setVisible(true);
+				panel.timeBar.setVisible(true);
+				panel.timeText.setVisible(true);
+			} else {
+				panel.bg.setVisible(false);
+				panel.icon.setVisible(false);
+				panel.name.setVisible(false);
+				panel.timeBg.setVisible(false);
+				panel.timeBar.setVisible(false);
+				panel.timeText.setVisible(false);
+			}
+		}
+	}
+
 	update(time, delta) {
 		if (!this.player) return;
 
@@ -2395,8 +3286,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		if (moveX !== 0 || moveY !== 0) {
 			const length = Math.sqrt(moveX * moveX + moveY * moveY);
-			moveX = (moveX / length) * this.playerData.speed;
-			moveY = (moveY / length) * this.playerData.speed;
+			const speed = this.playerData.speed * this.getSpeedMultiplier(time);
+			moveX = (moveX / length) * speed;
+			moveY = (moveY / length) * speed;
+			
+			// Slight screen shake during high-speed buff
+			if (this.getSpeedMultiplier(time) > 1.1) {
+				const shake = Math.random() * 0.3 - 0.15;
+				this.cameras.main.shake(60, shake);
+			}
 		}
 
 		// Update facing and sprite visibility based on movement
@@ -2435,6 +3333,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// Check if player is standing in lava
 		this.checkLavaDamage(time);
+
+		this.updatePowerups(time);
+
+		// Update powerup UI
+		this.updateBuffUI(time);
 
 		// Check structure proximity and handle entry/exit
 		if (this.isInsideStructure) {
@@ -2624,8 +3527,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	applyPlayerDamage(amount) {
-		const character = gameState.character;
-		character.hp = Math.max(0, character.hp - amount);
+		this.damagePlayer(amount);
 	}
 
 	handleSkeletonAbilities(enemyData) {
