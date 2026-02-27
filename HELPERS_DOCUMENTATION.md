@@ -621,7 +621,362 @@ class MenuScene extends Phaser.Scene {
 
 ---
 
-## 📝 Best Practices
+## � Performance Helpers
+
+**File:** `helpers/performanceHelpers.js`
+
+New utilities for optimizing game performance through spatial partitioning, object pooling, and efficient algorithms.
+
+### Key Classes
+
+#### `SpatialGrid`
+Efficient collision detection using spatial partitioning.
+```javascript
+// Create grid
+const grid = new SpatialGrid(5000, 5000, 100);
+
+// Every frame: clear and repopulate
+grid.clear();
+enemies.forEach(enemy => grid.insert(enemy, 20));
+
+// Query nearby enemies
+const nearbyEnemies = grid.queryUnique(playerX, playerY, 300);
+```
+
+#### `ObjectPool`
+Reuse objects instead of creating/destroying for better performance.
+```javascript
+const projectilePool = new ObjectPool(
+  () => scene.add.circle(0, 0, 5, 0xffff00),
+  (obj, config) => {
+    obj.setPosition(config.x, config.y);
+    obj.setVisible(true);
+  },
+  20 // initial size
+);
+
+// Get from pool
+const projectile = projectilePool.get({ x: 100, y: 100 });
+
+// Return to pool
+projectilePool.release(projectile);
+```
+
+### Key Functions
+
+#### `isWithinDistance(x1, y1, x2, y2, maxDist)`
+Fast distance check using squared distance (avoids sqrt).
+```javascript
+if (isWithinDistance(playerX, playerY, enemyX, enemyY, 100)) {
+  // Enemy is within 100 units
+}
+```
+
+#### `throttle(fn, delay)`
+Limit function call frequency.
+```javascript
+const throttledUpdate = throttle(() => {
+  // Expensive operation
+}, 100); // Max once per 100ms
+```
+
+#### `fastRemove(arr, index)`
+Efficient array removal by swapping with last element.
+```javascript
+fastRemove(enemies, enemyIndex); // O(1) instead of O(n)
+```
+
+---
+
+## 💫 Powerup Handler
+
+**File:** `handlers/PowerupHandler.js`
+
+Complete powerup system with spawning, collection, and visual effects.
+
+### Example Usage
+
+```javascript
+import { PowerupHandler } from '../handlers/PowerupHandler.js';
+
+// In scene create()
+this.powerupHandler = new PowerupHandler(this, {
+  spawnInterval: 3500,
+  maxPowerups: 5,
+  bounds: { minX: 200, maxX: 4800, minY: 200, maxY: 4800 }
+});
+
+this.powerupHandler.initialize(2000); // Start spawning after 2s
+
+// In scene update()
+this.powerupHandler.update(time, this.playerData, (type, data) => {
+  // Handle powerup pickup
+  if (type === 'blood_orb') {
+    this.healPlayer(data.healAmount);
+  } else if (type === 'fury_totem') {
+    this.buffHandler.applyDamageBuff(data.duration);
+  }
+});
+
+// In shutdown()
+this.powerupHandler.clear();
+```
+
+### Configuration Options
+- `spawnInterval` - Time between spawn checks (ms)
+- `spawnChance` - Probability of spawn on check (0-1)
+- `guaranteedInterval` - Time after which spawn is guaranteed (ms)
+- `maxPowerups` - Maximum simultaneous powerups
+- `despawnTime` - Time before powerup disappears (ms)
+- `minPlayerDistance` - Minimum distance from player to spawn
+
+---
+
+## 🛡️ Buff Handler
+
+**File:** `handlers/BuffHandler.js`
+
+Manages player buffs, debuffs, shield, and displays buff UI.
+
+### Example Usage
+
+```javascript
+import { BuffHandler } from '../handlers/BuffHandler.js';
+
+// In scene create()
+this.buffHandler = new BuffHandler(this, {
+  damageMultiplier: 1.35,
+  cooldownScale: 0.7,
+  speedMultiplier: 1.25,
+  maxShield: 60
+});
+
+// Create UI (positioned at bottom left)
+const uiY = this.game.config.height - 100;
+this.buffHandler.createUI(40, uiY, this.uiCamera);
+
+// Apply buffs
+this.buffHandler.applyDamageBuff(10000); // 10s damage boost
+this.buffHandler.applyCooldownBuff(8000); // 8s cooldown reduction
+this.buffHandler.addShield(40); // Add 40 shield points
+
+// Use buff values in combat
+const damage = baseDamage * this.buffHandler.getDamageMultiplier(time);
+const speed = baseSpeed * this.buffHandler.getSpeedMultiplier(time);
+
+// Shield absorbs damage
+const remainingDamage = this.buffHandler.absorbDamage(incomingDamage);
+playerHealth -= remainingDamage;
+
+// Update UI every frame
+this.buffHandler.updateUI(time);
+
+// Cleanup
+this.buffHandler.destroyUI();
+```
+
+---
+
+## 🎯 Projectile Handler
+
+**File:** `handlers/ProjectileHandler.js`
+
+Centralized management for player and enemy projectiles.
+
+### Example Usage
+
+```javascript
+import { ProjectileHandler } from '../handlers/ProjectileHandler.js';
+
+// In scene create()
+this.projectileHandler = new ProjectileHandler(this);
+
+// Spawn player projectile
+this.projectileHandler.spawnPlayerProjectile({
+  x: playerX,
+  y: playerY,
+  vx: aimX * 10,
+  vy: aimY * 10,
+  damage: 15,
+  color: 0xffdd55,
+  radius: 4,
+  range: 500,
+  type: 'arrow'
+});
+
+// Spawn enemy projectile
+this.projectileHandler.spawnEnemyProjectile({
+  x: enemyX,
+  y: enemyY,
+  dirX: aimX,
+  dirY: aimY,
+  speed: 3.5,
+  damage: 8,
+  visual: 'arrow'
+});
+
+// Update in scene update()
+this.projectileHandler.updatePlayerProjectiles(
+  deltaScale,
+  this.enemies,
+  (enemy, damage) => {
+    // Hit callback
+    this.damageEnemy(enemy, damage);
+  }
+);
+
+this.projectileHandler.updateEnemyProjectiles(
+  deltaScale,
+  this.playerData,
+  (damage) => {
+    // Player hit callback
+    this.damagePlayer(damage);
+  }
+);
+
+// Get counts for debugging
+const counts = this.projectileHandler.getCounts();
+console.log(`Player: ${counts.player}, Enemy: ${counts.enemy}`);
+
+// Cleanup
+this.projectileHandler.clear();
+```
+
+---
+
+## 💥 Collision Handler
+
+**File:** `handlers/CollisionHandler.js`
+
+Centralized collision detection with optimized algorithms.
+
+### Example Usage
+
+```javascript
+import { CollisionHandler } from '../handlers/CollisionHandler.js';
+
+// In scene create()
+this.collisionHandler = new CollisionHandler({
+  playerRadius: 20,
+  enemyRadiusBase: 20
+});
+
+// Set up collision geometry
+this.collisionHandler.setObstacles(this.obstacles);
+this.collisionHandler.setLavaPools(this.lavaPools);
+
+// In update() - resolve obstacle collisions
+const adjustedPos = this.collisionHandler.resolveObstacleCollision(
+  playerX,
+  playerY,
+  20 // player radius
+);
+this.playerData.x = adjustedPos.x;
+this.playerData.y = adjustedPos.y;
+
+// Check if player is in lava
+if (this.collisionHandler.isInLava(playerX, playerY)) {
+  this.damagePlayer(5); // Lava damage
+}
+
+// Check player-enemy collisions
+const collisions = this.collisionHandler.checkPlayerEnemyCollision(
+  this.playerData,
+  this.enemies
+);
+
+collisions.forEach(({ enemy, dx, dy }) => {
+  this.damagePlayer(enemy.contactDamage);
+  // Apply knockback using dx, dy
+});
+
+// Check if target is in melee cone
+const inCone = this.collisionHandler.isInMeleeCone(
+  playerX, playerY,
+  enemyX, enemyY,
+  meleeRange,
+  { x: aimX, y: aimY },
+  120 // cone angle in degrees
+);
+
+// Get enemies in radius (for AOE attacks)
+const enemiesInRadius = this.collisionHandler.getEnemiesInRadius(
+  playerX, playerY,
+  150, // radius
+  this.enemies
+);
+
+// Clamp to bounds
+const clamped = this.collisionHandler.clampToBounds(
+  entity,
+  { minX: 200, maxX: 4800, minY: 200, maxY: 4800 }
+);
+```
+
+---
+
+## 🎮 Usage Example: Complete Scene
+
+Here's how all the new handlers work together:
+
+```javascript
+import { PowerupHandler } from '../handlers/PowerupHandler.js';
+import { BuffHandler } from '../handlers/BuffHandler.js';
+import { ProjectileHandler } from '../handlers/ProjectileHandler.js';
+import { CollisionHandler } from '../handlers/CollisionHandler.js';
+import { SpatialGrid } from '../helpers/performanceHelpers.js';
+
+export class GameScene extends Phaser.Scene {
+  create() {
+    // Initialize handlers
+    this.powerupHandler = new PowerupHandler(this);
+    this.buffHandler = new BuffHandler(this);
+    this.projectileHandler = new ProjectileHandler(this);
+    this.collisionHandler = new CollisionHandler();
+    this.spatialGrid = new SpatialGrid(5000, 5000, 100);
+    
+    // Setup
+    this.powerupHandler.initialize();
+    this.buffHandler.createUI(40, this.game.config.height - 100, this.uiCamera);
+    this.collisionHandler.setObstacles(this.obstacles);
+  }
+  
+  update(time, delta) {
+    const deltaScale = delta / 16.666;
+    
+    // Performance optimization: use spatial grid
+    this.spatialGrid.clear();
+    this.enemies.forEach(e => this.spatialGrid.insert(e, 20));
+    
+    // Update systems
+    this.powerupHandler.update(time, this.playerData, this.onPowerupPickup.bind(this));
+    this.buffHandler.updateUI(time);
+    this.projectileHandler.updatePlayerProjectiles(deltaScale, this.enemies, this.damageEnemy.bind(this));
+    this.projectileHandler.updateEnemyProjectiles(deltaScale, this.playerData, this.damagePlayer.bind(this));
+    
+    // Collision detection
+    const collisions = this.collisionHandler.checkPlayerEnemyCollision(this.playerData, this.enemies);
+    collisions.forEach(({ enemy }) => this.damagePlayer(5));
+  }
+  
+  onPowerupPickup(type, data) {
+    if (type === 'fury_totem') {
+      this.buffHandler.applyDamageBuff(data.duration);
+    }
+  }
+  
+  shutdown() {
+    this.powerupHandler.clear();
+    this.buffHandler.destroyUI();
+    this.projectileHandler.clear();
+    this.collisionHandler.clear();
+  }
+}
+```
+
+---
+
+## �📝 Best Practices
 
 1. **Import only what you need** to keep bundle size small
 2. **Use destructuring** for cleaner imports:

@@ -513,3 +513,168 @@ export function createProgressBar(scene, x, y, width, height, config = {}) {
     }
   };
 }
+
+/**
+ * Create a heart icon using graphics
+ * @param {Phaser.Scene} scene - The Phaser scene
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {number} scale - Icon scale
+ * @param {Object} [config] - Configuration
+ * @returns {Phaser.GameObjects.Graphics} The heart icon
+ * @example
+ * const heart = createHeartIcon(this, 50, 50, 1);
+ */
+export function createHeartIcon(scene, x, y, scale = 1, config = {}) {
+  const {
+    color = 0xff0000,
+    outlineColor = 0x990000
+  } = config;
+  
+  const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  
+  // Main heart shape
+  graphics.fillStyle(color, 1);
+  graphics.beginPath();
+  graphics.arc(x - 6 * scale, y - 3 * scale, 5 * scale, 0, Math.PI * 2); // Left bump
+  graphics.fill();
+  graphics.beginPath();
+  graphics.arc(x + 6 * scale, y - 3 * scale, 5 * scale, 0, Math.PI * 2); // Right bump
+  graphics.fill();
+  
+  // Heart point
+  graphics.beginPath();
+  graphics.moveTo(x - 11 * scale, y);
+  graphics.lineTo(x + 11 * scale, y);
+  graphics.lineTo(x, y + 11 * scale);
+  graphics.lineTo(x - 11 * scale, y);
+  graphics.fill();
+  
+  // Outline
+  graphics.lineStyle(1.5 * scale, outlineColor, 1);
+  graphics.beginPath();
+  graphics.arc(x - 6 * scale, y - 3 * scale, 5 * scale, 0, Math.PI * 2);
+  graphics.stroke();
+  
+  scene.add.existing(graphics);
+  return graphics;
+}
+
+/**
+ * Create an enhanced health bar with heart icon and smooth updates
+ * @param {Phaser.Scene} scene - The Phaser scene
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {number} width - Bar width
+ * @param {number} height - Bar height
+ * @param {Object} config - Configuration
+ * @returns {Object} Enhanced health bar components
+ * @example
+ * const healthBar = createEnhancedHealthBar(this, 40, 700, 300, 30, {
+ *   currentHealth: 100,
+ *   maxHealth: 100
+ * });
+ * healthBar.update(75);
+ */
+export function createEnhancedHealthBar(scene, x, y, width, height, config = {}) {
+  const {
+    currentHealth = 100,
+    maxHealth = 100,
+    showHeart = true
+  } = config;
+  
+  let heart = null;
+  let barX = x + 35;
+  
+  if (showHeart) {
+    heart = createHeartIcon(scene, x, y, 1);
+  } else {
+    barX = x;
+  }
+  
+  const bar = createHealthBar(scene, barX, y, width, height, {
+    currentHealth,
+    maxHealth,
+    foregroundColor: 0xff0000,
+    backgroundColor: 0x000000,
+    showText: true
+  });
+  
+  const smoothUpdate = (newHealth) => {
+    // Immediate update
+    bar.update(newHealth);
+    
+    // Tween for smooth visual feedback
+    scene.tweens.add({
+      targets: bar.foreground,
+      width: (newHealth / maxHealth) * width,
+      duration: 200,
+      ease: 'Power1'
+    });
+  };
+  
+  return {
+    heart,
+    ...bar,
+    update: smoothUpdate,
+    destroy: () => {
+      if (heart) heart.destroy();
+      bar.destroy();
+    }
+  };
+}
+
+/**
+ * Create a camera-ignoring UI element helper
+ * Automatically ignores specified elements from the main camera
+ * @param {Phaser.Scene} scene - The Phaser scene
+ * @param {Array|Object} elements - Elements to ignore
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - Camera to ignore from (defaults to main camera)
+ * @example
+ * ignoreFromCamera(this, [healthBar, scoreText]);
+ */
+export function ignoreFromCamera(scene, elements, camera = null) {
+  const targetCamera = camera || scene.cameras.main;
+  const elementsArray = Array.isArray(elements) ? elements : [elements];
+  
+  elementsArray.forEach(element => {
+    if (element) targetCamera.ignore(element);
+  });
+}
+
+/**
+ * Create a simple tooltip
+ * @param {Phaser.Scene} scene - The Phaser scene
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {string} text - Tooltip text
+ * @param {Object} [config] - Configuration
+ * @returns {Object} Tooltip components
+ * @example
+ * const tooltip = createTooltip(this, 100, 100, 'This is a tooltip');
+ * tooltip.show();
+ * tooltip.hide();
+ */
+export function createTooltip(scene, x, y, text, config = {}) {
+  const {
+    backgroundColor = 0x000000,
+    padding = 10
+  } = config;
+  
+  const tooltipText = scene.add.text(x, y, text, {
+    font: 'bold 14px Arial',
+    fill: '#ffffff',
+    backgroundColor: `#${backgroundColor.toString(16).padStart(6, '0')}`,
+    padding: { left: padding, right: padding, top: padding, bottom: padding }
+  }).setOrigin(0.5);
+  
+  tooltipText.setVisible(false);
+  
+  return {
+    text: tooltipText,
+    show: () => tooltipText.setVisible(true),
+    hide: () => tooltipText.setVisible(false),
+    setPosition: (newX, newY) => tooltipText.setPosition(newX, newY),
+    destroy: () => tooltipText.destroy()
+  };
+}
