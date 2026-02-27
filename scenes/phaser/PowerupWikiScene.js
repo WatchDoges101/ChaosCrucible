@@ -86,7 +86,7 @@ export class PowerupWikiScene extends Phaser.Scene {
       {
         name: 'Iron Aegis',
         color: 0x99ccff,
-        effect: 'Adds 40 shield that absorbs incoming damage first.',
+        effect: 'Adds 100 shield that absorbs incoming damage first.',
         duration: 'Until depleted'
       }
     ];

@@ -76,7 +76,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			iron_aegis: {
 				name: 'Iron Aegis',
 				color: 0x99ccff,
-				shieldAmount: 40
+				shieldAmount: 100
 			}
 		};
 		this.buffState = {
@@ -91,7 +91,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		};
 		this.playerShield = {
 			value: 0,
-			max: 60
+			max: 100
 		};
 
 		// Constants
@@ -115,16 +115,17 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const centerX = this.ARENA_WIDTH / 2;
 		const centerY = this.ARENA_HEIGHT / 2;
+		const playerSpawnY = centerY + 260;
 
 		// ===== CREATE BARBARIC ARENA =====
 		this.createArenaEnvironment(centerX, centerY);
 
 		// ===== PLACE PLAYER IN CENTER =====
 		const character = gameState.character;
-		this.player = createAnimatedCharacterWithViews(this, character.role, centerX, centerY, character.colors);
+		this.player = createAnimatedCharacterWithViews(this, character.role, centerX, playerSpawnY, character.colors);
 		this.playerData = {
 			x: centerX,
-			y: centerY,
+			y: playerSpawnY,
 			vx: 0,
 			vy: 0,
 			speed: 6
@@ -362,61 +363,80 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		);
 		this.playerHealthText.setOrigin(0.5, 0.5);
 
-		// ===== POWERUP/BUFF INDICATOR (on UI camera, below health bar) =====
-		const buffPanelY = gameConfig.height - 100;
-		const buffPanelX = 40;
+		// ===== POWERUP/BUFF INDICATOR (on UI camera, left side, stacked vertically) =====
+		const buffStartY = gameConfig.height - 220;
+		const buffStartX = 40;
 
-		// Shield indicator panel
-		this.shieldPanelBg = this.add.rectangle(buffPanelX + 35, buffPanelY + 5, 60, 28, 0x001a33, 0.8);
-		this.shieldPanelBg.setOrigin(0, 0.5);
-		this.shieldPanelBorder = this.add.rectangle(buffPanelX + 35, buffPanelY + 5, 60, 28);
-		this.shieldPanelBorder.setOrigin(0, 0.5);
-		this.shieldPanelBorder.setStrokeStyle(2, 0x88ccff);
-		this.shieldPanelBorder.setFillStyle(0, 0);
+		// SHIELD SECTION
+		const shieldLabelY = buffStartY;
+		this.shieldLabel = this.add.text(buffStartX, shieldLabelY, 'SHIELD', {
+			font: 'bold 18px Arial',
+			fill: '#88ccff',
+			stroke: '#000000',
+			strokeThickness: 3
+		});
+		this.shieldLabel.setOrigin(0, 0);
 
-		this.shieldIcon = this.add.text(buffPanelX + 42, buffPanelY + 5, '⬡', {
-			font: 'bold 16px Arial',
+		const shieldBoxY = shieldLabelY + 28;
+		this.shieldBg = this.add.rectangle(buffStartX + 35, shieldBoxY + 15, 300, 30, 0x001a33, 0.9);
+		this.shieldBg.setOrigin(0, 0.5);
+		this.shieldBg.setStrokeStyle(3, 0x88ccff);
+
+		this.shieldIcon = this.add.text(buffStartX + 50, shieldBoxY + 15, '⬡', {
+			font: 'bold 20px Arial',
 			fill: '#88ccff'
 		});
 		this.shieldIcon.setOrigin(0.5, 0.5);
 
-		this.shieldText = this.add.text(buffPanelX + 58, buffPanelY + 5, '0/60', {
-			font: 'bold 11px Arial',
+		this.shieldText = this.add.text(buffStartX + 185, shieldBoxY + 15, '0/100', {
+			font: 'bold 20px Arial',
 			fill: '#88ccff',
 			stroke: '#000000',
 			strokeThickness: 2
 		});
-		this.shieldText.setOrigin(0.5, 0.5);
+		this.shieldText.setOrigin(0, 0.5);
+
+		// ACTIVE EFFECTS SECTION
+		const effectsLabelY = shieldBoxY + 44;
+		this.effectsLabel = this.add.text(buffStartX, effectsLabelY, 'ACTIVE EFFECTS', {
+			font: 'bold 18px Arial',
+			fill: '#ffcc00',
+			stroke: '#000000',
+			strokeThickness: 3
+		});
+		this.effectsLabel.setOrigin(0, 0);
 
 		// Active buffs panel (will show up to 3 active buffs)
 		this.activeBuffPanels = [];
 		for (let i = 0; i < 3; i++) {
-			const buffX = buffPanelX + 135 + i * 85;
-			const buffBg = this.add.rectangle(buffX, buffPanelY + 5, 80, 28, 0x1a1a1a, 0.9);
-			buffBg.setOrigin(0, 0.5);
+			const buffY = effectsLabelY + 34 + i * 50;
+			const buffBg = this.add.rectangle(buffStartX + 240, buffY + 8, 220, 42, 0x1a1a1a, 0.95);
+			buffBg.setOrigin(1, 0.5);
 			buffBg.setStrokeStyle(2, 0x666666);
 			
-			const buffIcon = this.add.text(buffX + 8, buffPanelY + 5, '●', {
-				font: 'bold 14px Arial',
+			const buffIcon = this.add.text(buffStartX + 20, buffY + 8, '●', {
+				font: 'bold 24px Arial',
 				fill: '#ffffff'
 			});
 			buffIcon.setOrigin(0.5, 0.5);
 
-			const buffName = this.add.text(buffX + 25, buffPanelY - 2, '', {
-				font: 'bold 10px Arial',
+			const buffName = this.add.text(buffStartX + 35, buffY - 5, '', {
+				font: 'bold 16px Arial',
 				fill: '#ffffff'
 			});
 			buffName.setOrigin(0, 0.5);
 
-			const buffTimeBg = this.add.rectangle(buffX + 25, buffPanelY + 10, 50, 4, 0x000000, 0.9);
+			const buffTimeBg = this.add.rectangle(buffStartX + 35, buffY + 18, 120, 8, 0x000000, 0.9);
 			buffTimeBg.setOrigin(0, 0.5);
 
-			const buffTimeBar = this.add.rectangle(buffX + 25, buffPanelY + 10, 50, 4, 0x00ff00, 1);
+			const buffTimeBar = this.add.rectangle(buffStartX + 35, buffY + 18, 120, 8, 0x00ff00, 1);
 			buffTimeBar.setOrigin(0, 0.5);
 
-			const buffTimeText = this.add.text(buffX + 78, buffPanelY + 5, '0s', {
-				font: 'bold 9px Arial',
-				fill: '#cccccc'
+			const buffTimeText = this.add.text(buffStartX + 165, buffY + 18, '0s', {
+				font: 'bold 14px Arial',
+				fill: '#ffffff',
+				stroke: '#000000',
+				strokeThickness: 2
 			});
 			buffTimeText.setOrigin(1, 0.5);
 
@@ -441,10 +461,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.playerHealthBorder,
 			this.playerHealthFg,
 			this.playerHealthText,
-			this.shieldPanelBg,
-			this.shieldPanelBorder,
+			this.shieldLabel,
+			this.shieldBg,
 			this.shieldIcon,
-			this.shieldText
+			this.shieldText,
+			this.effectsLabel
 		];
 		this.activeBuffPanels.forEach(panel => {
 			hudElements.push(panel.bg, panel.icon, panel.name, panel.timeBg, panel.timeBar, panel.timeText);
@@ -1209,6 +1230,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(floorGraphics);
 		this.add.existing(lavaCracks);
+		lavaCracks.setDepth(0);
 
 		// ===== CREATE ARENA BORDER =====
 		const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
@@ -1288,6 +1310,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== CREATE STRUCTURES =====
 		this.createStructures();
+
+		// ===== CENTERPIECE MONUMENT + SURROUNDING STATUES =====
+		this.createCenterpieceStatue(centerX, centerY);
+		this.createBattlefieldStatues(centerX, centerY);
 
 		// ===== FLOATING PARTICLES FOR DEPTH =====
 		this.createFloatingParticles();
@@ -1779,6 +1805,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	 */
 	createObstacles() {
 		const padding = this.ARENA_PADDING + 300;
+		const centerX = this.ARENA_WIDTH / 2;
+		const centerY = this.ARENA_HEIGHT / 2;
+		const centerSafeRadius = 430;
 		const spawnArea = {
 			minX: padding,
 			maxX: this.ARENA_WIDTH - padding,
@@ -1786,45 +1815,314 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			maxY: this.ARENA_HEIGHT - padding
 		};
 
+		const getSpawnAwayFromCenter = () => {
+			for (let tries = 0; tries < 24; tries++) {
+				const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
+				const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+				if (Math.hypot(x - centerX, y - centerY) > centerSafeRadius) {
+					return { x, y };
+				}
+			}
+
+			const angle = Math.random() * Math.PI * 2;
+			return {
+				x: centerX + Math.cos(angle) * (centerSafeRadius + 120),
+				y: centerY + Math.sin(angle) * (centerSafeRadius + 120)
+			};
+		};
+
 		// Ancient Stone Rocks (10-15 scattered around)
 		const numRocks = 12 + Math.floor(Math.random() * 4);
 		for (let i = 0; i < numRocks; i++) {
-			const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
-			const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+			const { x, y } = getSpawnAwayFromCenter();
 			this.createRockObstacle(x, y);
 		}
 
 		// Ancient Pillars (5-7 tall columns)
 		const numPillars = 5 + Math.floor(Math.random() * 3);
 		for (let i = 0; i < numPillars; i++) {
-			const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
-			const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+			const { x, y } = getSpawnAwayFromCenter();
 			this.createPillarObstacle(x, y);
 		}
 
 		// Mysterious Obelisks (3-4 magical monoliths)
 		const numObelisks = 3 + Math.floor(Math.random() * 2);
 		for (let i = 0; i < numObelisks; i++) {
-			const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
-			const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+			const { x, y } = getSpawnAwayFromCenter();
 			this.createObeliskObstacle(x, y);
 		}
 
 		// Broken Statues (4-5 ruined monuments)
 		const numStatues = 4 + Math.floor(Math.random() * 2);
 		for (let i = 0; i < numStatues; i++) {
-			const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
-			const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+			const { x, y } = getSpawnAwayFromCenter();
 			this.createStatueObstacle(x, y);
 		}
 
 		// Stone Altars (2-3 sacrificial platforms)
 		const numAltars = 2 + Math.floor(Math.random() * 2);
 		for (let i = 0; i < numAltars; i++) {
-			const x = spawnArea.minX + Math.random() * (spawnArea.maxX - spawnArea.minX);
-			const y = spawnArea.minY + Math.random() * (spawnArea.maxY - spawnArea.minY);
+			const { x, y } = getSpawnAwayFromCenter();
 			this.createAltarObstacle(x, y);
 		}
+	}
+
+	createCenterpieceStatue(centerX, centerY) {
+		const statue = this.make.graphics({ x: 0, y: 0, add: false });
+
+		// Outer ritual platform
+		statue.fillStyle(0x2c2020, 1);
+		statue.fillCircle(centerX, centerY + 180, 230);
+		statue.fillStyle(0x4a1a1a, 0.95);
+		statue.fillCircle(centerX, centerY + 180, 190);
+
+		// Massive pedestal
+		statue.fillStyle(0x362424, 1);
+		statue.fillRect(centerX - 160, centerY + 20, 320, 170);
+		statue.fillStyle(0x522727, 1);
+		statue.fillRect(centerX - 180, centerY + 160, 360, 45);
+
+		// Body and shoulders
+		statue.fillStyle(0x472020, 1);
+		statue.fillRect(centerX - 100, centerY - 190, 200, 230);
+		statue.fillStyle(0x5e2a2a, 1);
+		statue.fillRect(centerX - 170, centerY - 170, 340, 65);
+
+		// Arms with claw-like hands
+		statue.fillStyle(0x3b1717, 1);
+		statue.fillRect(centerX - 210, centerY - 130, 65, 210);
+		statue.fillRect(centerX + 145, centerY - 130, 65, 210);
+		statue.fillTriangle(centerX - 210, centerY + 80, centerX - 145, centerY + 80, centerX - 178, centerY + 130);
+		statue.fillTriangle(centerX + 145, centerY + 80, centerX + 210, centerY + 80, centerX + 178, centerY + 130);
+
+		// Head
+		statue.fillStyle(0x5a2b2b, 1);
+		statue.fillCircle(centerX, centerY - 235, 82);
+
+		// Horns
+		statue.fillStyle(0x2b1414, 1);
+		statue.fillTriangle(centerX - 58, centerY - 290, centerX - 145, centerY - 370, centerX - 82, centerY - 252);
+		statue.fillTriangle(centerX + 58, centerY - 290, centerX + 145, centerY - 370, centerX + 82, centerY - 252);
+
+		// Eyes and mouth glow carvings
+		statue.fillStyle(0xff2200, 0.95);
+		statue.fillCircle(centerX - 30, centerY - 248, 10);
+		statue.fillCircle(centerX + 30, centerY - 248, 10);
+		statue.fillRect(centerX - 36, centerY - 215, 72, 12);
+
+		// Blood streaks
+		statue.fillStyle(0x7a0000, 0.7);
+		for (let i = 0; i < 12; i++) {
+			const streakX = centerX - 75 + Math.random() * 150;
+			const streakY = centerY - 80 + Math.random() * 210;
+			const length = 26 + Math.random() * 55;
+			statue.fillRect(streakX, streakY, 5, length);
+		}
+
+		// Runic ring marks
+		statue.lineStyle(4, 0xaa2200, 0.85);
+		statue.strokeCircle(centerX, centerY + 180, 205);
+		statue.lineStyle(2, 0xff8844, 0.65);
+		for (let i = 0; i < 16; i++) {
+			const a = (i / 16) * Math.PI * 2;
+			const x1 = centerX + Math.cos(a) * 178;
+			const y1 = centerY + 180 + Math.sin(a) * 178;
+			const x2 = centerX + Math.cos(a) * 196;
+			const y2 = centerY + 180 + Math.sin(a) * 196;
+			statue.lineBetween(x1, y1, x2, y2);
+		}
+
+		this.add.existing(statue);
+		statue.setDepth(8);
+		this.arenaObjects.push(statue);
+
+		const eyeGlowLeft = this.add.circle(centerX - 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD').setDepth(9);
+		const eyeGlowRight = this.add.circle(centerX + 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD').setDepth(9);
+		const baseGlow = this.add.circle(centerX, centerY + 180, 265, 0xff2200, 0.12).setBlendMode('ADD').setDepth(4);
+		this.arenaObjects.push(eyeGlowLeft, eyeGlowRight, baseGlow);
+
+		this.tweens.add({
+			targets: [eyeGlowLeft, eyeGlowRight],
+			alpha: { from: 0.18, to: 0.5 },
+			scale: { from: 0.9, to: 1.1 },
+			duration: 700,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+
+		this.tweens.add({
+			targets: baseGlow,
+			alpha: { from: 0.08, to: 0.24 },
+			scale: { from: 0.95, to: 1.08 },
+			duration: 1300,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+
+		this.createCenterpieceLavaCracks(centerX, centerY + 175);
+		this.createStatueBloodPouring(centerX, centerY);
+
+		// Collision footprint tuned to the pedestal and body
+		this.addObstacle(centerX, centerY + 120, 'rect', 300, 240, 'centerpiece_statue_body');
+		this.addObstacle(centerX, centerY - 245, 'rect', 155, 135, 'centerpiece_statue_head');
+		// Block the bottom ritual platform circle completely
+		this.addObstacle(centerX, centerY + 180, 'circle', 190, 0, 'centerpiece_statue_platform');
+	}
+
+	createCenterpieceLavaCracks(centerX, centerY) {
+		const crackGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+
+		const ringCount = 14;
+		for (let i = 0; i < ringCount; i++) {
+			const angle = (i / ringCount) * Math.PI * 2;
+			const radius = 230 + Math.random() * 55;
+			const startX = centerX + Math.cos(angle) * radius;
+			const startY = centerY + Math.sin(angle) * radius;
+
+			const points = [{ x: startX, y: startY }];
+			let direction = angle + (Math.random() > 0.5 ? 1 : -1) * (0.6 + Math.random() * 0.5);
+			const segments = 4 + Math.floor(Math.random() * 3);
+
+			for (let s = 0; s < segments; s++) {
+				direction += (Math.random() - 0.5) * 0.8;
+				const prev = points[points.length - 1];
+				const length = 28 + Math.random() * 40;
+				points.push({
+					x: prev.x + Math.cos(direction) * length,
+					y: prev.y + Math.sin(direction) * length
+				});
+			}
+
+			crackGraphics.lineStyle(7, 0x2a0a00, 0.65);
+			crackGraphics.beginPath();
+			crackGraphics.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) crackGraphics.lineTo(points[p].x, points[p].y);
+			crackGraphics.strokePath();
+
+			crackGraphics.lineStyle(3.5, 0xff3300, 0.9);
+			crackGraphics.beginPath();
+			crackGraphics.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) crackGraphics.lineTo(points[p].x, points[p].y);
+			crackGraphics.strokePath();
+
+			crackGraphics.lineStyle(1.5, 0xffcc66, 1);
+			crackGraphics.beginPath();
+			crackGraphics.moveTo(points[0].x, points[0].y);
+			for (let p = 1; p < points.length; p++) crackGraphics.lineTo(points[p].x, points[p].y);
+			crackGraphics.strokePath();
+		}
+
+		this.add.existing(crackGraphics);
+		crackGraphics.setDepth(0);
+		this.arenaObjects.push(crackGraphics);
+
+		this.tweens.add({
+			targets: crackGraphics,
+			alpha: { from: 0.55, to: 1 },
+			duration: 650,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+	}
+
+	createStatueBloodPouring(centerX, centerY) {
+		const bloodGroup = this.add.container(0, 0);
+		bloodGroup.setDepth(9);
+
+		// Create a blood drop at a given position
+		const spawnBloodDrop = (startX, startY, offsetX = 0) => {
+			const drop = this.add.circle(startX + offsetX, startY, 3 + Math.random() * 2, 0x8a0000, 0.85);
+			bloodGroup.add(drop);
+			
+			const fallDistance = 140 + Math.random() * 80;
+			const fallDuration = 800 + Math.random() * 600;
+			
+			this.tweens.add({
+				targets: drop,
+				y: startY + fallDistance,
+				alpha: { from: 0.9, to: 0.1 },
+				scaleX: { from: 1, to: 0.5 },
+				scaleY: { from: 1, to: 1.4 },
+				duration: fallDuration,
+				ease: 'Quad.in',
+				onComplete: () => drop.destroy()
+			});
+		};
+
+		// Set up repeating blood streams with proper timer delays
+		const createBloodStream = (startX, startY, offsetX = 0) => {
+			const loopDelay = 120 + Math.random() * 200;
+			this.time.addEvent({
+				callback: () => spawnBloodDrop(startX, startY, offsetX),
+				delay: loopDelay,
+				loop: true,
+				loopDelay: loopDelay
+			});
+		};
+
+		// Pouring from both eyes
+		createBloodStream(centerX - 30, centerY - 248, -2);
+		createBloodStream(centerX - 30, centerY - 248, 2);
+		createBloodStream(centerX + 30, centerY - 248, -2);
+		createBloodStream(centerX + 30, centerY - 248, 2);
+		
+		// Pouring from mouth - wider stream
+		for (let i = 0; i < 3; i++) {
+			const mouthX = centerX - 30 + i * 30;
+			createBloodStream(mouthX, centerY - 210, Math.random() * 10 - 5);
+		}
+
+		this.arenaObjects.push(bloodGroup);
+	}
+
+	createBattlefieldStatues(centerX, centerY) {
+		const guardianGroup = this.make.graphics({ x: 0, y: 0, add: false });
+		const guardianOffsets = [
+			{ x: -520, y: -320 },
+			{ x: 520, y: -320 },
+			{ x: -520, y: 360 },
+			{ x: 520, y: 360 }
+		];
+
+		guardianOffsets.forEach((offset, index) => {
+			const gx = centerX + offset.x;
+			const gy = centerY + offset.y;
+
+			guardianGroup.fillStyle(index % 2 === 0 ? 0x5a4a4a : 0x4a3a3a, 1);
+			guardianGroup.fillRect(gx - 45, gy + 35, 90, 18);
+			guardianGroup.fillStyle(0x6a5656, 1);
+			guardianGroup.fillRect(gx - 32, gy - 46, 64, 85);
+			guardianGroup.fillStyle(0x3a2a2a, 1);
+			guardianGroup.fillCircle(gx, gy - 58, 30);
+			guardianGroup.fillStyle(0x220f0f, 1);
+			guardianGroup.fillTriangle(gx - 16, gy - 88, gx - 42, gy - 120, gx - 25, gy - 73);
+			guardianGroup.fillTriangle(gx + 16, gy - 88, gx + 42, gy - 120, gx + 25, gy - 73);
+
+			guardianGroup.fillStyle(0xff4400, 0.85);
+			guardianGroup.fillCircle(gx - 9, gy - 62, 4);
+			guardianGroup.fillCircle(gx + 9, gy - 62, 4);
+
+			const aura = this.add.circle(gx, gy - 15, 58, 0xff5522, 0.12).setBlendMode('ADD').setDepth(6);
+			this.arenaObjects.push(aura);
+			this.tweens.add({
+				targets: aura,
+				alpha: { from: 0.06, to: 0.18 },
+				scale: { from: 0.92, to: 1.08 },
+				duration: 1300 + index * 180,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+
+			this.addObstacle(gx, gy - 10, 'rect', 88, 130, `guardian_statue_${index}`);
+		});
+
+		this.add.existing(guardianGroup);
+		guardianGroup.setDepth(7);
+		this.arenaObjects.push(guardianGroup);
 	}
 
 	createRockObstacle(x, y) {
@@ -2173,35 +2471,66 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		let adjustedX = entityX;
 		let adjustedY = entityY;
 
-		for (const obstacle of this.obstacles) {
-			if (obstacle.type === 'circle') {
-				const dx = entityX - obstacle.x;
-				const dy = entityY - obstacle.y;
-				const distance = Math.hypot(dx, dy);
-				
-				if (distance < entityRadius + obstacle.radius) {
-					// Push entity away from obstacle
-					const overlap = entityRadius + obstacle.radius - distance;
-					const angle = Math.atan2(dy, dx);
-					adjustedX += Math.cos(angle) * overlap;
-					adjustedY += Math.sin(angle) * overlap;
-				}
-			} else if (obstacle.type === 'rect') {
-				const closestX = Phaser.Math.Clamp(entityX, obstacle.x - obstacle.width / 2, obstacle.x + obstacle.width / 2);
-				const closestY = Phaser.Math.Clamp(entityY, obstacle.y - obstacle.height / 2, obstacle.y + obstacle.height / 2);
-				
-				const dx = entityX - closestX;
-				const dy = entityY - closestY;
-				const distance = Math.hypot(dx, dy);
-				
-				if (distance < entityRadius && distance > 0) {
-					// Push entity away from obstacle
-					const overlap = entityRadius - distance;
-					const angle = Math.atan2(dy, dx);
-					adjustedX += Math.cos(angle) * overlap;
-					adjustedY += Math.sin(angle) * overlap;
+		// Iterate to resolve stacked/adjacent obstacles reliably
+		for (let pass = 0; pass < 3; pass++) {
+			let movedThisPass = false;
+
+			for (const obstacle of this.obstacles) {
+				if (obstacle.type === 'circle') {
+					const dx = adjustedX - obstacle.x;
+					const dy = adjustedY - obstacle.y;
+					const distance = Math.hypot(dx, dy);
+					const minDistance = entityRadius + obstacle.radius;
+
+					if (distance < minDistance) {
+						const safeDistance = distance || 0.0001;
+						const overlap = minDistance - safeDistance;
+						adjustedX += (dx / safeDistance) * overlap;
+						adjustedY += (dy / safeDistance) * overlap;
+						movedThisPass = true;
+					}
+				} else if (obstacle.type === 'rect') {
+					const halfW = obstacle.width / 2;
+					const halfH = obstacle.height / 2;
+					const minX = obstacle.x - halfW;
+					const maxX = obstacle.x + halfW;
+					const minY = obstacle.y - halfH;
+					const maxY = obstacle.y + halfH;
+
+					const closestX = Phaser.Math.Clamp(adjustedX, minX, maxX);
+					const closestY = Phaser.Math.Clamp(adjustedY, minY, maxY);
+					const dx = adjustedX - closestX;
+					const dy = adjustedY - closestY;
+					const distance = Math.hypot(dx, dy);
+
+					if (distance < entityRadius && distance > 0) {
+						const overlap = entityRadius - distance;
+						adjustedX += (dx / distance) * overlap;
+						adjustedY += (dy / distance) * overlap;
+						movedThisPass = true;
+					} else if (distance === 0) {
+						// Entity center is inside rectangle: push to nearest edge
+						const leftPen = Math.abs(adjustedX - minX);
+						const rightPen = Math.abs(maxX - adjustedX);
+						const topPen = Math.abs(adjustedY - minY);
+						const bottomPen = Math.abs(maxY - adjustedY);
+						const minPen = Math.min(leftPen, rightPen, topPen, bottomPen);
+
+						if (minPen === leftPen) {
+							adjustedX = minX - entityRadius;
+						} else if (minPen === rightPen) {
+							adjustedX = maxX + entityRadius;
+						} else if (minPen === topPen) {
+							adjustedY = minY - entityRadius;
+						} else {
+							adjustedY = maxY + entityRadius;
+						}
+						movedThisPass = true;
+					}
 				}
 			}
+
+			if (!movedThisPass) break;
 		}
 
 		return { x: adjustedX, y: adjustedY };
@@ -3146,7 +3475,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.buffState.cooldownUntil = time + (catalog?.duration || 8000);
 			this.showPowerupText(powerup.x, powerup.y, 'Time Warp', '#88ddff');
 		} else if (powerup.type === 'iron_aegis') {
-			const shield = catalog?.shieldAmount || 40;
+			const shield = catalog?.shieldAmount || 100;
 			this.playerShield.value = Math.min(this.playerShield.max, this.playerShield.value + shield);
 			this.showPowerupText(powerup.x, powerup.y, 'Aegis Shield', '#b3ddff');
 		}
@@ -3264,7 +3593,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				panel.icon.setFill(buff.color);
 				panel.name.setText(buff.name);
 				panel.name.setFill(buff.color);
-				panel.timeBar.width = 50 * percent;
+				panel.timeBar.width = 120 * percent;
 				panel.timeBar.setFillStyle(Phaser.Display.Color.HexStringToColor(buff.color).color, 1);
 				const seconds = Math.ceil(buff.remaining / 1000);
 				panel.timeText.setText(`${Math.max(0, seconds)}s`);
