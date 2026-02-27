@@ -10,10 +10,18 @@ export class OptionsScene extends Phaser.Scene {
     console.log('[CONSTRUCTOR] OptionsScene being instantiated');
     super({ key: 'OptionsScene', active: false });
     this.qualityButtons = [];
+    this.returnScene = 'MenuScene';
+    this.returnSceneData = {};
   }
 
-  init() {
+  init(data) {
     this.qualityButtons = [];
+    this.returnScene = data?.returnScene || 'MenuScene';
+    this.returnSceneData = data?.returnSceneData || {};
+
+    if (data?.gameSceneKey) {
+      this.returnSceneData.gameSceneKey = data.gameSceneKey;
+    }
   }
 
   create() {
@@ -142,7 +150,7 @@ export class OptionsScene extends Phaser.Scene {
     });
 
     backButton.on('pointerdown', () => {
-      this.scene.start('MenuScene');
+      this.scene.start(this.returnScene, this.returnSceneData);
     });
   }
 

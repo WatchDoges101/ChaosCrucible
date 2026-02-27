@@ -81,7 +81,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Buttons with interactive areas
     const buttons = [
-      { label: 'ARENA', scene: 'ChaossCrucibleScene' },
+      { label: 'ARENA', scene: 'CharacterSelectionScene' },
       { label: 'ONLINE', scene: 'HostScene' },
       { label: 'SKILL TREE', scene: 'SkillTreeScene' },
       { label: 'ENEMIES', scene: 'EnemyWikiScene' },
@@ -93,7 +93,9 @@ export class MenuScene extends Phaser.Scene {
     const buttonHeight = 90;
     const buttonGap = 30;
     const totalHeight = buttons.length * buttonHeight + (buttons.length - 1) * buttonGap;
-    const startY = centerY - totalHeight / 2;
+    // add a small offset so buttons sit lower and aren't too close to the title
+    const buttonOffset = 80; // pixels to push the group down
+    const startY = centerY - totalHeight / 2 + buttonOffset;
 
     buttons.forEach((btn, idx) => {
       const y = startY + idx * (buttonHeight + buttonGap);

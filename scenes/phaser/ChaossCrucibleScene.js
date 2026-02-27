@@ -2,6 +2,8 @@ import { gameState } from '../../services/gameState.js';
 import { createAnimatedCharacterWithViews } from '../../services/spriteGenerator.js';
 import { generateEnemySprite } from '../../services/spriteGenerator.js';
 import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
+import { attachPauseKey, detachPauseKey } from '../../handlers/PauseHandler.js';
+import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers.js';
 
 /**
  * =================================================================
@@ -155,11 +157,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 		const character = gameState.character;
 
-		// ESC key handler for pause
-		this.input.keyboard.on('keydown-ESC', () => {
-			this.scene.pause();
-			this.scene.launch('PauseScene');
-		});
+		ensureSceneRegistered(this, 'PauseScene');
+		ensureSceneRegistered(this, 'OptionsScene');
+
+		this.handlePauseEsc = attachPauseKey(this, 'ChaossCrucibleScene');
 
 		// ===== CREATE BARBARIC ARENA =====
 		this.createArenaEnvironment(centerX, centerY);
@@ -570,10 +571,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== INPUT HANDLING =====
 		this.keys = this.input.keyboard.createCursorKeys();
+		this.input.keyboard.enabled = true;
 		this.keys.w = this.input.keyboard.addKey('W');
 		this.keys.a = this.input.keyboard.addKey('A');
 		this.keys.s = this.input.keyboard.addKey('S');
 		this.keys.d = this.input.keyboard.addKey('D');
+		this.keys.esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 		this.keys.space = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 		this.keys.e = this.input.keyboard.addKey('E');
 		this.keys.shift = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
@@ -4185,6 +4188,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	update(time, delta) {
 		if (!this.player) return;
 
+		if (this.keys.esc && Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
+			openPauseMenu(this, 'ChaossCrucibleScene');
+		}
+
 		const deltaScale = delta ? delta / 16.666 : 1;
 
 		// Movement
@@ -4603,6 +4610,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	shutdown() {
+		if (this.handlePauseEsc) {
+			detachPauseKey(this, this.handlePauseEsc);
+			this.handlePauseEsc = null;
+		}
+
 		// Clean up all scene resources
 		cleanupScene(this);
 		

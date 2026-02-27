@@ -2,6 +2,8 @@ import { gameState } from '../../services/gameState.js';
 import { GAME_CONSTANTS } from '../../config/gameConfig.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter } from '../../services/spriteGenerator.js';
 import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
+import { attachPauseKey, detachPauseKey } from '../../handlers/PauseHandler.js';
+import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers.js';
 
 /**
  * HostScene
@@ -14,14 +16,19 @@ export class HostScene extends Phaser.Scene {
   }
 
   init() {
-    this.isPaused = false;
     this.enemies = [];
-    this.pauseUIElements = [];
-    this.camera.setBounds(0, 0, GAME_CONSTANTS.WORLD_WIDTH, GAME_CONSTANTS.WORLD_HEIGHT);
+    this.handlePauseEsc = null;
+    this.cameras.main.setBounds(0, 0, GAME_CONSTANTS.WORLD_WIDTH, GAME_CONSTANTS.WORLD_HEIGHT);
   }
 
   create() {
     const { WORLD_WIDTH, WORLD_HEIGHT, MOVE_SPEED, PLAYER_RADIUS } = GAME_CONSTANTS;
+
+    // Initialize character if missing
+    if (!gameState.character) {
+      gameState.setSelectedRole('Male'); // Default role
+    }
+    const character = gameState.character;
 
     // Create world background (tiled pattern)
     const grid = this.add.graphics();
@@ -37,9 +44,12 @@ export class HostScene extends Phaser.Scene {
     grid.strokePath();
 
     // Create player with procedurally generated sprite
-    const character = gameState.character;
     this.player = createAnimatedCharacter(this, character.role, character.x, character.y, character.colors);
     this.player.setData('character', character);
+
+    // Ensure pause scenes are registered
+    ensureSceneRegistered(this, 'PauseScene');
+    ensureSceneRegistered(this, 'OptionsScene');
 
     // Follow player with camera
     this.cameras.main.startFollow(this.player);
@@ -47,13 +57,15 @@ export class HostScene extends Phaser.Scene {
 
     // Input handlers
     this.keys = this.input.keyboard.createCursorKeys();
+    this.input.keyboard.enabled = true;
     this.keys.w = this.input.keyboard.addKey('W');
     this.keys.a = this.input.keyboard.addKey('A');
     this.keys.s = this.input.keyboard.addKey('S');
     this.keys.d = this.input.keyboard.addKey('D');
-    this.keys.esc = this.input.keyboard.addKey('ESC');
+    this.keys.esc = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
-    this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+    // Attach centralized pause handler
+    this.handlePauseEsc = attachPauseKey(this, 'HostScene');
 
     // Enemy manager
     this.enemySpawnTimer = 0;
@@ -70,7 +82,12 @@ export class HostScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    if (this.isPaused) return;
+    if (this.scene.isPaused('HostScene')) return;
+
+    // ESC key fallback check
+    if (this.keys.esc && Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
+      openPauseMenu(this, 'HostScene');
+    }
 
     const character = gameState.character;
     const { MOVE_SPEED, WORLD_WIDTH, WORLD_HEIGHT } = GAME_CONSTANTS;
@@ -151,63 +168,16 @@ export class HostScene extends Phaser.Scene {
     this.enemies.push(enemy);
   }
 
-  togglePause() {
-    this.isPaused = !this.isPaused;
-    if (this.isPaused) {
-      this.showPauseMenu();
-    } else {
-      this.hidePauseMenu();
-    }
-  }
 
-  showPauseMenu() {
-    const { width, height } = this.scale;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(centerX, centerY, width, height, 0x000000, 0.5)
-      .setScrollFactor(0)
-      .setDepth(100)
-      .setInteractive(); // Prevent clicks passing through
-
-    // Pause text
-    const pauseText = this.add.text(centerX, centerY - 100, 'PAUSED', {
-      font: '48px Arial',
-      fill: '#ffffff'
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-
-    // Resume button
-    const resumeBtn = this.add.rectangle(centerX, centerY, 200, 60, 0x00aa00, 0.8)
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(101)
-      .setInteractive({ useHandCursor: true });
-
-    const resumeText = this.add.text(centerX, centerY, 'Resume', {
-      font: '20px Arial',
-      fill: '#ffffff'
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
-
-    resumeBtn.on('pointerdown', () => this.togglePause());
-
-    // Store references for cleanup
-    this.pauseUIElements = [overlay, pauseText, resumeBtn, resumeText];
-  }
-
-  hidePauseMenu() {
-    // Destroy all pause UI elements
-    this.pauseUIElements.forEach(element => {
-      if (element && element.destroy) {
-        try { element.destroy(); } catch(e) {}
-      }
-    });
-    this.pauseUIElements = [];
-  }
 
   shutdown() {
-    // Clean up pause UI and all scene resources
-    this.hidePauseMenu();
+    // Clean up pause handler
+    if (this.handlePauseEsc) {
+      detachPauseKey(this, this.handlePauseEsc);
+      this.handlePauseEsc = null;
+    }
+    
+    // Clean up all scene resources
     cleanupScene(this);
   }
 }
