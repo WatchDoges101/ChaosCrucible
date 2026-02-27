@@ -1,5 +1,6 @@
 import { gameState } from '../../services/gameState.js';
 import { audioManager } from '../../services/audioManager.js';
+import { stopAllTweens, stopAllTimers, removeAllInputListeners, cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * MenuScene
@@ -38,18 +39,16 @@ export class MenuScene extends Phaser.Scene {
       'CharacterCustomizationScene',
       'ChaossCrucibleScene',
       'HostScene',
-      'EnemyWikiScene'
+      'EnemyWikiScene',
+      'OptionsScene'
     ];
     scenesToShutdown.forEach(key => {
       const sceneInstance = this.scene.get(key);
       if (sceneInstance) {
+        // Properly clean up the scene first
+        cleanupScene(sceneInstance);
+        // Then stop it
         this.scene.stop(key);
-        // Remove all display objects from that scene's display list
-        if (sceneInstance.children && sceneInstance.children.list) {
-          sceneInstance.children.list.forEach(child => {
-            try { child.destroy(); } catch(e) {}
-          });
-        }
       }
     });
 
@@ -99,6 +98,16 @@ export class MenuScene extends Phaser.Scene {
 
     // Play background music
     // audioManager.playMusic('menuMusic', true);
+  }
+
+  shutdown() {
+    // Called when scene stops - clean up all resources
+    cleanupScene(this);
+  }
+
+  sleep() {
+    // Called when scene is paused - disable interactions
+    removeAllInputListeners(this);
   }
 
   createButton(x, y, width, height, config) {

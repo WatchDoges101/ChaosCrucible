@@ -1,6 +1,7 @@
 import { gameState } from '../../services/gameState.js';
 import { GAME_CONSTANTS } from '../../config/gameConfig.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter } from '../../services/spriteGenerator.js';
+import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * HostScene
@@ -15,6 +16,7 @@ export class HostScene extends Phaser.Scene {
   init() {
     this.isPaused = false;
     this.enemies = [];
+    this.pauseUIElements = [];
     this.camera.setBounds(0, 0, GAME_CONSTANTS.WORLD_WIDTH, GAME_CONSTANTS.WORLD_HEIGHT);
   }
 
@@ -166,10 +168,11 @@ export class HostScene extends Phaser.Scene {
     // Semi-transparent overlay
     const overlay = this.add.rectangle(centerX, centerY, width, height, 0x000000, 0.5)
       .setScrollFactor(0)
-      .setDepth(100);
+      .setDepth(100)
+      .setInteractive(); // Prevent clicks passing through
 
     // Pause text
-    this.add.text(centerX, centerY - 100, 'PAUSED', {
+    const pauseText = this.add.text(centerX, centerY - 100, 'PAUSED', {
       font: '48px Arial',
       fill: '#ffffff'
     }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
@@ -181,15 +184,30 @@ export class HostScene extends Phaser.Scene {
       .setDepth(101)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(centerX, centerY, 'Resume', {
+    const resumeText = this.add.text(centerX, centerY, 'Resume', {
       font: '20px Arial',
       fill: '#ffffff'
     }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
 
     resumeBtn.on('pointerdown', () => this.togglePause());
+
+    // Store references for cleanup
+    this.pauseUIElements = [overlay, pauseText, resumeBtn, resumeText];
   }
 
   hidePauseMenu() {
-    // Clear pause UI (in production, store refs to destroy properly)
+    // Destroy all pause UI elements
+    this.pauseUIElements.forEach(element => {
+      if (element && element.destroy) {
+        try { element.destroy(); } catch(e) {}
+      }
+    });
+    this.pauseUIElements = [];
+  }
+
+  shutdown() {
+    // Clean up pause UI and all scene resources
+    this.hidePauseMenu();
+    cleanupScene(this);
   }
 }

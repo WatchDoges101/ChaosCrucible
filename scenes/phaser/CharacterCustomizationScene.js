@@ -1,5 +1,6 @@
 import { gameState } from '../../services/gameState.js';
 import { generateCharacterSprite } from '../../services/spriteGenerator.js';
+import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * CharacterCustomizationScene
@@ -9,11 +10,15 @@ export class CharacterCustomizationScene extends Phaser.Scene {
   constructor() {
     console.log('[CONSTRUCTOR] CharacterCustomizationScene being instantiated');
     super({ key: 'CharacterCustomizationScene', active: false });
+    this.colorButtons = [];
+    this.mainButtons = [];
   }
 
   init(data) {
     console.log('[CharacterCustomization] Init called with data:', data);
     this.selectedRole = data.role || 'Male';
+    this.colorButtons = [];
+    this.mainButtons = [];
     console.log('[CharacterCustomization] Selected role:', this.selectedRole);
   }
 
@@ -227,7 +232,6 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     const colorGridWidth = 3 * colorButtonWidth + 2 * colorGapX;
     const colorGridStartX = centerX - colorGridWidth / 2;
     const colorStartY = 560;
-    const buttonRefs = [];
 
     colorSchemes.forEach((scheme, idx) => {
       const row = Math.floor(idx / 3);
@@ -260,7 +264,8 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       this.add.rectangle(x + swatchWidth, y, swatchWidth - 2, swatchHeight, scheme.skin, 1)
         .setOrigin(0.5);
 
-      buttonRefs.push({ button, scheme, idx });
+      // Store button reference for cleanup
+      this.colorButtons.push({ button, scheme, idx });
 
       // Label below button with chaotic styling
       const label = this.add.text(x, y + colorButtonHeight / 2 + 20, scheme.name, {
@@ -304,7 +309,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
       button.on('pointerdown', () => {
         // Clear all borders
-        buttonRefs.forEach(ref => ref.button.setStrokeStyle());
+        this.colorButtons.forEach(ref => ref.button.setStrokeStyle());
 
         // Set new selection with flash effect
         this.selectedColorScheme = scheme;
@@ -348,6 +353,9 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       strokeThickness: 3
     }).setOrigin(0.5);
 
+    // Store button references
+    this.mainButtons.push({ button: backButton, text: backText });
+
     backButton.on('pointerover', () => {
       this.tweens.add({
         targets: [backButton, backText],
@@ -387,6 +395,9 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 3
     }).setOrigin(0.5);
+    
+    // Store button reference
+    this.mainButtons.push({ button: startButton, text: startText });
     
     // Pulsing glow effect on start button
     this.tweens.add({
@@ -522,4 +533,42 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       }
     });
   }
+
+  shutdown() {
+    // Clean up color buttons
+    this.colorButtons.forEach(buttonRef => {
+      try {
+        if (buttonRef.button && buttonRef.button.destroy) {
+          buttonRef.button.destroy();
+        }
+      } catch(e) {
+        console.error('Error cleaning up color button:', e);
+      }
+    });
+    this.colorButtons = [];
+
+    // Clean up main buttons (back and start)
+    this.mainButtons.forEach(buttonRef => {
+      try {
+        if (buttonRef.button && buttonRef.button.destroy) {
+          buttonRef.button.destroy();
+        }
+        if (buttonRef.text && buttonRef.text.destroy) {
+          buttonRef.text.destroy();
+        }
+      } catch(e) {
+        console.error('Error cleaning up main button:', e);
+      }
+    });
+    this.mainButtons = [];
+
+    // Clean up preview sprite
+    if (this.previewSprite && this.previewSprite.destroy) {
+      this.previewSprite.destroy();
+    }
+
+    // General cleanup
+    cleanupScene(this);
+  }
 }
+

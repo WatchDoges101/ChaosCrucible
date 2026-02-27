@@ -1,4 +1,5 @@
 import { gameState } from '../../services/gameState.js';
+import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * OptionsScene
@@ -8,6 +9,11 @@ export class OptionsScene extends Phaser.Scene {
   constructor() {
     console.log('[CONSTRUCTOR] OptionsScene being instantiated');
     super({ key: 'OptionsScene', active: false });
+    this.qualityButtons = [];
+  }
+
+  init() {
+    this.qualityButtons = [];
   }
 
   create() {
@@ -79,7 +85,6 @@ export class OptionsScene extends Phaser.Scene {
     }).setOrigin(0, 0.5);
 
     const qualities = ['Low', 'Medium', 'High'];
-    const qualityButtons = [];
     qualities.forEach((quality, idx) => {
       const isSelected = gameState.settings.graphicsQuality === quality.toLowerCase();
       const btn = this.add.rectangle(centerX - 50 + idx * 110, 360, 100, 40, isSelected ? 0xff6b00 : 0x444444, 1)
@@ -92,15 +97,20 @@ export class OptionsScene extends Phaser.Scene {
         fill: '#ffffff'
       }).setOrigin(0.5);
 
+      // Store button reference
+      this.qualityButtons.push({ btn, label, quality: quality.toLowerCase() });
+
       btn.on('pointerdown', () => {
         gameState.settings.graphicsQuality = quality.toLowerCase();
-        // Update all buttons
-        qualityButtons.forEach((b, i) => {
-          b.btn.setFillStyle(gameState.settings.graphicsQuality === qualities[i].toLowerCase() ? 0xff6b00 : 0x444444);
+        // Update all buttons properly
+        this.qualityButtons.forEach((buttonRef) => {
+          if (buttonRef.quality === gameState.settings.graphicsQuality) {
+            buttonRef.btn.setFillStyle(0xff6b00);
+          } else {
+            buttonRef.btn.setFillStyle(0x444444);
+          }
         });
       });
-
-      qualityButtons.push({ btn, label });
     });
 
     // Back Button
@@ -132,8 +142,27 @@ export class OptionsScene extends Phaser.Scene {
     });
 
     backButton.on('pointerdown', () => {
-      this.scene.stop();
       this.scene.start('MenuScene');
     });
+  }
+
+  shutdown() {
+    // Clean up quality buttons
+    this.qualityButtons.forEach(buttonRef => {
+      try {
+        if (buttonRef.btn && buttonRef.btn.destroy) {
+          buttonRef.btn.destroy();
+        }
+        if (buttonRef.label && buttonRef.label.destroy) {
+          buttonRef.label.destroy();
+        }
+      } catch(e) {
+        console.error('Error cleaning up quality button:', e);
+      }
+    });
+    this.qualityButtons = [];
+
+    // General cleanup
+    cleanupScene(this);
   }
 }

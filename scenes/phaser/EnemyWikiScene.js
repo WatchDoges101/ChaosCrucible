@@ -1,4 +1,5 @@
 import { generateEnemySprite } from '../../services/spriteGenerator.js';
+import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * EnemyWikiScene
@@ -134,4 +135,8 @@ export class EnemyWikiScene extends Phaser.Scene {
       listContainer.add(itemContainer);
     });
   }
-}
+
+  shutdown() {
+    // Clean up all scene resources
+    cleanupScene(this);
+  }}

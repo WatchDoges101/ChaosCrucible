@@ -1,6 +1,7 @@
 import { gameState } from '../../services/gameState.js';
 import { createAnimatedCharacterWithViews } from '../../services/spriteGenerator.js';
 import { generateEnemySprite } from '../../services/spriteGenerator.js';
+import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * =================================================================
@@ -3666,4 +3667,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		});
 	}
-}
+
+	shutdown() {
+		// Clean up all scene resources
+		cleanupScene(this);
+		
+		// Clear game-specific arrays
+		this.enemies = [];
+		this.enemyProjectiles = [];
+		this.projectiles = [];
+		this.powerups = [];
+		this.arenaObjects = [];
+		this.obstacles = [];
+		this.lavaPools = [];
+		this.structures = [];
+	}}

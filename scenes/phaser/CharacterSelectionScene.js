@@ -1,5 +1,6 @@
 import { gameState } from '../../services/gameState.js';
 import { generateCharacterSprite } from '../../services/spriteGenerator.js';
+import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
  * CharacterSelectionScene
@@ -9,6 +10,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
   constructor() {
     console.log('[CONSTRUCTOR] CharacterSelectionScene being instantiated');
     super({ key: 'CharacterSelectionScene', active: false });
+    this.buttons = [];
     
     // Character data with detailed stats and information
     this.characterData = {
@@ -97,6 +99,11 @@ export class CharacterSelectionScene extends Phaser.Scene {
         ]
       }
     };
+  }
+
+  init() {
+    // Clear button references when scene initializes
+    this.buttons = [];
   }
 
   create() {
@@ -244,6 +251,9 @@ export class CharacterSelectionScene extends Phaser.Scene {
     // Store graphics for later manipulation
     button.graphics = buttonGraphics;
     button.roleData = role;
+    
+    // Store button reference for cleanup
+    this.buttons.push({ button, graphics: buttonGraphics, texts: [] });
 
     // Show sprite preview - larger
     const spriteX = x - width / 2 + 70;
@@ -280,6 +290,11 @@ export class CharacterSelectionScene extends Phaser.Scene {
     }).setOrigin(0.5);
     tagline.setDepth(3);
     button.tagline = tagline;
+
+    // Store text references for cleanup
+    const buttonRef = this.buttons[this.buttons.length - 1];
+    buttonRef.texts.push(text, tagline);
+    buttonRef.sprite = spritePreview;
 
     // Hover effects
     button.on('pointerover', () => {
@@ -568,4 +583,39 @@ export class CharacterSelectionScene extends Phaser.Scene {
       yOffset += 24;
     });
   }
-}
+
+  shutdown() {
+    // Clean up all buttons, text, and graphics
+    this.buttons.forEach(buttonRef => {
+      try {
+        if (buttonRef.button && buttonRef.button.destroy) {
+          buttonRef.button.destroy();
+        }
+        if (buttonRef.graphics && buttonRef.graphics.destroy) {
+          buttonRef.graphics.destroy();
+        }
+        if (buttonRef.sprite && buttonRef.sprite.destroy) {
+          buttonRef.sprite.destroy();
+        }
+        buttonRef.texts.forEach(text => {
+          if (text && text.destroy) {
+            text.destroy();
+          }
+        });
+      } catch(e) {
+        console.error('Error cleaning up button:', e);
+      }
+    });
+    this.buttons = [];
+    
+    // Clean up details panel
+    if (this.detailsPanelGraphics && this.detailsPanelGraphics.destroy) {
+      this.detailsPanelGraphics.destroy();
+    }
+    if (this.detailsContainer && this.detailsContainer.destroy) {
+      this.detailsContainer.destroy();
+    }
+    
+    // General cleanup
+    cleanupScene(this);
+  }}
