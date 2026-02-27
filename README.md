@@ -9,7 +9,20 @@ A fast-paced action game built with Phaser 3 where players battle waves of enemi
 - Dynamic enemy AI with spawn management
 - Particle effects and visual polish
 - Enemy wiki and information system
-- Comprehensive helper module architecture
+- **Comprehensive handler architecture for game systems**
+- **Performance-optimized collision detection with spatial partitioning**
+- **Object pooling for reduced garbage collection**
+- **Centralized buff, powerup, and projectile management**
+
+## Performance Optimizations
+
+ChaosCrucible uses several optimization techniques for smooth gameplay:
+
+- **Spatial Grid**: Efficient collision detection using spatial partitioning (O(1) lookups)
+- **Object Pooling**: Reuse projectiles and effects instead of creating/destroying
+- **Handler Architecture**: Centralized game systems reduce code duplication and improve maintainability
+- **Delta Time Scaling**: Frame-independent movement for consistent gameplay
+- **Smart Updates**: Only update UI elements when values change
 
 ## Setup
 
@@ -49,8 +62,12 @@ ChaosCrucible/
 ├── constants/
 │   └── gameConstants.js        # Game-wide constants and enums
 ├── handlers/                    # Input and game logic handlers
+│   ├── BuffHandler.js          # Buff/debuff and shield management with UI
+│   ├── CollisionHandler.js     # Centralized collision detection
 │   ├── EnemySpawnHandler.js    # Enemy spawning and AI management
-│   └── InputHandler.js         # Input handling and player controls
+│   ├── InputHandler.js         # Input handling and player controls
+│   ├── PowerupHandler.js       # Powerup spawning and collection
+│   └── ProjectileHandler.js    # Player and enemy projectile management
 ├── helpers/                     # Reusable utility modules
 │   ├── animationHelpers.js     # Animation and tween utilities
 │   ├── arenaHelpers.js         # Arena/environment creation
@@ -58,6 +75,7 @@ ChaosCrucible/
 │   ├── combatHelpers.js        # Combat mechanics and calculations
 │   ├── mathHelpers.js          # Mathematical utilities
 │   ├── particleHelpers.js      # Particle effects and visual polish
+│   ├── performanceHelpers.js   # Performance optimization utilities
 │   ├── sceneHelpers.js         # Scene management and cameras
 │   ├── storageHelpers.js       # LocalStorage utilities
 │   ├── stringHelpers.js        # String formatting utilities
@@ -86,7 +104,26 @@ ChaosCrucible/
 
 This project uses a modular helper architecture to promote code reuse and maintainability. All helpers are pure functions that can be easily tested and composed.
 
-### Core Helpers
+### Core Handlers (Stateful Game Systems)
+
+- **BuffHandler**: Manages player buffs, debuffs, shield, and displays buff UI
+- **PowerupHandler**: Handles powerup spawning, collection, and effects
+- **ProjectileHandler**: Manages both player and enemy projectiles with collision detection
+- **CollisionHandler**: Centralized collision detection with spatial optimization
+- **EnemySpawnHandler**: Enemy AI, spawning, and behavior management
+- **InputHandler**: Player input processing and controls
+
+### Core Helpers (Stateless Utilities)
+
+- **animationHelpers**: Tween-based animations (pulse, float, fade, flash)
+- **uiHelpers**: UI component factories (buttons, health bars, panels, tooltips)
+- **combatHelpers**: Combat mechanics (damage, projectiles, knockback)
+- **particleHelpers**: Visual effects (flames, explosions, lava)
+- **sceneHelpers**: Scene lifecycle and camera management
+- **arenaHelpers**: Environment creation (floors, borders, obstacles)
+- **performanceHelpers**: Optimization utilities (SpatialGrid, ObjectPool, throttle)
+
+### Utility Helpers
 
 - **animationHelpers**: Tween-based animations (pulse, float, fade, flash)
 - **uiHelpers**: UI component factories (buttons, health bars, panels)
