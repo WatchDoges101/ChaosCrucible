@@ -147,44 +147,12 @@ export class MenuScene extends Phaser.Scene {
 
     button.on('pointerdown', () => {
       if (config.scene) {
-        // For CharacterSelectionScene, add it first then start it
-        if (config.scene === 'CharacterSelectionScene') {
-          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
-            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
-          } else {
-            this.scene.start(config.scene);
-          }
-        } else if (config.scene === 'OptionsScene') {
-          // For OptionsScene, add it first then start it
-          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
-            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
-          } else {
-            this.scene.start(config.scene);
-          }
-        } else if (config.scene === 'EnemyWikiScene') {
-          // For EnemyWikiScene, add it first then start it
-          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
-            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
-          } else {
-            this.scene.start(config.scene);
-          }
-        } else if (config.scene === 'PowerupWikiScene') {
-          // For PowerupWikiScene, add it first then start it
-          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
-            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
-          } else {
-            this.scene.start(config.scene);
-          }
-        } else if (config.scene === 'ComingSoonScene') {
-          // For ComingSoonScene, add it first then start it
-          if (!this.scene.isActive(config.scene) && !this.scene.get(config.scene)) {
-            this.scene.add(config.scene, window.sceneClasses[config.scene], true);
-          } else {
-            this.scene.start(config.scene);
-          }
-        } else {
-          this.scene.start(config.scene);
+        // Ensure target scene exists, then start it so current scene stops cleanly
+        if (!this.scene.get(config.scene) && window.sceneClasses[config.scene]) {
+          this.scene.add(config.scene, window.sceneClasses[config.scene], false);
         }
+        this.input.enabled = false;
+        this.scene.start(config.scene);
       } else if (config.action) {
         config.action();
       }

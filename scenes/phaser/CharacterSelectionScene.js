@@ -354,10 +354,10 @@ export class CharacterSelectionScene extends Phaser.Scene {
       gameState.setSelectedRole(role.name);
       // Add and start CharacterCustomizationScene on-demand
       if (!this.scene.get('CharacterCustomizationScene')) {
-        this.scene.add('CharacterCustomizationScene', window.sceneClasses['CharacterCustomizationScene'], true, { role: role.name });
-      } else {
-        this.scene.start('CharacterCustomizationScene', { role: role.name });
+        this.scene.add('CharacterCustomizationScene', window.sceneClasses['CharacterCustomizationScene'], false);
       }
+      this.input.enabled = false;
+      this.scene.start('CharacterCustomizationScene', { role: role.name });
     });
   }
   

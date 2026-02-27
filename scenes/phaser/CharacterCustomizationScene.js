@@ -451,10 +451,10 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       this.time.delayedCall(500, () => {
         // Add and start ChaossCrucibleScene on-demand
         if (!this.scene.get('ChaossCrucibleScene')) {
-          this.scene.add('ChaossCrucibleScene', window.sceneClasses['ChaossCrucibleScene'], true);
-        } else {
-          this.scene.start('ChaossCrucibleScene');
+          this.scene.add('ChaossCrucibleScene', window.sceneClasses['ChaossCrucibleScene'], false);
         }
+        this.input.enabled = false;
+        this.scene.start('ChaossCrucibleScene');
       });
     });
 
