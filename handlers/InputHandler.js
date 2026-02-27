@@ -14,3 +14,8 @@ export class InputHandler {
    * @param {Phaser.Scene} scene - The Phaser scene
    * @param {Object} keyMap - Custom key mapping (optional)
    */
+  constructor(scene, keyMap = {}) {
+    this.scene = scene;
+    this.keyMap = keyMap;
+  }
+}

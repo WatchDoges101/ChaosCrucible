@@ -669,6 +669,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.healthBar.width = (enemyData.enemy.hp / enemyData.enemy.maxHp) * 40 * enemyData.sizeScale;
 		}
 		this.flashEnemy(enemyData.enemy);
+		
+		// Show floating damage number
+		this.floatDamage(enemyData.enemy.x, enemyData.enemy.y, damage);
+		
 		if (knockback) {
 			enemyData.vx += knockback.x;
 			enemyData.vy += knockback.y;
@@ -742,6 +746,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		gameState.character.hp = Math.max(0, gameState.character.hp - damage);
 		this.flashPlayer();
 		
+		// Show floating damage number
+		this.floatDamage(this.playerData.x, this.playerData.y - 20, damage);
+		
 		if (gameState.character.hp <= 0) {
 			// Player died - could add death handling here
 			console.log('[ChaossCrucible] Player defeated!');
@@ -779,6 +786,58 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			ease: 'Quad.easeOut',
 			onComplete: () => {
 				pointsText.destroy();
+			}
+		});
+	}
+
+	/**
+	 * Display floating damage text when character takes damage
+	 * @param {number} x - World X coordinate
+	 * @param {number} y - World Y coordinate
+	 * @param {number} damage - Damage amount
+	 */
+	floatDamage(x, y, damage) {
+		// Round damage to integer for display
+		const dmg = Math.round(damage);
+		
+		// Create text showing damage taken
+		const damageText = this.add.text(x, y, `-${dmg}`, {
+			font: 'bold 28px Arial',
+			fill: '#FF3333',
+			stroke: '#990000',
+			strokeThickness: 3
+		});
+		damageText.setOrigin(0.5, 0.5);
+		damageText.setDepth(1001); // Above points
+		damageText.setScale(1.2); // Start slightly larger
+
+		// Make uiCamera ignore this text so it stays in world space
+		if (this.uiCamera) {
+			this.uiCamera.ignore(damageText);
+		}
+
+		// Add a random horizontal offset for visual variety
+		const offsetX = (Math.random() - 0.5) * 30;
+
+		// Animate the text with a bounce effect
+		this.tweens.add({
+			targets: damageText,
+			y: y - 60,
+			x: x + offsetX,
+			scale: 1.0,
+			duration: 300,
+			ease: 'Back.easeOut'
+		});
+
+		// Fade out after the bounce
+		this.tweens.add({
+			targets: damageText,
+			alpha: 0,
+			delay: 200,
+			duration: 400,
+			ease: 'Quad.easeIn',
+			onComplete: () => {
+				damageText.destroy();
 			}
 		});
 	}
@@ -2515,9 +2574,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const character = gameState.character;
 			const hpPercentRaw = character.maxHp ? character.hp / character.maxHp : 0;
 			const hpPercent = Phaser.Math.Clamp(hpPercentRaw, 0, 1);
-			const hpPercentInt = Math.round(hpPercent * 100);
-			this.playerHealthFg.width = 300 * (hpPercentInt / 100);
-			this.playerHealthText.setText(`${hpPercentInt}%`);
+			this.playerHealthFg.width = 300 * hpPercent;
+			this.playerHealthText.setText(`${Math.round(character.hp)} / ${character.maxHp}`);
 		}
 	}
 
