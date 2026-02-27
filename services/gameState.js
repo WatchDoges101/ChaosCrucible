@@ -1,3 +1,5 @@
+import { LevelingSystem } from './levelingSystem.js';
+
 /**
  * GameState
  * Central state machine. Replaces the old `state` object.
@@ -11,6 +13,7 @@ class GameState {
     this.gameRunning = false;
     this.isPaused = false;
     this.currentScene = null;
+    this.characters = {};
     this.selectedRole = null;
     this.character = null;
     this.score = 0;
@@ -23,6 +26,22 @@ class GameState {
    */
   setSelectedRole(role) {
     this.selectedRole = role;
+    if (!this.characters[role]) {
+      this.characters[role] = {
+        leveling: new LevelingSystem(role),
+        abilities: [],
+        // Add other character-specific state here
+      };
+    }
+    this.character = {
+      ...this.characters[role],
+      role: role,
+      name: role,
+      hp: 100,
+      maxHp: 100,
+      speed: 5,
+      // Add other fields as needed
+    };
     this.emit('roleSelected', role);
   }
 
@@ -39,7 +58,9 @@ class GameState {
       colors: colors || null,
       hp: 100,
       maxHp: 100,
-      speed: 5
+      speed: 5,
+      abilities: [],
+      leveling: new LevelingSystem()
     };
     this.emit('characterInitialized', this.character);
   }

@@ -21,12 +21,14 @@ import { OptionsScene } from './scenes/phaser/OptionsScene.js';
 import { EnemyWikiScene } from './scenes/phaser/EnemyWikiScene.js';
 import { PowerupWikiScene } from './scenes/phaser/PowerupWikiScene.js';
 import { ComingSoonScene } from './scenes/phaser/ComingSoonScene.js';
+import SkillTreeScene from './scenes/phaser/SkillTreeScene.js';
 import { gameState } from './services/gameState.js';
 import { audioManager } from './services/audioManager.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter, createAnimatedCharacterWithViews } from './services/spriteGenerator.js';
+import PauseScene from './scenes/phaser/PauseScene.js';
 
 // Add ONLY MenuScene to config initially - others will be added dynamically when needed
-gameConfig.scene = [MenuScene];
+gameConfig.scene = [MenuScene, PauseScene];
 
 // Create game
 const game = new Phaser.Game(gameConfig);
@@ -36,10 +38,12 @@ window.sceneClasses = {
   'CharacterSelectionScene': CharacterSelectionScene,
   'CharacterCustomizationScene': CharacterCustomizationScene,
   'ChaossCrucibleScene': ChaossCrucibleScene,
+  'PauseScene': PauseScene,
   'HostScene': HostScene,
-  'OptionsScene': OptionsScene,
+  'SkillTreeScene': SkillTreeScene,
   'EnemyWikiScene': EnemyWikiScene,
   'PowerupWikiScene': PowerupWikiScene,
+  'OptionsScene': OptionsScene,
   'ComingSoonScene': ComingSoonScene
 };
 

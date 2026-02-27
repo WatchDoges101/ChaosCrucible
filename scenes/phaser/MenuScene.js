@@ -81,11 +81,12 @@ export class MenuScene extends Phaser.Scene {
 
     // Buttons with interactive areas
     const buttons = [
-      { label: 'ARENA', scene: 'CharacterSelectionScene', color: 0xff3300 },
-      { label: 'ONLINE', scene: 'ComingSoonScene', color: 0xff5500 },
-      { label: 'ENEMIES', scene: 'EnemyWikiScene', color: 0xff8a00 },
-      { label: 'POWERUPS', scene: 'PowerupWikiScene', color: 0xff7a00 },
-      { label: 'OPTIONS', scene: 'OptionsScene', color: 0xff6600 }
+      { label: 'ARENA', scene: 'ChaossCrucibleScene' },
+      { label: 'ONLINE', scene: 'HostScene' },
+      { label: 'SKILL TREE', scene: 'SkillTreeScene' },
+      { label: 'ENEMIES', scene: 'EnemyWikiScene' },
+      { label: 'POWERUPS', scene: 'PowerupWikiScene' },
+      { label: 'OPTIONS', scene: 'OptionsScene' }
     ];
 
     const buttonWidth = 350;
@@ -118,10 +119,10 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    const text = this.add.text(x, y, config.label, {
-      font: 'bold 32px Arial',
-      fill: '#ffffff',
-      stroke: '#000000',
+    const text = this.add.text(x, y, config.label.toUpperCase(), {
+      font: 'bold 24px Arial',
+      fill: '#fff',
+      stroke: '#000',
       strokeThickness: 4
     }).setOrigin(0.5);
 

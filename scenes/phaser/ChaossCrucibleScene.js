@@ -149,11 +149,22 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const centerY = this.ARENA_HEIGHT / 2;
 		const playerSpawnY = centerY + 260;
 
+		// Initialize character if missing
+		if (!gameState.character) {
+			gameState.setSelectedRole('Male'); // Default role
+		}
+		const character = gameState.character;
+
+		// ESC key handler for pause
+		this.input.keyboard.on('keydown-ESC', () => {
+			this.scene.pause();
+			this.scene.launch('PauseScene');
+		});
+
 		// ===== CREATE BARBARIC ARENA =====
 		this.createArenaEnvironment(centerX, centerY);
 
 		// ===== PLACE PLAYER IN CENTER =====
-		const character = gameState.character;
 		this.player = createAnimatedCharacterWithViews(this, character.role, centerX, playerSpawnY, character.colors);
 		this.playerData = {
 			x: centerX,
@@ -2916,7 +2927,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			alpha: { from: 0.15, to: 0.3 },
 			duration: 1800,
 			yoyo: true,
-			repeat: -1
+			repeat: -1,
+			ease: 'Sine.inOut'
 		});
 
 		this.add.existing(towerGraphics);
@@ -4420,7 +4432,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.dashUntil = null;
 		}
 
-		if (dist < 300 && now >= enemyData.nextDashTime) {
+		if (dist < 300 && dist > 120 && now >= enemyData.nextDashTime) {
 			enemyData.dashDirX = dx / dist;
 			enemyData.dashDirY = dy / dist;
 			enemyData.dashUntil = now + 260;
