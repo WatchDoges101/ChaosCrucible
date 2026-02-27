@@ -31,6 +31,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			nextBasicTime: 0,
 			nextAbilityTime: 0
 		};
+		this.cameraFxState = {
+			lastShakeAt: 0,
+			minIntervalMs: 45
+		};
 		this.playerDamageState = {
 			nextDamageTime: 0,
 			damageCooldown: 500 // 0.5 seconds between damage
@@ -531,6 +535,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		return now < this.buffState.speedUntil ? this.buffConfig.speedMultiplier : 1;
 	}
 
+	safeCameraShake(duration = 60, intensity = 0.01, minIntervalMs = this.cameraFxState.minIntervalMs) {
+		if (!this.cameras || !this.cameras.main) return;
+
+		const now = this.time ? this.time.now : Date.now();
+		if (now - this.cameraFxState.lastShakeAt < minIntervalMs) return;
+		if (this.cameras.main.shakeEffect && this.cameras.main.shakeEffect.isRunning) return;
+
+		this.cameraFxState.lastShakeAt = now;
+		const clampedIntensity = Phaser.Math.Clamp(intensity, 0, 0.03);
+		this.cameras.main.shake(duration, clampedIntensity);
+	}
+
 	queueBasicAttack(aim) {
 		const now = this.time.now;
 		if (now < this.attackState.nextBasicTime) return;
@@ -650,8 +666,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const glow = this.add.circle(this.playerData.x, this.playerData.y, radius * 0.8, 0xffcc55, 0.4);
 		if (this.uiCamera) this.uiCamera.ignore(glow);
 		
-		// Screen shake on shockwave
-		this.cameras.main.shake(100, 0.8);
+		// Controlled screen shake on shockwave (prevents visual glitching)
+		this.safeCameraShake(100, 0.02, 120);
 		
 		this.tweens.add({
 			targets: ring,
@@ -694,8 +710,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			onComplete: () => burstLight.destroy()
 		});
 		
-		// Screen shake for volley
-		this.cameras.main.shake(80, 0.5);
+		// Controlled screen shake for volley
+		this.safeCameraShake(80, 0.014, 100);
 		
 		for (let i = 0; i < shots; i++) {
 			const offset = (i - (shots - 1) / 2) * spread;
@@ -728,8 +744,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			onComplete: () => muzzle.destroy()
 		});
 		
-		// Screen shake multiple times as rounds fire
-		this.cameras.main.shake(50, 0.3);
+		// Controlled shake for initial burst
+		this.safeCameraShake(45, 0.01, 60);
 		
 		for (let i = 0; i < shots; i++) {
 			this.time.delayedCall(i * 60, () => {
@@ -743,9 +759,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					radius: 2,
 					range: 520
 				});
-				// Small shake between shots
+				// Small shake between shots (throttled)
 				if (i > 0) {
-					this.cameras.main.shake(30, 0.2);
+					this.safeCameraShake(24, 0.006, 45);
 				}
 			});
 		}
@@ -786,8 +802,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		}
 		
-		// Screen shake on slash
-		this.cameras.main.shake(60, 0.4);
+		// Controlled screen shake on slash
+		this.safeCameraShake(50, 0.012, 80);
 		
 		this.tweens.add({
 			targets: arc,
@@ -3241,7 +3257,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const panel = this.activeBuffPanels[i];
 			if (i < activeBuffs.length) {
 				const buff = activeBuffs[i];
-				const maxDuration = buff.type === 'fury' ? 10000 : buff.type === 'cooldown' ? 8000 : 0;
+				const maxDuration = buff.type === 'fury' ? 10000 : buff.type === 'cooldown' ? 8000 : 8000;
 				const percent = Math.max(0, Math.min(1, buff.remaining / maxDuration));
 
 				panel.icon.setText(buff.icon);
@@ -3249,7 +3265,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				panel.name.setText(buff.name);
 				panel.name.setFill(buff.color);
 				panel.timeBar.width = 50 * percent;
-				panel.timeBar.setFill(buff.color);
+				panel.timeBar.setFillStyle(Phaser.Display.Color.HexStringToColor(buff.color).color, 1);
 				const seconds = Math.ceil(buff.remaining / 1000);
 				panel.timeText.setText(`${Math.max(0, seconds)}s`);
 				panel.timeText.setFill(buff.color);
@@ -3293,8 +3309,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			
 			// Slight screen shake during high-speed buff
 			if (this.getSpeedMultiplier(time) > 1.1) {
-				const shake = Math.random() * 0.3 - 0.15;
-				this.cameras.main.shake(60, shake);
+				const shake = 0.003 + Math.random() * 0.003;
+				this.safeCameraShake(45, shake, 90);
 			}
 		}
 
