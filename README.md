@@ -14,6 +14,13 @@ A fast-paced action game built with Phaser 3 where players battle waves of enemi
 - **Object pooling for reduced garbage collection**
 - **Centralized buff, powerup, and projectile management**
 
+## Recent Stability Updates
+
+- Scene transitions now explicitly stop previous scenes to prevent hidden UI from receiving input.
+- Interactive buttons are disabled during scene handoff to prevent click-through bugs.
+- Combat camera shake is throttled and clamped to avoid stacked shake glitches during rapid attacks.
+- Vite dev server is configured for container/forwarded-port reliability (`host: 0.0.0.0`, `strictPort: true`).
+
 ## Performance Optimizations
 
 ChaosCrucible uses several optimization techniques for smooth gameplay:
