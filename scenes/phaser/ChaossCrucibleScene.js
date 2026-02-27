@@ -94,6 +94,38 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			max: 100
 		};
 
+		// Wave system
+		this.waveState = {
+			currentWave: 0,
+			enemiesKilledThisWave: 0,
+			totalEnemiesThisWave: 0,
+			waveInProgress: false,
+			nextWaveTimer: null,
+			waveStartDelay: 3000 // 3 seconds between waves
+		};
+
+		// Wave difficulty scaling - progressive and randomized
+		this.waveDifficulty = {
+			baseEnemies: 5,
+			enemiesPerWave: 2.5,
+			eliteChancePerWave: 0.08, // 8% increase per wave
+			variation: 0.3 // 30% randomization
+		};
+
+		// Minimap system
+		this.minimap = {
+			container: null,
+			background: null,
+			border: null,
+			playerDot: null,
+			enemyDots: [],
+			size: 180,
+			scale: null // Will be calculated based on arena size
+		};
+
+		// Enemy tracking indicators
+		this.enemyIndicators = [];
+
 		// Constants
 		this.uiCamera = null;
 		this.arenaObjects = [];
@@ -238,23 +270,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.player.getChildren().forEach(child => this.uiCamera.ignore(child));
 		}
 
-		// ===== SPAWN SLIMES =====
-		const numSlimes = 8;
-		for (let i = 0; i < numSlimes; i++) {
-			this.spawnRandomSlime();
-		}
-
-		// ===== SPAWN DEVILS =====
-		const numDevils = 2;
-		for (let i = 0; i < numDevils; i++) {
-			this.spawnRandomDevil();
-		}
-
-		// ===== SPAWN SKELETONS =====
-		const numSkeletons = 3;
-		for (let i = 0; i < numSkeletons; i++) {
-			this.spawnRandomSkeleton();
-		}
+		// ===== INITIALIZE WAVE SYSTEM =====
+		// Start wave 1
+		this.startWave(1);
 
 		// ===== UI TEXT (on UI camera) =====
 		// Reset score at start of game
@@ -278,6 +296,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			{
 				font: 'bold 20px Arial',
 				fill: '#FFD700'
+			});
+
+		// Wave display
+		this.waveText = this.add.text(20, 140, `Wave: ${this.waveState.currentWave}`,
+			{
+				font: 'bold 24px Arial',
+				fill: '#00FFFF'
 			});
 
 		// Initialize player health
@@ -452,10 +477,66 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		}
 
+		// ===== MINIMAP (on UI camera, top right) =====
+		const minimapSize = this.minimap.size;
+		const minimapX = displayWidth - minimapSize - 20;
+		const minimapY = 20;
+
+		// Calculate minimap scale
+		this.minimap.scale = minimapSize / Math.max(this.ARENA_WIDTH, this.ARENA_HEIGHT);
+
+		// Minimap background
+		this.minimap.background = this.add.rectangle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			minimapSize,
+			minimapSize,
+			0x000000,
+			0.7
+		);
+
+		// Minimap border
+		this.minimap.border = this.add.rectangle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			minimapSize,
+			minimapSize
+		);
+		this.minimap.border.setStrokeStyle(3, 0x00FFFF);
+		this.minimap.border.isFilled = false;
+
+		// Minimap label
+		this.minimapLabel = this.add.text(
+			minimapX + minimapSize / 2,
+			minimapY - 8,
+			'MAP',
+			{
+				font: 'bold 14px Arial',
+				fill: '#00FFFF',
+				stroke: '#000000',
+				strokeThickness: 3
+			}
+		);
+		this.minimapLabel.setOrigin(0.5, 1);
+
+		// Player dot on minimap
+		this.minimap.playerDot = this.add.circle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			4,
+			0x00FF00,
+			1
+		);
+
+		// Container for minimap
+		this.minimap.container = this.add.container(0, 0);
+
 		// Hide HUD elements from the main camera (UI camera only)
 		const hudElements = [
 			nameText,
 			this.enemyCountText,
+			this.scoreText,
+			this.waveText,
 			heartGraphics,
 			this.playerHealthBg,
 			this.playerHealthBorder,
@@ -465,7 +546,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.shieldBg,
 			this.shieldIcon,
 			this.shieldText,
-			this.effectsLabel
+			this.effectsLabel,
+			this.minimap.background,
+			this.minimap.border,
+			this.minimapLabel,
+			this.minimap.playerDot
 		];
 		this.activeBuffPanels.forEach(panel => {
 			hudElements.push(panel.bg, panel.icon, panel.name, panel.timeBg, panel.timeBar, panel.timeText);
@@ -962,9 +1047,17 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			// Display floating points animation at enemy position
 			this.floatPoints(enemyData.enemy.x, enemyData.enemy.y, pointsAwarded);
 
+			// Track wave kills
+			if (this.waveState.waveInProgress) {
+				this.waveState.enemiesKilledThisWave++;
+			}
+
 			if (enemyData.healthBar) enemyData.healthBar.destroy();
 			enemyData.enemy.destroy();
 			this.enemies = this.enemies.filter(entry => entry !== enemyData);
+
+			// Check if wave is complete
+			this.checkWaveCompletion();
 		}
 	}
 
@@ -1967,8 +2060,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Collision footprint tuned to the pedestal and body
 		this.addObstacle(centerX, centerY + 120, 'rect', 300, 240, 'centerpiece_statue_body');
 		this.addObstacle(centerX, centerY - 245, 'rect', 155, 135, 'centerpiece_statue_head');
-		// Block the bottom ritual platform circle completely
-		this.addObstacle(centerX, centerY + 180, 'circle', 190, 0, 'centerpiece_statue_platform');
+		// Block the bottom ritual platform circle completely - matched to outer circle radius
+		this.addObstacle(centerX, centerY + 180, 'circle', 235, 0, 'centerpiece_statue_platform');
 	}
 
 	createCenterpieceLavaCracks(centerX, centerY) {
@@ -3021,6 +3114,304 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 	}
 
+	/**
+	 * Start a new wave with randomized enemies and progressive difficulty
+	 * @param {number} waveNumber - The wave number to start
+	 */
+	startWave(waveNumber) {
+		this.waveState.currentWave = waveNumber;
+		this.waveState.enemiesKilledThisWave = 0;
+		this.waveState.waveInProgress = true;
+
+		// Calculate base number of enemies with exponential growth
+		const baseCount = this.waveDifficulty.baseEnemies;
+		const growthRate = this.waveDifficulty.enemiesPerWave;
+		const baseEnemies = Math.floor(baseCount + (waveNumber - 1) * growthRate);
+		
+		// Add randomization (±30%)
+		const variation = this.waveDifficulty.variation;
+		const randomFactor = 1 + (Math.random() * variation * 2 - variation);
+		const totalEnemies = Math.max(3, Math.floor(baseEnemies * randomFactor));
+
+		// Calculate elite enemy chance (increases with waves)
+		const eliteChance = Math.min(0.7, waveNumber * this.waveDifficulty.eliteChancePerWave);
+		
+		// Distribute enemies randomly based on difficulty
+		let enemyCounts = { slime: 0, devil: 0, skeleton: 0 };
+		
+		for (let i = 0; i < totalEnemies; i++) {
+			const roll = Math.random();
+			
+			if (roll < eliteChance * 0.3) {
+				// Devil (rarest, most dangerous)
+				enemyCounts.devil++;
+			} else if (roll < eliteChance * 0.7) {
+				// Skeleton (medium)
+				enemyCounts.skeleton++;
+			} else {
+				// Slime (common)
+				enemyCounts.slime++;
+			}
+		}
+
+		// Ensure at least some variety in higher waves
+		if (waveNumber >= 3 && enemyCounts.devil === 0) {
+			enemyCounts.devil = Math.floor(Math.random() * 2) + 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - enemyCounts.devil);
+		}
+		if (waveNumber >= 2 && enemyCounts.skeleton === 0) {
+			enemyCounts.skeleton = Math.floor(Math.random() * 2) + 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - enemyCounts.skeleton);
+		}
+
+		// Calculate total enemies for this wave
+		this.waveState.totalEnemiesThisWave = 
+			enemyCounts.slime + enemyCounts.devil + enemyCounts.skeleton;
+
+		// Spawn enemies
+		for (let i = 0; i < enemyCounts.slime; i++) {
+			this.spawnRandomSlime();
+		}
+		for (let i = 0; i < enemyCounts.devil; i++) {
+			this.spawnRandomDevil();
+		}
+		for (let i = 0; i < enemyCounts.skeleton; i++) {
+			this.spawnRandomSkeleton();
+		}
+        for (let i = 0; i < (enemyCounts.frost_wraith || 0); i++) {
+            this.spawnRandomFrostWraith();
+        }
+        for (let i = 0; i < (enemyCounts.bomber_beetle || 0); i++) {
+            this.spawnRandomBomberBeetle();
+        }
+        for (let i = 0; i < (enemyCounts.storm_mage || 0); i++) {
+            this.spawnRandomStormMage();
+        }
+
+		// Update wave UI
+		if (this.waveText) {
+			this.waveText.setText(`Wave: ${this.waveState.currentWave}`);
+		}
+
+		// Show wave start notification with enemy composition
+		const composition = [];
+		if (enemyCounts.slime > 0) composition.push(`${enemyCounts.slime} Slimes`);
+		if (enemyCounts.skeleton > 0) composition.push(`${enemyCounts.skeleton} Skeletons`);
+		if (enemyCounts.devil > 0) composition.push(`${enemyCounts.devil} Devils`);
+		
+		this.showWaveNotification(
+			`Wave ${waveNumber} Started!\n${composition.join(' | ')}`
+		);
+	}
+
+	/**
+	 * Check if the current wave is complete
+	 */
+	checkWaveCompletion() {
+		if (!this.waveState.waveInProgress) return;
+
+		// Check if all enemies are defeated
+		if (this.enemies.length === 0) {
+			this.waveState.waveInProgress = false;
+			
+			// Show completion message
+			this.showWaveNotification(`Wave ${this.waveState.currentWave} Complete!`);
+
+			// Start next wave after delay
+			this.waveState.nextWaveTimer = this.time.delayedCall(
+				this.waveState.waveStartDelay,
+				() => {
+					this.startWave(this.waveState.currentWave + 1);
+				}
+			);
+		}
+	}
+
+	/**
+	 * Show wave notification on screen
+	 * @param {string} message - The message to display
+	 */
+	showWaveNotification(message) {
+		const gameConfig = this.sys.game.config;
+		const centerX = gameConfig.width / 2;
+		const centerY = gameConfig.height / 2;
+
+		const notification = this.add.text(centerX, centerY - 100, message, {
+			font: 'bold 48px Arial',
+			fill: '#00FFFF',
+			stroke: '#000000',
+			strokeThickness: 6,
+			align: 'center'
+		});
+		notification.setOrigin(0.5);
+		notification.setAlpha(0);
+
+		// Animate in and out
+		this.tweens.add({
+			targets: notification,
+			alpha: 1,
+			duration: 500,
+			ease: 'Power2',
+			yoyo: true,
+			hold: 1500,
+			onComplete: () => {
+				notification.destroy();
+			}
+		});
+
+		// Scale animation
+		this.tweens.add({
+			targets: notification,
+			scale: { from: 0.5, to: 1.2 },
+			duration: 500,
+			ease: 'Back.easeOut',
+			yoyo: true,
+			hold: 1500
+		});
+
+		// Make sure notification is on UI camera only
+		if (this.cameras.main) {
+			this.cameras.main.ignore(notification);
+		}
+	}
+
+	/**
+	 * Update minimap with player and enemy positions
+	 */
+	updateMinimap() {
+		if (!this.minimap.playerDot || !this.player) return;
+
+		const gameConfig = this.sys.game.config;
+		const displayWidth = gameConfig.width;
+		const minimapSize = this.minimap.size;
+		const minimapX = displayWidth - minimapSize - 20;
+		const minimapY = 20;
+
+		// Update player position on minimap
+		const playerMapX = minimapX + (this.player.x * this.minimap.scale);
+		const playerMapY = minimapY + (this.player.y * this.minimap.scale);
+		this.minimap.playerDot.setPosition(playerMapX, playerMapY);
+
+		// Clear old enemy dots
+		this.minimap.enemyDots.forEach(dot => dot.destroy());
+		this.minimap.enemyDots = [];
+
+		// Add enemy dots
+		this.enemies.forEach(enemyData => {
+			const enemy = enemyData.enemy;
+			const enemyMapX = minimapX + (enemy.x * this.minimap.scale);
+			const enemyMapY = minimapY + (enemy.y * this.minimap.scale);
+
+			// Color based on enemy type
+			let color = 0xFF6B00; // Slime - orange
+			if (enemyData.type === 'devil') {
+				color = 0xFF0000; // Devil - red
+			} else if (enemyData.type === 'skeleton') {
+				color = 0xCCCCCC; // Skeleton - gray
+			}
+
+			const dot = this.add.circle(enemyMapX, enemyMapY, 2.5, color, 1);
+			this.cameras.main.ignore(dot);
+			this.minimap.enemyDots.push(dot);
+		});
+	}
+
+	/**
+	 * Update enemy tracking indicators for off-screen enemies
+	 */
+	updateEnemyIndicators() {
+		if (!this.player) return;
+
+		const gameConfig = this.sys.game.config;
+		const displayWidth = gameConfig.width;
+		const displayHeight = gameConfig.height;
+
+		// Clear old indicators
+		this.enemyIndicators.forEach(indicator => {
+			if (indicator.arrow) indicator.arrow.destroy();
+			if (indicator.text) indicator.text.destroy();
+		});
+		this.enemyIndicators = [];
+
+		// Get camera bounds
+		const cam = this.cameras.main;
+		const camCenterX = cam.worldView.centerX;
+		const camCenterY = cam.worldView.centerY;
+		const viewWidth = cam.worldView.width;
+		const viewHeight = cam.worldView.height;
+
+		// Track enemies outside view
+		this.enemies.forEach(enemyData => {
+			const enemy = enemyData.enemy;
+			const dx = enemy.x - camCenterX;
+			const dy = enemy.y - camCenterY;
+
+			// Check if enemy is outside camera view
+			const isOutside = Math.abs(dx) > viewWidth / 2 || Math.abs(dy) > viewHeight / 2;
+
+			if (isOutside) {
+				// Calculate angle to enemy
+				const angle = Math.atan2(dy, dx);
+				
+				// Calculate indicator position at edge of screen
+				const margin = 40;
+				let indicatorX, indicatorY;
+
+				// Determine which edge to place indicator on
+				const normalized = Math.abs(Math.cos(angle)) / (viewWidth / viewHeight);
+				
+				if (normalized > Math.abs(Math.sin(angle)) / 1) {
+					// Left or right edge
+					indicatorX = dx > 0 ? displayWidth - margin : margin;
+					indicatorY = displayHeight / 2 + (dy / viewHeight) * (displayHeight - 2 * margin);
+				} else {
+					// Top or bottom edge
+					indicatorY = dy > 0 ? displayHeight - margin : margin;
+					indicatorX = displayWidth / 2 + (dx / viewWidth) * (displayWidth - 2 * margin);
+				}
+
+				// Clamp to screen bounds
+				indicatorX = Phaser.Math.Clamp(indicatorX, margin, displayWidth - margin);
+				indicatorY = Phaser.Math.Clamp(indicatorY, margin, displayHeight - margin);
+
+				// Color based on enemy type
+				let color = 0xFF6B00;
+				let symbol = '▸';
+				if (enemyData.type === 'devil') {
+					color = 0xFF0000;
+					symbol = '▸';
+				} else if (enemyData.type === 'skeleton') {
+					color = 0xCCCCCC;
+					symbol = '▸';
+				}
+
+				// Create arrow indicator
+				const arrow = this.add.text(indicatorX, indicatorY, symbol, {
+					font: 'bold 20px Arial',
+					fill: '#' + color.toString(16).padStart(6, '0'),
+					stroke: '#000000',
+					strokeThickness: 3
+				});
+				arrow.setOrigin(0.5, 0.5);
+				arrow.setRotation(angle);
+				this.cameras.main.ignore(arrow);
+
+				// Distance text
+				const distance = Math.floor(Math.hypot(dx, dy) / 10);
+				const distText = this.add.text(indicatorX, indicatorY - 15, `${distance}`, {
+					font: 'bold 12px Arial',
+					fill: '#FFFFFF',
+					stroke: '#000000',
+					strokeThickness: 2
+				});
+				distText.setOrigin(0.5, 1);
+				this.cameras.main.ignore(distText);
+
+				this.enemyIndicators.push({ arrow, text: distText });
+			}
+		});
+	}
+
 	spawnRandomSlime() {
 		const padding = this.ARENA_PADDING + 200;
 		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
@@ -3075,6 +3466,169 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			type: 'slime',
 			lastAttackTime: -Infinity,
 			attackCooldown: 600
+		});
+	}
+
+	spawnRandomFrostWraith() {
+		const padding = this.ARENA_PADDING + 200;
+		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
+		const y = padding + Math.random() * (this.ARENA_HEIGHT - 2 * padding);
+
+		const enemy = generateEnemySprite(this, x, y, 'frost_wraith');
+		const sizeScale = Phaser.Math.FloatBetween(1.0, 1.3);
+		enemy.setScale(sizeScale);
+		enemy.setTint(0x66ccff);
+
+		// Frosty animation: shimmer and fade
+		this.tweens.add({
+			targets: enemy,
+			alpha: { from: 0.7, to: 1 },
+			yoyo: true,
+			repeat: -1,
+			duration: 800
+		});
+
+		const healthBar = this.add.rectangle(x, y - 32 * sizeScale, 42 * sizeScale, 6, 0x66ccff, 0.8);
+		healthBar.setOrigin(0.5);
+
+		const angle = Math.random() * Math.PI * 2;
+		const baseSpeed = Phaser.Math.FloatBetween(1.2, 1.6) * sizeScale;
+		const vx = Math.cos(angle) * baseSpeed;
+		const vy = Math.sin(angle) * baseSpeed;
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(enemy);
+			this.uiCamera.ignore(healthBar);
+			if (enemy.getChildren) {
+				enemy.getChildren().forEach(child => this.uiCamera.ignore(child));
+			}
+		}
+
+		this.enemies.push({
+			enemy,
+			healthBar,
+			sizeScale,
+			vx,
+			vy,
+			type: 'frost_wraith',
+			lastAttackTime: -Infinity,
+			attackCooldown: 900,
+			freezeCooldown: 3000,
+			lastFreezeTime: -Infinity
+		});
+	}
+
+	spawnRandomBomberBeetle() {
+		const padding = this.ARENA_PADDING + 200;
+		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
+		const y = padding + Math.random() * (this.ARENA_HEIGHT - 2 * padding);
+
+		const enemy = generateEnemySprite(this, x, y, 'bomber_beetle');
+		const sizeScale = Phaser.Math.FloatBetween(1.2, 1.5);
+		enemy.setScale(sizeScale);
+		enemy.setTint(0xffaa00);
+
+		// Bomber animation: shake and flash
+		this.tweens.add({
+			targets: enemy,
+			rotation: { from: -0.1, to: 0.1 },
+			yoyo: true,
+			repeat: -1,
+			duration: 400
+		});
+		this.tweens.add({
+			targets: enemy,
+			alpha: { from: 1, to: 0.7 },
+			yoyo: true,
+			repeat: -1,
+			duration: 600
+		});
+
+		const healthBar = this.add.rectangle(x, y - 34 * sizeScale, 44 * sizeScale, 6, 0xffaa00, 0.8);
+		healthBar.setOrigin(0.5);
+
+		const angle = Math.random() * Math.PI * 2;
+		const baseSpeed = Phaser.Math.FloatBetween(0.7, 1.1) * sizeScale;
+		const vx = Math.cos(angle) * baseSpeed;
+		const vy = Math.sin(angle) * baseSpeed;
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(enemy);
+			this.uiCamera.ignore(healthBar);
+			if (enemy.getChildren) {
+				enemy.getChildren().forEach(child => this.uiCamera.ignore(child));
+			}
+		}
+
+		this.enemies.push({
+			enemy,
+			healthBar,
+			sizeScale,
+			vx,
+			vy,
+			type: 'bomber_beetle',
+			lastAttackTime: -Infinity,
+			attackCooldown: 1200,
+			bombCooldown: 2500,
+			lastBombTime: -Infinity
+		});
+	}
+
+	spawnRandomStormMage() {
+		const padding = this.ARENA_PADDING + 200;
+		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
+		const y = padding + Math.random() * (this.ARENA_HEIGHT - 2 * padding);
+
+		const enemy = generateEnemySprite(this, x, y, 'storm_mage');
+		const sizeScale = Phaser.Math.FloatBetween(1.1, 1.4);
+		enemy.setScale(sizeScale);
+		enemy.setTint(0x8888ff);
+
+		// Storm Mage animation: glow and pulse
+		this.tweens.add({
+			targets: enemy,
+			alpha: { from: 0.8, to: 1 },
+			yoyo: true,
+			repeat: -1,
+			duration: 700
+		});
+		this.tweens.add({
+			targets: enemy,
+			scale: { from: sizeScale, to: sizeScale * 1.08 },
+			yoyo: true,
+			repeat: -1,
+			duration: 900
+		});
+
+		const healthBar = this.add.rectangle(x, y - 36 * sizeScale, 46 * sizeScale, 6, 0x8888ff, 0.8);
+		healthBar.setOrigin(0.5);
+
+		const angle = Math.random() * Math.PI * 2;
+		const baseSpeed = Phaser.Math.FloatBetween(0.9, 1.3) * sizeScale;
+		const vx = Math.cos(angle) * baseSpeed;
+		const vy = Math.sin(angle) * baseSpeed;
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(enemy);
+			this.uiCamera.ignore(healthBar);
+			if (enemy.getChildren) {
+				enemy.getChildren().forEach(child => this.uiCamera.ignore(child));
+			}
+		}
+
+		this.enemies.push({
+			enemy,
+			healthBar,
+			sizeScale,
+			vx,
+			vy,
+			type: 'storm_mage',
+			lastAttackTime: -Infinity,
+			attackCooldown: 1100,
+			teleportCooldown: 4000,
+			lastTeleportTime: -Infinity,
+			lightningCooldown: 2200,
+			lastLightningTime: -Infinity
 		});
 	}
 
@@ -3818,6 +4372,23 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.scoreText.setText(`Score: ${gameState.score}`);
 		}
 
+		// Update wave display
+		if (this.waveText) {
+			if (this.waveState.waveInProgress) {
+				this.waveText.setText(
+					`Wave: ${this.waveState.currentWave} (${this.waveState.enemiesKilledThisWave}/${this.waveState.totalEnemiesThisWave})`
+				);
+			} else {
+				// Show countdown to next wave
+				if (this.waveState.nextWaveTimer) {
+					const remaining = Math.ceil(this.waveState.nextWaveTimer.getRemaining() / 1000);
+					this.waveText.setText(`Next Wave in ${remaining}s`);
+				} else {
+					this.waveText.setText(`Wave: ${this.waveState.currentWave}`);
+				}
+			}
+		}
+
 		// Update player health bar
 		if (this.playerHealthFg) {
 			const character = gameState.character;
@@ -3826,6 +4397,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.playerHealthFg.width = 300 * hpPercent;
 			this.playerHealthText.setText(`${Math.round(character.hp)} / ${character.maxHp}`);
 		}
+
+		// Update minimap
+		this.updateMinimap();
+
+		// Update enemy tracking indicators
+		this.updateEnemyIndicators();
 	}
 
 	handleDevilAbilities(enemyData) {
@@ -4016,6 +4593,27 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	shutdown() {
 		// Clean up all scene resources
 		cleanupScene(this);
+		
+		// Clear wave timer
+		if (this.waveState.nextWaveTimer) {
+			this.waveState.nextWaveTimer.destroy();
+			this.waveState.nextWaveTimer = null;
+		}
+		
+		// Clear minimap elements
+		if (this.minimap.enemyDots) {
+			this.minimap.enemyDots.forEach(dot => dot.destroy());
+			this.minimap.enemyDots = [];
+		}
+		
+		// Clear enemy indicators
+		if (this.enemyIndicators) {
+			this.enemyIndicators.forEach(indicator => {
+				if (indicator.arrow) indicator.arrow.destroy();
+				if (indicator.text) indicator.text.destroy();
+			});
+			this.enemyIndicators = [];
+		}
 		
 		// Clear game-specific arrays
 		this.enemies = [];

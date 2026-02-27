@@ -42,6 +42,34 @@ export const ENEMY_CONFIGS = {
     points: 50,
     color: 0xcccccc
   }
+    ,
+    frost_wraith: {
+      hp: 60,
+      maxHp: 60,
+      damage: 10,
+      speed: 110,
+      sizeScale: 1.2,
+      points: 80,
+      color: 0x66ccff
+    },
+    bomber_beetle: {
+      hp: 70,
+      maxHp: 70,
+      damage: 16,
+      speed: 50,
+      sizeScale: 1.4,
+      points: 120,
+      color: 0xffaa00
+    },
+    storm_mage: {
+      hp: 90,
+      maxHp: 90,
+      damage: 22,
+      speed: 80,
+      sizeScale: 1.3,
+      points: 150,
+      color: 0x8888ff
+    }
 };
 
 /**
@@ -85,13 +113,19 @@ export class EnemySpawnHandler {
     let type = config.type;
     if (!type) {
       const rand = Math.random();
-      if (rand < 0.15) {
-        type = 'skeleton';
-      } else if (rand < 0.3) {
-        type = 'devil';
-      } else {
-        type = 'slime';
-      }
+        if (rand < 0.10) {
+          type = 'skeleton';
+        } else if (rand < 0.20) {
+          type = 'devil';
+        } else if (rand < 0.32) {
+          type = 'frost_wraith';
+        } else if (rand < 0.44) {
+          type = 'bomber_beetle';
+        } else if (rand < 0.52) {
+          type = 'storm_mage';
+        } else {
+          type = 'slime';
+        }
     }
 
     return this.spawn(x, y, type);

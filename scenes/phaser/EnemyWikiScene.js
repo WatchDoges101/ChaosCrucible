@@ -84,6 +84,25 @@ export class EnemyWikiScene extends Phaser.Scene {
         stats: { hp: 55, damage: 12, speed: 65 },
         abilities: ['Bone Throw', 'Shielded Guard']
       }
+        ,
+        {
+          name: 'Frost Wraith',
+          type: 'frost_wraith',
+          stats: { hp: 70, damage: 15, speed: 80 },
+          abilities: ['Freeze', 'Icy Dash']
+        },
+        {
+          name: 'Bomber Beetle',
+          type: 'bomber_beetle',
+          stats: { hp: 60, damage: 10, speed: 50 },
+          abilities: ['Explosive Bomb', 'Quick Escape']
+        },
+        {
+          name: 'Storm Mage',
+          type: 'storm_mage',
+          stats: { hp: 90, damage: 20, speed: 60 },
+          abilities: ['Lightning Strike', 'Teleport']
+        }
     ];
 
     const itemWidth = Math.min(720, this.scale.width - 80);

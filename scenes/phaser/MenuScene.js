@@ -81,11 +81,11 @@ export class MenuScene extends Phaser.Scene {
 
     // Buttons with interactive areas
     const buttons = [
-      { label: 'Start Game', scene: 'CharacterSelectionScene', color: 0xff3300 },
-      { label: 'Enemies', scene: 'EnemyWikiScene', color: 0xff8a00 },
-      { label: 'Powerups', scene: 'PowerupWikiScene', color: 0xff7a00 },
-      { label: 'Online', scene: 'ComingSoonScene', color: 0xff5500 },
-      { label: 'Options', scene: 'OptionsScene', color: 0xff6600 }
+      { label: 'ARENA', scene: 'CharacterSelectionScene', color: 0xff3300 },
+      { label: 'ONLINE', scene: 'ComingSoonScene', color: 0xff5500 },
+      { label: 'ENEMIES', scene: 'EnemyWikiScene', color: 0xff8a00 },
+      { label: 'POWERUPS', scene: 'PowerupWikiScene', color: 0xff7a00 },
+      { label: 'OPTIONS', scene: 'OptionsScene', color: 0xff6600 }
     ];
 
     const buttonWidth = 350;
