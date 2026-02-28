@@ -11,6 +11,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
 
     super({ key: 'CharacterSelectionScene', active: false });
     this.buttons = [];
+    this.escBackHandler = null;
     
     // Character data with detailed stats and information
     this.characterData = {
@@ -104,6 +105,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
   init() {
     // Clear button references when scene initializes
     this.buttons = [];
+    this.escBackHandler = null;
   }
 
   create() {
@@ -118,6 +120,9 @@ export class CharacterSelectionScene extends Phaser.Scene {
     
     // Create flame particle emitters for background
     this.createFlameBackground();
+
+    // Back button (top-left)
+    this.createBackButton(100, 55);
 
     // Title with exciting font and glow - larger
     const title = this.add.text(centerX, 60, '⚔ CHOOSE YOUR CHAMPION ⚔', {
@@ -171,6 +176,57 @@ export class CharacterSelectionScene extends Phaser.Scene {
     
     // Create details panel on the right, aligned with buttons (same total height)
     this.createDetailsPanel(detailsPanelX, startY, panelWidth, totalHeight);
+
+    this.escBackHandler = () => {
+      this.scene.start('MenuScene');
+    };
+    this.input.keyboard.on('keydown-ESC', this.escBackHandler);
+  }
+
+  createBackButton(x, y) {
+    const button = this.add.rectangle(x, y, 160, 58, 0x111111, 0.95)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setStrokeStyle(3, 0xffffff, 0.95)
+      .setDepth(5000)
+      .setScrollFactor(0);
+
+    const text = this.add.text(x, y, 'BACK', {
+      font: 'bold 26px Arial',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5)
+      .setDepth(5001)
+      .setScrollFactor(0);
+
+    button.on('pointerover', () => {
+      this.tweens.add({
+        targets: [button, text],
+        scaleX: 1.1,
+        scaleY: 1.1,
+        duration: 150,
+        ease: 'Power2'
+      });
+      button.setFillStyle(0x2a2a2a);
+    });
+
+    button.on('pointerout', () => {
+      this.tweens.add({
+        targets: [button, text],
+        scaleX: 1,
+        scaleY: 1,
+        duration: 150,
+        ease: 'Power2'
+      });
+      button.setFillStyle(0x111111);
+    });
+
+    button.on('pointerdown', () => {
+      this.scene.start('MenuScene');
+    });
+
+    this.buttons.push({ button, texts: [text] });
   }
   
   createFlameBackground() {
@@ -585,6 +641,11 @@ export class CharacterSelectionScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
+
     // Clean up all buttons, text, and graphics
     this.buttons.forEach(buttonRef => {
       try {

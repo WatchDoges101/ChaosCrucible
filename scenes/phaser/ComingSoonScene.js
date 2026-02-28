@@ -7,6 +7,7 @@ import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 export class ComingSoonScene extends Phaser.Scene {
   constructor() {
     super({ key: 'ComingSoonScene', active: false });
+    this.escBackHandler = null;
   }
 
   create() {
@@ -119,6 +120,11 @@ export class ComingSoonScene extends Phaser.Scene {
 
     // Back button in top-left corner
     this.createBackButton(90, 50);
+
+    this.escBackHandler = () => {
+      this.scene.start('MenuScene');
+    };
+    this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
   createIntenseFlameParticles(width, height) {
@@ -267,6 +273,11 @@ export class ComingSoonScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
+
     cleanupScene(this);
   }
 }

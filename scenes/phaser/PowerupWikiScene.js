@@ -7,6 +7,7 @@ import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 export class PowerupWikiScene extends Phaser.Scene {
   constructor() {
     super({ key: 'PowerupWikiScene', active: false });
+    this.escBackHandler = null;
   }
 
   create() {
@@ -26,6 +27,11 @@ export class PowerupWikiScene extends Phaser.Scene {
 
     this.createBackButton(90, 50);
     this.createPowerupList(centerX, centerY + 40);
+
+    this.escBackHandler = () => {
+      this.scene.start('MenuScene');
+    };
+    this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
   createBackButton(x, y) {
@@ -141,6 +147,11 @@ export class PowerupWikiScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
+
     cleanupScene(this);
   }
 }

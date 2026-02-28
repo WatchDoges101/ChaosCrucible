@@ -13,12 +13,14 @@ export class OptionsScene extends Phaser.Scene {
     this.returnScene = 'MenuScene';
     this.returnSceneData = {};
     this.activeSlider = null;
+    this.escBackHandler = null;
   }
 
   init(data) {
     this.qualityButtons = [];
     this.returnScene = data?.returnScene || 'MenuScene';
     this.returnSceneData = data?.returnSceneData || {};
+    this.escBackHandler = null;
 
     if (data?.gameSceneKey) {
       this.returnSceneData.gameSceneKey = data.gameSceneKey;
@@ -209,9 +211,19 @@ export class OptionsScene extends Phaser.Scene {
     backButton.on('pointerdown', () => {
       this.scene.start(this.returnScene, this.returnSceneData);
     });
+
+    this.escBackHandler = () => {
+      this.scene.start(this.returnScene, this.returnSceneData);
+    };
+    this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
   shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
+
     // Clean up quality buttons
     this.qualityButtons.forEach(buttonRef => {
       try {

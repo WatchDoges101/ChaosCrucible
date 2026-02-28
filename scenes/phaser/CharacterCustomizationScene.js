@@ -12,6 +12,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     super({ key: 'CharacterCustomizationScene', active: false });
     this.colorButtons = [];
     this.mainButtons = [];
+    this.escBackHandler = null;
   }
 
   init(data) {
@@ -19,6 +20,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     this.selectedRole = data.role || 'Male';
     this.colorButtons = [];
     this.mainButtons = [];
+    this.escBackHandler = null;
     console.log('[CharacterCustomization] Selected role:', this.selectedRole);
   }
 
@@ -339,19 +341,25 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     console.log('[CharacterCustomization] Color schemes created');
 
     // ===== START GAME BUTTON =====
-    const buttonGap = 40;
     const buttonY = height - 90;
+    const backButtonX = 110;
+    const backButtonY = 50;
 
-    const backButton = this.add.rectangle(centerX - 160, buttonY, 160, 70, 0xc0392b, 0.9)
+    const backButton = this.add.rectangle(backButtonX, backButtonY, 170, 64, 0x111111, 0.95)
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({ useHandCursor: true })
+      .setStrokeStyle(3, 0xffffff, 0.95)
+      .setScrollFactor(0)
+      .setDepth(5000);
 
-    const backText = this.add.text(centerX - 160, buttonY, 'BACK', {
+    const backText = this.add.text(backButtonX, backButtonY, 'BACK', {
       font: 'bold 28px Arial',
       fill: '#ffffff',
       stroke: '#000000',
       strokeThickness: 3
-    }).setOrigin(0.5);
+    }).setOrigin(0.5)
+      .setScrollFactor(0)
+      .setDepth(5001);
 
     // Store button references
     this.mainButtons.push({ button: backButton, text: backText });
@@ -364,7 +372,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
         duration: 200,
         ease: 'Back.easeOut'
       });
-      backButton.setFillStyle(0xe74c3c);
+      backButton.setFillStyle(0x2a2a2a);
     });
 
     backButton.on('pointerout', () => {
@@ -374,16 +382,26 @@ export class CharacterCustomizationScene extends Phaser.Scene {
         scaleY: 1,
         duration: 200
       });
-      backButton.setFillStyle(0xc0392b);
+      backButton.setFillStyle(0x111111);
     });
 
-    backButton.on('pointerdown', () => {
+    const goBackToSelection = () => {
       console.log('[CharacterCustomization] Back clicked');
       this.cameras.main.flash(200, 255, 0, 0);
       this.time.delayedCall(200, () => {
+        if (!this.scene.get('CharacterSelectionScene') && window.sceneClasses['CharacterSelectionScene']) {
+          this.scene.add('CharacterSelectionScene', window.sceneClasses['CharacterSelectionScene'], false);
+        }
         this.scene.start('CharacterSelectionScene');
       });
-    });
+    };
+
+    backButton.on('pointerdown', goBackToSelection);
+
+    this.escBackHandler = () => {
+      goBackToSelection();
+    };
+    this.input.keyboard.on('keydown-ESC', this.escBackHandler);
 
     const startButton = this.add.rectangle(centerX + 160, buttonY, 200, 70, 0x27ae60, 0.9)
       .setOrigin(0.5)
@@ -535,6 +553,11 @@ export class CharacterCustomizationScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
+
     // Clean up color buttons
     this.colorButtons.forEach(buttonRef => {
       try {

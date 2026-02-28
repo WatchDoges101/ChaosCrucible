@@ -111,7 +111,8 @@ export default class SkillTreeScene extends Phaser.Scene {
     }).setOrigin(0, 0.5).setInteractive({ useHandCursor: true }).setDepth(10);
 
     backBtn.on('pointerdown', goBackToMenu);
-    this.input.keyboard?.on('keydown-ESC', goBackToMenu);
+    this.escBackHandler = goBackToMenu;
+    this.input.keyboard?.on('keydown-ESC', this.escBackHandler);
 
     // Character selection
     const spriteY = 210;
@@ -300,5 +301,12 @@ export default class SkillTreeScene extends Phaser.Scene {
 
       branchY += branchSpacingY;
     });
+  }
+
+  shutdown() {
+    if (this.escBackHandler) {
+      this.input.keyboard?.off('keydown-ESC', this.escBackHandler);
+      this.escBackHandler = null;
+    }
   }
 }
