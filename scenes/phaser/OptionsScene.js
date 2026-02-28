@@ -181,34 +181,31 @@ export class OptionsScene extends Phaser.Scene {
     });
 
     // Back Button
-    const backButton = this.add.rectangle(centerX, 500, 200, 60, 0xff0000, 0.8)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
     const backText = this.add.text(centerX, 500, 'Back to Menu', {
       font: '20px Arial',
       fill: '#ffffff'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
-    backButton.on('pointerover', () => {
+    backText.on('pointerover', () => {
       this.tweens.add({
-        targets: backButton,
+        targets: backText,
         scaleX: 1.1,
         scaleY: 1.1,
         duration: 200
       });
     });
 
-    backButton.on('pointerout', () => {
+    backText.on('pointerout', () => {
       this.tweens.add({
-        targets: backButton,
+        targets: backText,
         scaleX: 1,
         scaleY: 1,
         duration: 200
       });
     });
 
-    backButton.on('pointerdown', () => {
+    backText.on('pointerdown', () => {
       this.scene.start(this.returnScene, this.returnSceneData);
     });
 
