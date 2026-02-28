@@ -490,3 +490,66 @@ export function createWeaponSwing(scene, weapon, config = {}) {
     ease: 'Sine.out'
   });
 }
+
+/**
+ * Create idle idle animations for player limbs and weapons
+ * Creates consistent bobbing animations for a more alive appearance
+ * @param {Phaser.Scene} scene - The Phaser scene
+ * @param {Object} spriteGroup - Object containing leftArm, rightArm, and weapon sprites
+ * @param {Object} config - Animation configuration
+ * @param {number} [config.armDuration=800] - Arm animation duration in ms
+ * @param {number} [config.weaponDuration=600] - Weapon animation duration in ms
+ * @returns {Object} Object with tweens created (tweens.leftArm, tweens.rightArm, tweens.weapon)
+ * @example
+ * const tweens = createIdleLimbAnimations(this, this.player.frontSprite, {
+ *   armDuration: 800,
+ *   weaponDuration: 600
+ * });
+ */
+export function createIdleLimbAnimations(scene, spriteGroup, config = {}) {
+  const {
+    armDuration = 800,
+    weaponDuration = 600
+  } = config;
+
+  const createdTweens = {};
+
+  // Animate left arm
+  if (spriteGroup.leftArm) {
+    createdTweens.leftArm = scene.tweens.add({
+      targets: spriteGroup.leftArm,
+      rotation: -0.5,
+      duration: armDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  // Animate right arm
+  if (spriteGroup.rightArm) {
+    createdTweens.rightArm = scene.tweens.add({
+      targets: spriteGroup.rightArm,
+      rotation: 0.5,
+      duration: armDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  // Animate weapon
+  if (spriteGroup.weapon) {
+    createdTweens.weapon = scene.tweens.add({
+      targets: spriteGroup.weapon,
+      rotation: 1,
+      duration: weaponDuration,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  return createdTweens;
+}
+
