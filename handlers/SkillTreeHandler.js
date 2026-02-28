@@ -267,7 +267,7 @@ export class SkillTreeHandler {
   }
 
   /**
-   * Get current skill tree state
+   * Get skill tree state
    * @param {string} role - Character role
    * @returns {Object} Skill tree data
    */
@@ -285,6 +285,38 @@ export class SkillTreeHandler {
       skillTree: leveling.skillTree,
       totalSpent: leveling.totalTokensSpent || 0
     };
+  }
+
+  /**
+   * Get leveling data (for display in UI)
+   * @param {string} role - Character role
+   * @returns {Object} Leveling data with level, xp, tokens
+   */
+  getLevelingData(role) {
+    if (!gameState.characters[role]) {
+      return { level: 0, xp: 0, tokens: 0 };
+    }
+
+    const leveling = gameState.characters[role].leveling;
+    return {
+      level: leveling.level,
+      xp: leveling.xp,
+      tokens: leveling.tokens,
+      pendingXP: leveling.pendingXP || 0
+    };
+  }
+
+  /**
+   * Get skill tree data (for display in UI)
+   * @param {string} role - Character role
+   * @returns {Object} Complete skill tree structure
+   */
+  getSkillTree(role) {
+    if (!gameState.characters[role]) {
+      return {};
+    }
+
+    return gameState.characters[role].leveling.skillTree || {};
   }
 
   /**

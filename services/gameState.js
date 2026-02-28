@@ -241,6 +241,45 @@ class GameState {
       skillTree: leveling.skillTree
     };
   }
+
+  /**
+   * Unlock a skill and persist to storage
+   * @param {string|Array} skillPath - Path to skill (e.g., "strength" or ["strength", "children", "power"])
+   */
+  unlockSkill(skillPath) {
+    if (!this.selectedRole || !this.characters[this.selectedRole]) {
+      return false;
+    }
+
+    const leveling = this.characters[this.selectedRole].leveling;
+    
+    try {
+      // Navigate to the skill in the tree
+      let skill = leveling.skillTree;
+      
+      if (typeof skillPath === 'string') {
+        skill = skill[skillPath];
+      } else if (Array.isArray(skillPath)) {
+        for (let i = 0; i < skillPath.length; i++) {
+          skill = skill[skillPath[i]];
+        }
+      }
+
+      if (skill && !skill.unlocked) {
+        skill.unlocked = true;
+        if (skill.cost && leveling.tokens >= skill.cost) {
+          leveling.tokens -= skill.cost;
+        }
+        // Auto-save
+        this.saveSkillTreeForRole(this.selectedRole);
+        return true;
+      }
+    } catch (e) {
+      console.error('Failed to unlock skill:', e);
+    }
+    
+    return false;
+  }
 }
 
 export const gameState = new GameState();

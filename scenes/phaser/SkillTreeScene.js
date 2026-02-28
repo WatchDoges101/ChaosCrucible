@@ -1,30 +1,15 @@
 // Skill Tree UI Scene for Phaser
 import { gameState } from '../../services/gameState.js';
-import { LevelingSystem, LEVEL_XP, skillTrees } from '../../services/levelingSystem.js';
-import { generateCharacterSprite } from '../../services/spriteGenerator.js';
 import { skillTreeHandler } from '../../handlers/SkillTreeHandler.js';
-import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
+import { generateCharacterSprite } from '../../services/spriteGenerator.js';
 
 export default class SkillTreeScene extends Phaser.Scene {
   constructor() {
     super({ key: 'SkillTreeScene' });
     this.selectedRole = null;
-    this.skillDisplay = {};
-  }
-
-  shutdown() {
-    // Save progress on scene shutdown
-    if (this.selectedRole) {
-      skillTreeHandler.forceSave();
-    }
-    cleanupScene(this);
   }
 
   create() {
-    // Initialize progress persistence if role is selected
-    if (gameState.selectedRole) {
-      skillTreeHandler.init(gameState.selectedRole);
-    }
     // Add back button
     const backBtn = this.add.text(60, 30, '< BACK', {
       font: 'bold 18px Arial',
@@ -71,8 +56,12 @@ export default class SkillTreeScene extends Phaser.Scene {
       }).setOrigin(0.5);
       return;
     }
-    const leveling = gameState.characters[gameState.selectedRole].leveling;
-    this.add.text(60, 200, `LEVEL: ${leveling.level}  XP: ${leveling.xp}  TOKENS: ${leveling.tokens}`.toUpperCase(), {
+    
+    // Get leveling data (this automatically loads from storage)
+    const levelingData = skillTreeHandler.getLevelingData(gameState.selectedRole);
+    const skillTree = skillTreeHandler.getSkillTree(gameState.selectedRole);
+    
+    this.add.text(60, 200, `LEVEL: ${levelingData.level}  XP: ${levelingData.xp}  TOKENS: ${levelingData.tokens}`.toUpperCase(), {
       font: 'bold 20px Arial', fill: '#fff', stroke: '#000', strokeThickness: 3
     });
     this.add.text(60, 240, 'SKILL TREE', { font: 'bold 24px Arial', fill: '#ff0' });
@@ -86,10 +75,10 @@ export default class SkillTreeScene extends Phaser.Scene {
     const highlightColor = 0xffd700;
 
     // Draw main branches
-    const branches = Object.keys(leveling.skillTree);
+    const branches = Object.keys(skillTree);
     let branchY = startY;
     branches.forEach((branch, i) => {
-      const node = leveling.skillTree[branch];
+      const node = skillTree[branch];
       // Draw branch node
       const branchX = centerX;
       const branchIcon = this.add.circle(branchX, branchY, iconRadius, node.unlocked ? highlightColor : branchColor, node.unlocked ? 0.9 : 0.5);
@@ -104,12 +93,10 @@ export default class SkillTreeScene extends Phaser.Scene {
       }).setOrigin(0.5);
       branchIcon.setInteractive();
       branchIcon.on('pointerdown', () => {
-        if (!node.unlocked && leveling.tokens >= node.cost) {
-          // Use SkillTreeHandler for persistence
-          const success = skillTreeHandler.unlockSkill(gameState.selectedRole, branch, node.cost);
-          if (success) {
-            this.scene.restart();
-          }
+        if (!node.unlocked && levelingData.tokens >= node.cost) {
+          // Use gameState method which auto-saves to storage
+          gameState.unlockSkill([branch]);
+          this.scene.restart();
         }
       });
       // Draw child nodes and connecting lines
@@ -144,12 +131,10 @@ export default class SkillTreeScene extends Phaser.Scene {
         }).setOrigin(0.5);
         childIcon.setInteractive();
         childIcon.on('pointerdown', () => {
-          if (!childNode.unlocked && leveling.tokens >= childNode.cost && node.unlocked) {
-            // Use SkillTreeHandler for persistence
-            const success = skillTreeHandler.unlockSkill(gameState.selectedRole, `${branch}_${child}`, childNode.cost);
-            if (success) {
-              this.scene.restart();
-            }
+          if (!childNode.unlocked && levelingData.tokens >= childNode.cost && node.unlocked) {
+            // Use gameState method which auto-saves to storage
+            gameState.unlockSkill([branch, 'children', child]);
+            this.scene.restart();
           }
         });
       });
