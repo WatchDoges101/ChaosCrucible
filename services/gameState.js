@@ -170,6 +170,77 @@ class GameState {
       this._listeners[event].forEach(cb => cb(...args));
     }
   }
+
+  /**
+   * Save all character skill trees
+   */
+  saveAllSkillTrees() {
+    try {
+      Object.keys(this.characters).forEach(role => {
+        this.saveSkillTreeForRole(role);
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to save all skill trees:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Save skill tree for specific role
+   */
+  saveSkillTreeForRole(role) {
+    try {
+      if (this.characters[role]) {
+        const leveling = this.characters[role].leveling;
+        const skillTreeData = {
+          role: role,
+          level: leveling.level,
+          xp: leveling.xp,
+          tokens: leveling.tokens,
+          pendingXP: leveling.pendingXP || 0,
+          skillTree: leveling.skillTree,
+          savedAt: new Date().toISOString()
+        };
+        localStorage.setItem(`skillTree_${role}`, JSON.stringify(skillTreeData));
+        return true;
+      }
+    } catch (e) {
+      console.error(`Failed to save skill tree for ${role}:`, e);
+    }
+    return false;
+  }
+
+  /**
+   * Load skill tree for specific role
+   */
+  loadSkillTreeForRole(role) {
+    try {
+      const saved = localStorage.getItem(`skillTree_${role}`);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error(`Failed to load skill tree for ${role}:`, e);
+    }
+    return null;
+  }
+
+  /**
+   * Get skill tree progress for role
+   */
+  getSkillTreeProgress(role) {
+    if (!this.characters[role]) {
+      return null;
+    }
+    const leveling = this.characters[role].leveling;
+    return {
+      level: leveling.level,
+      xp: leveling.xp,
+      tokens: leveling.tokens,
+      skillTree: leveling.skillTree
+    };
+  }
 }
 
 export const gameState = new GameState();

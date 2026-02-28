@@ -2,14 +2,29 @@
 import { gameState } from '../../services/gameState.js';
 import { LevelingSystem, LEVEL_XP, skillTrees } from '../../services/levelingSystem.js';
 import { generateCharacterSprite } from '../../services/spriteGenerator.js';
+import { skillTreeHandler } from '../../handlers/SkillTreeHandler.js';
+import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
 
 export default class SkillTreeScene extends Phaser.Scene {
   constructor() {
     super({ key: 'SkillTreeScene' });
     this.selectedRole = null;
+    this.skillDisplay = {};
+  }
+
+  shutdown() {
+    // Save progress on scene shutdown
+    if (this.selectedRole) {
+      skillTreeHandler.forceSave();
+    }
+    cleanupScene(this);
   }
 
   create() {
+    // Initialize progress persistence if role is selected
+    if (gameState.selectedRole) {
+      skillTreeHandler.init(gameState.selectedRole);
+    }
     // Add back button
     const backBtn = this.add.text(60, 30, '< BACK', {
       font: 'bold 18px Arial',
@@ -90,8 +105,11 @@ export default class SkillTreeScene extends Phaser.Scene {
       branchIcon.setInteractive();
       branchIcon.on('pointerdown', () => {
         if (!node.unlocked && leveling.tokens >= node.cost) {
-          leveling.unlockSkill([branch]);
-          this.scene.restart();
+          // Use SkillTreeHandler for persistence
+          const success = skillTreeHandler.unlockSkill(gameState.selectedRole, branch, node.cost);
+          if (success) {
+            this.scene.restart();
+          }
         }
       });
       // Draw child nodes and connecting lines
@@ -127,8 +145,11 @@ export default class SkillTreeScene extends Phaser.Scene {
         childIcon.setInteractive();
         childIcon.on('pointerdown', () => {
           if (!childNode.unlocked && leveling.tokens >= childNode.cost && node.unlocked) {
-            leveling.unlockSkill([branch, 'children', child]);
-            this.scene.restart();
+            // Use SkillTreeHandler for persistence
+            const success = skillTreeHandler.unlockSkill(gameState.selectedRole, `${branch}_${child}`, childNode.cost);
+            if (success) {
+              this.scene.restart();
+            }
           }
         });
       });
