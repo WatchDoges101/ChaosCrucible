@@ -147,6 +147,54 @@ export const CHARACTER_COLORS = {
 };
 
 /**
+ * Universal Color Palette for UI, Effects, and Game Objects
+ * @type {Object}
+ */
+export const COLOR_PALETTE = {
+  // Reds
+  RED: 0xff0000,
+  DARK_RED: 0x990000,
+  LIGHT_RED: 0xff4d4d,
+  
+  // Greens
+  GREEN: 0x00ff00,
+  DARK_GREEN: 0x00aa00,
+  
+  // Blues
+  BLUE: 0x0000ff,
+  LIGHT_BLUE: 0x66ccff,
+  SKY_BLUE: 0x99ccff,
+  DARK_BLUE: 0x001a33,
+  CYAN: 0x00FFFF,
+  SHIELD_BLUE: 0x88ccff,
+  
+  // Yellows & Golds
+  YELLOW: 0xffff00,
+  GOLD: 0xd4af37,
+  LIGHT_GOLD: 0xffdd55,
+  ORANGE: 0xffaa33,
+  LIGHT_ORANGE: 0xffaa00,
+  MUZZLE_YELLOW: 0xffdd00,
+  LIGHT_YELLOW: 0xffee88,
+  
+  // Whites & Grays
+  WHITE: 0xffffff,
+  LIGHT_GRAY: 0x999999,
+  MEDIUM_GRAY: 0x666666,
+  DARK_GRAY: 0x333333,
+  DARKER_GRAY: 0x1a1a1a,
+  BLACK: 0x000000,
+  
+  // Special Effects Colors
+  FIRE_RING: 0xffcc55,
+  FIRE_GLOW: 0xffcc55,
+  FIRE_MUZZLE: 0xffcc55,
+  BUFF_BAR: 0x00ff00,
+  ARC_PRIMARY: 0xffffff,
+  ARC_SECONDARY: 0xffcc55
+};
+
+/**
  * Input Keys and Controls
  * @type {Object}
  */
@@ -187,6 +235,7 @@ export default {
   GAME_STATES,
   CHARACTER_ROLES,
   CHARACTER_COLORS,
+  COLOR_PALETTE,
   INPUT_KEYS,
   SCENE_NAMES
 };
