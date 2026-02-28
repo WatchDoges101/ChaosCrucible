@@ -8,7 +8,7 @@ import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.j
  */
 export class CharacterSelectionScene extends Phaser.Scene {
   constructor() {
-    console.log('[CONSTRUCTOR] CharacterSelectionScene being instantiated');
+
     super({ key: 'CharacterSelectionScene', active: false });
     this.buttons = [];
     

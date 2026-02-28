@@ -14,8 +14,6 @@ import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers
 
 export class ChaossCrucibleScene extends Phaser.Scene {
 	constructor() {
-		console.log('[CONSTRUCTOR] ChaossCrucibleScene being instantiated');
-		super({ key: 'ChaossCrucibleScene', active: false });
 
 		// Arena dimensions - much larger for zoomed view
 		this.ARENA_WIDTH = 5000;
@@ -140,8 +138,6 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	create() {
-		console.log('[ChaossCrucible] === SCENE CREATE STARTED ===');
-
 		// Ensure tween/time systems are running after scene transitions
 		this.tweens.timeScale = 1;
 		this.tweens.resumeAll();
@@ -1138,7 +1134,6 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		
 		if (gameState.character.hp <= 0) {
 			// Player died - could add death handling here
-			console.log('[ChaossCrucible] Player defeated!');
 		}
 	}
 
