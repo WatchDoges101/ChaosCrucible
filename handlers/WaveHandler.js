@@ -108,30 +108,70 @@ export class WaveHandler {
 			bomber_beetle: 0,
 			storm_mage: 0
 		};
-		
-		// Roll for each enemy slot
+
+		const frostWraithUnlocked = waveNumber >= 3;
+		const bomberBeetleUnlocked = waveNumber >= 5;
+		const stormMageUnlocked = waveNumber >= 7;
+
 		for (let i = 0; i < totalEnemies; i++) {
 			const roll = Math.random();
-			
-			if (roll < eliteChance * 0.3) {
-				// Devil (rarest, most dangerous)
+			const adjustedEliteChance = Math.min(0.85, eliteChance);
+
+			if (roll < adjustedEliteChance * 0.15) {
+				if (stormMageUnlocked) {
+					enemyCounts.storm_mage++;
+				} else if (bomberBeetleUnlocked) {
+					enemyCounts.bomber_beetle++;
+				} else if (frostWraithUnlocked) {
+					enemyCounts.frost_wraith++;
+				} else {
+					enemyCounts.devil++;
+				}
+			} else if (roll < adjustedEliteChance * 0.35) {
+				if (bomberBeetleUnlocked) {
+					enemyCounts.bomber_beetle++;
+				} else if (frostWraithUnlocked) {
+					enemyCounts.frost_wraith++;
+				} else {
+					enemyCounts.devil++;
+				}
+			} else if (roll < adjustedEliteChance * 0.65) {
+				if (frostWraithUnlocked && Math.random() < 0.6) {
+					enemyCounts.frost_wraith++;
+				} else {
+					enemyCounts.skeleton++;
+				}
+			} else if (roll < adjustedEliteChance * 0.85) {
 				enemyCounts.devil++;
-			} else if (roll < eliteChance * 0.7) {
-				// Skeleton (medium)
-				enemyCounts.skeleton++;
 			} else {
-				// Slime (common)
 				enemyCounts.slime++;
 			}
 		}
-		
-		// Ensure variety in higher waves
+
+		if (waveNumber >= 3 && enemyCounts.frost_wraith === 0) {
+			const transferCount = Math.floor(Math.random() * 2) + 1;
+			enemyCounts.frost_wraith = transferCount;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - transferCount);
+		}
+
+		if (waveNumber >= 5 && enemyCounts.bomber_beetle === 0) {
+			const transferCount = Math.floor(Math.random() * 2) + 1;
+			enemyCounts.bomber_beetle = transferCount;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - transferCount);
+		}
+
+		if (waveNumber >= 7 && enemyCounts.storm_mage === 0) {
+			const transferCount = 1;
+			enemyCounts.storm_mage = transferCount;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - transferCount);
+		}
+
 		if (waveNumber >= 3 && enemyCounts.devil === 0) {
 			const transferCount = Math.floor(Math.random() * 2) + 1;
 			enemyCounts.devil = transferCount;
 			enemyCounts.slime = Math.max(0, enemyCounts.slime - transferCount);
 		}
-		
+
 		if (waveNumber >= 2 && enemyCounts.skeleton === 0) {
 			const transferCount = Math.floor(Math.random() * 2) + 1;
 			enemyCounts.skeleton = transferCount;

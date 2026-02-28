@@ -344,7 +344,7 @@ function drawGunnerCharacter(scene, container, colors) {
 }
 
 /**
- * Generate a random enemy sprite (slime for now)
+ * Generate a random enemy sprite
  */
 export function generateEnemySprite(scene, x = 0, y = 0, type = 'slime') {
   const container = scene.add.container(x, y);
@@ -355,6 +355,14 @@ export function generateEnemySprite(scene, x = 0, y = 0, type = 'slime') {
     drawDevilEnemy(scene, container);
   } else if (type === 'skeleton') {
     drawSkeletonEnemy(scene, container);
+  } else if (type === 'frost_wraith') {
+    drawFrostWraithEnemy(scene, container);
+  } else if (type === 'bomber_beetle') {
+    drawBomberBeetleEnemy(scene, container);
+  } else if (type === 'storm_mage') {
+    drawStormMageEnemy(scene, container);
+  } else {
+    drawSlimeEnemy(scene, container);
   }
 
   container.setData('type', type);
@@ -550,6 +558,223 @@ function drawSkeletonEnemy(scene, container) {
   arrow.visible = false;
   container.add(arrow);
   container.arrow = arrow;
+}
+
+/**
+ * Draw a frost wraith enemy (ghost-like ice creature)
+ */
+function drawFrostWraithEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0x00d4ff, 0.15);
+  aura.fillCircle(0, 0, 24);
+  aura.fillStyle(0x00f4ff, 0.1);
+  aura.fillCircle(0, 0, 32);
+  container.add(aura);
+  container.aura = aura;
+
+  const body = scene.add.graphics();
+  body.fillStyle(0xb3e5fc, 0.85);
+  body.fillEllipse(0, -4, 26, 30);
+  body.fillStyle(0x81d4fa, 0.9);
+  body.fillEllipse(0, 0, 22, 24);
+  container.add(body);
+
+  const crystals = scene.add.graphics();
+  crystals.fillStyle(0xe1f5fe, 1);
+  crystals.fillTriangleShape(new Phaser.Geom.Triangle(-6, -8, -4, -14, -2, -8));
+  crystals.fillTriangleShape(new Phaser.Geom.Triangle(2, -10, 4, -16, 6, -10));
+  crystals.fillTriangleShape(new Phaser.Geom.Triangle(-8, 2, -6, -2, -4, 2));
+  crystals.fillTriangleShape(new Phaser.Geom.Triangle(4, 4, 6, 0, 8, 4));
+  container.add(crystals);
+  container.crystals = crystals;
+
+  const eyes = scene.add.graphics();
+  eyes.fillStyle(0x00bcd4, 1);
+  eyes.fillCircle(-5, -4, 3);
+  eyes.fillCircle(5, -4, 3);
+  eyes.fillStyle(0xffffff, 0.8);
+  eyes.fillCircle(-5, -4, 1.5);
+  eyes.fillCircle(5, -4, 1.5);
+  container.add(eyes);
+
+  const tail = scene.add.graphics();
+  tail.fillStyle(0xb3e5fc, 0.6);
+  tail.fillEllipse(0, 12, 18, 10);
+  tail.fillStyle(0x81d4fa, 0.5);
+  tail.fillEllipse(-2, 18, 12, 8);
+  tail.fillEllipse(2, 16, 10, 6);
+  tail.fillStyle(0xb3e5fc, 0.4);
+  tail.fillEllipse(0, 22, 8, 6);
+  container.add(tail);
+  container.tail = tail;
+
+  const shards = scene.add.graphics();
+  shards.fillStyle(0xe1f5fe, 0.9);
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(-18, -6, -16, -10, -14, -6));
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(14, -8, 16, -12, 18, -8));
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(-16, 8, -14, 4, -12, 8));
+  container.add(shards);
+  container.shards = shards;
+}
+
+/**
+ * Draw a bomber beetle enemy (explosive bug)
+ */
+function drawBomberBeetleEnemy(scene, container) {
+  const shadow = scene.add.graphics();
+  shadow.fillStyle(0x000000, 0.2);
+  shadow.fillEllipse(0, 18, 24, 8);
+  container.add(shadow);
+
+  const body = scene.add.graphics();
+  body.fillStyle(0x3e2723, 1);
+  body.fillEllipse(0, 0, 28, 32);
+  body.lineStyle(2, 0x1a1007, 0.8);
+  body.lineBetween(-8, -8, 8, -8);
+  body.lineBetween(-10, 0, 10, 0);
+  body.lineBetween(-8, 8, 8, 8);
+  body.fillStyle(0xf57c00, 0.8);
+  body.fillRect(-12, -4, 24, 3);
+  body.fillRect(-12, 4, 24, 3);
+  container.add(body);
+
+  const head = scene.add.graphics();
+  head.fillStyle(0x5d4037, 1);
+  head.fillEllipse(0, -18, 16, 14);
+  head.fillStyle(0xff6f00, 1);
+  head.fillCircle(-4, -18, 3);
+  head.fillCircle(4, -18, 3);
+  head.fillStyle(0x000000, 1);
+  head.fillCircle(-4, -18, 1.5);
+  head.fillCircle(4, -18, 1.5);
+  container.add(head);
+
+  const antennae = scene.add.graphics();
+  antennae.lineStyle(2, 0x5d4037, 1);
+  antennae.lineBetween(-4, -24, -8, -30);
+  antennae.lineBetween(4, -24, 8, -30);
+  antennae.fillStyle(0xff6f00, 1);
+  antennae.fillCircle(-8, -30, 2);
+  antennae.fillCircle(8, -30, 2);
+  container.add(antennae);
+  container.antennae = antennae;
+
+  const legs = scene.add.graphics();
+  legs.lineStyle(2.5, 0x3e2723, 1);
+  legs.lineBetween(-12, -6, -18, -2);
+  legs.lineBetween(-12, 0, -20, 4);
+  legs.lineBetween(-12, 6, -18, 12);
+  legs.lineBetween(12, -6, 18, -2);
+  legs.lineBetween(12, 0, 20, 4);
+  legs.lineBetween(12, 6, 18, 12);
+  container.add(legs);
+  container.legs = legs;
+
+  const bomb = scene.add.graphics();
+  bomb.fillStyle(0xff3d00, 0.3);
+  bomb.fillCircle(0, 4, 10);
+  bomb.fillStyle(0x212121, 1);
+  bomb.fillCircle(0, 4, 6);
+  bomb.fillStyle(0xff6f00, 1);
+  bomb.fillCircle(0, 4, 3);
+  bomb.lineStyle(1.5, 0x424242, 1);
+  bomb.beginPath();
+  bomb.moveTo(0, -2);
+  bomb.lineTo(-2, -6);
+  bomb.lineTo(0, -10);
+  bomb.strokePath();
+  bomb.fillStyle(0xff9800, 1);
+  bomb.fillCircle(0, -10, 1.5);
+  container.add(bomb);
+  container.bomb = bomb;
+}
+
+/**
+ * Draw a storm mage enemy (lightning wielding wizard)
+ */
+function drawStormMageEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0x9c27b0, 0.15);
+  aura.fillCircle(0, 0, 28);
+  aura.fillStyle(0x7b1fa2, 0.1);
+  aura.fillCircle(0, 0, 36);
+  container.add(aura);
+  container.aura = aura;
+
+  const robe = scene.add.graphics();
+  robe.fillStyle(0x4a148c, 1);
+  robe.fillEllipse(0, 8, 32, 30);
+  robe.fillStyle(0x6a1b9a, 1);
+  robe.fillRect(-14, -4, 28, 12);
+  robe.lineStyle(2, 0x9c27b0, 0.9);
+  robe.lineBetween(-14, -4, 14, -4);
+  robe.lineBetween(-14, 8, 14, 8);
+  robe.fillStyle(0xba68c8, 0.6);
+  robe.fillCircle(-8, 0, 2);
+  robe.fillCircle(0, 2, 2);
+  robe.fillCircle(8, 0, 2);
+  container.add(robe);
+
+  const head = scene.add.graphics();
+  head.fillStyle(0x4a148c, 1);
+  head.fillEllipse(0, -12, 18, 20);
+  head.fillStyle(0x311b92, 1);
+  head.fillEllipse(0, -8, 16, 12);
+  head.fillStyle(0xe1bee7, 1);
+  head.fillCircle(-4, -12, 3);
+  head.fillCircle(4, -12, 3);
+  head.fillStyle(0xce93d8, 1);
+  head.fillCircle(-4, -12, 1.5);
+  head.fillCircle(4, -12, 1.5);
+  container.add(head);
+
+  const hat = scene.add.graphics();
+  hat.fillStyle(0x4a148c, 1);
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(-10, -18, 10, -18, 0, -32));
+  hat.lineStyle(1.5, 0x9c27b0, 1);
+  hat.strokeTriangle(-10, -18, 10, -18, 0, -32);
+  hat.fillStyle(0xba68c8, 1);
+  hat.fillRect(-10, -20, 20, 3);
+  hat.fillStyle(0xffd700, 1);
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(0, -32, -1.5, -26, 1.5, -26));
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(3, -26.5, 4, -23, 1, -24));
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(2, -21, 4.5, -20, 2, -24));
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(-2, -21, -4.5, -20, -2, -24));
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(-3, -26.5, -4, -23, -1, -24));
+  container.add(hat);
+
+  const leftArm = scene.add.graphics();
+  leftArm.fillStyle(0x6a1b9a, 1);
+  leftArm.fillRect(-2, 0, 4, 12);
+  leftArm.fillCircle(0, 12, 3);
+  leftArm.x = -14;
+  leftArm.y = -2;
+  container.add(leftArm);
+  container.leftArm = leftArm;
+
+  const rightArm = scene.add.graphics();
+  rightArm.fillStyle(0x6a1b9a, 1);
+  rightArm.fillRect(-2, 0, 4, 12);
+  rightArm.fillCircle(0, 12, 3);
+  rightArm.x = 14;
+  rightArm.y = -2;
+  container.add(rightArm);
+  container.rightArm = rightArm;
+
+  const staff = scene.add.graphics();
+  staff.lineStyle(3, 0x5d4037, 1);
+  staff.lineBetween(0, 0, 0, -20);
+  staff.fillStyle(0x9c27b0, 0.8);
+  staff.fillCircle(0, -22, 5);
+  staff.fillStyle(0xe1bee7, 0.6);
+  staff.fillCircle(0, -22, 3);
+  staff.lineStyle(2, 0xba68c8, 1);
+  staff.lineBetween(0, -22, -4, -28);
+  staff.lineBetween(0, -22, 4, -26);
+  staff.x = 18;
+  staff.y = 8;
+  container.add(staff);
+  container.staff = staff;
 }
 
 /**

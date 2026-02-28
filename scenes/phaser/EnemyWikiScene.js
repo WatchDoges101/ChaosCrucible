@@ -123,6 +123,7 @@ export class EnemyWikiScene extends Phaser.Scene {
       const sprite = generateEnemySprite(this, 0, 0, enemy.type);
       sprite.setScale(1.3);
       sprite.x = -itemWidth / 2 + 70;
+      this.addEnemyAnimations(sprite, enemy.type, index);
 
       const nameText = this.add.text(-itemWidth / 2 + 140, -38, enemy.name, {
         font: 'bold 26px Arial',
@@ -153,6 +154,331 @@ export class EnemyWikiScene extends Phaser.Scene {
       itemContainer.add([panel, sprite, nameText, statsText, abilitiesText]);
       listContainer.add(itemContainer);
     });
+  }
+
+  addEnemyAnimations(sprite, type, index) {
+    const baseDelay = index * 200;
+
+    switch (type) {
+      case 'slime':
+        this.tweens.add({
+          targets: sprite,
+          scaleY: 1.15,
+          scaleX: 1.2,
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+        break;
+
+      case 'devil':
+        this.tweens.add({
+          targets: sprite,
+          y: sprite.y - 8,
+          duration: 1200,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+
+        if (sprite.glow) {
+          this.tweens.add({
+            targets: sprite.glow,
+            alpha: 0.4,
+            scaleX: 1.3,
+            scaleY: 1.3,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay
+          });
+        }
+
+        if (sprite.wings) {
+          this.tweens.add({
+            targets: sprite.wings,
+            scaleX: 1.1,
+            scaleY: 0.95,
+            duration: 400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Quad.inOut',
+            delay: baseDelay + 100
+          });
+        }
+
+        if (sprite.tail) {
+          this.tweens.add({
+            targets: sprite.tail,
+            angle: -10,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 200
+          });
+        }
+
+        if (sprite.weapon) {
+          this.tweens.add({
+            targets: sprite.weapon,
+            angle: 15,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 300
+          });
+        }
+        break;
+
+      case 'skeleton':
+        this.tweens.add({
+          targets: sprite,
+          angle: -5,
+          duration: 1800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+
+        if (sprite.skull) {
+          this.tweens.add({
+            targets: sprite.skull,
+            y: sprite.skull.y - 3,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 100
+          });
+        }
+
+        if (sprite.weapon) {
+          this.tweens.add({
+            targets: sprite.weapon,
+            angle: 8,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 200
+          });
+        }
+        break;
+
+      case 'frost_wraith':
+        this.tweens.add({
+          targets: sprite,
+          y: sprite.y - 10,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+
+        this.tweens.add({
+          targets: sprite,
+          angle: 5,
+          duration: 3000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay + 100
+        });
+
+        if (sprite.aura) {
+          this.tweens.add({
+            targets: sprite.aura,
+            alpha: 0.3,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay
+          });
+        }
+
+        if (sprite.crystals) {
+          this.tweens.add({
+            targets: sprite.crystals,
+            alpha: 0.7,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 300
+          });
+        }
+
+        if (sprite.tail) {
+          this.tweens.add({
+            targets: sprite.tail,
+            alpha: 0.4,
+            scaleY: 0.9,
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 200
+          });
+        }
+
+        if (sprite.shards) {
+          this.tweens.add({
+            targets: sprite.shards,
+            angle: 360,
+            duration: 8000,
+            repeat: -1,
+            ease: 'Linear',
+            delay: baseDelay
+          });
+        }
+        break;
+
+      case 'bomber_beetle':
+        this.tweens.add({
+          targets: sprite,
+          angle: -3,
+          duration: 600,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Bounce.inOut',
+          delay: baseDelay
+        });
+
+        if (sprite.antennae) {
+          this.tweens.add({
+            targets: sprite.antennae,
+            angle: 10,
+            duration: 400,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 100
+          });
+        }
+
+        if (sprite.bomb) {
+          this.tweens.add({
+            targets: sprite.bomb,
+            alpha: 0.6,
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 700,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Quad.inOut',
+            delay: baseDelay
+          });
+        }
+
+        if (sprite.legs) {
+          this.tweens.add({
+            targets: sprite.legs,
+            scaleX: 1.05,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 200
+          });
+        }
+        break;
+
+      case 'storm_mage':
+        this.tweens.add({
+          targets: sprite,
+          y: sprite.y - 7,
+          duration: 1800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+
+        this.tweens.add({
+          targets: sprite,
+          angle: 4,
+          duration: 2500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay + 100
+        });
+
+        if (sprite.aura) {
+          this.tweens.add({
+            targets: sprite.aura,
+            alpha: 0.25,
+            scaleX: 1.25,
+            scaleY: 1.25,
+            duration: 1600,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay
+          });
+        }
+
+        if (sprite.leftArm) {
+          this.tweens.add({
+            targets: sprite.leftArm,
+            angle: -15,
+            duration: 2000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 200
+          });
+        }
+
+        if (sprite.rightArm) {
+          this.tweens.add({
+            targets: sprite.rightArm,
+            angle: 15,
+            duration: 2200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 300
+          });
+        }
+
+        if (sprite.staff) {
+          this.tweens.add({
+            targets: sprite.staff,
+            alpha: 0.8,
+            angle: 10,
+            duration: 1300,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay + 400
+          });
+        }
+        break;
+
+      default:
+        this.tweens.add({
+          targets: sprite,
+          y: sprite.y - 5,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+        break;
+    }
   }
 
   shutdown() {

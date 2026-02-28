@@ -12,6 +12,7 @@ export class OptionsScene extends Phaser.Scene {
     this.qualityButtons = [];
     this.returnScene = 'MenuScene';
     this.returnSceneData = {};
+    this.activeSlider = null;
   }
 
   init(data) {
@@ -22,6 +23,74 @@ export class OptionsScene extends Phaser.Scene {
     if (data?.gameSceneKey) {
       this.returnSceneData.gameSceneKey = data.gameSceneKey;
     }
+  }
+
+  /**
+   * Create a properly functioning slider with thumb
+   */
+  createSlider(startX, startY, width, height, currentValue, onChange) {
+    const sliderStart = startX;
+    const sliderEnd = startX + width;
+    const sliderTrack = 12;
+    const thumbSize = 20;
+
+    // Background track
+    const track = this.add.rectangle(startX + width / 2, startY, width, sliderTrack, 0x444444, 1)
+      .setOrigin(0.5)
+      .setStrokeStyle(2, 0xffffff);
+
+    // Fill bar
+    const fillWidth = Math.max(0, Math.min(1, currentValue)) * width;
+    const fill = this.add.rectangle(
+      startX,
+      startY,
+      fillWidth,
+      sliderTrack,
+      0xff6b00,
+      1
+    ).setOrigin(0, 0.5);
+
+    // Thumb/handle
+    const thumb = this.add.rectangle(
+      startX + Math.max(0, Math.min(1, currentValue)) * width,
+      startY,
+      thumbSize,
+      thumbSize + 8,
+      0xffaa44,
+      1
+    ).setOrigin(0.5)
+      .setStrokeStyle(2, 0xffffff)
+      .setInteractive({ useHandCursor: true });
+
+    const updateSlader = (value) => {
+      const clampedValue = Math.max(0, Math.min(1, value));
+      const newX = startX + clampedValue * width;
+      const newFillWidth = clampedValue * width;
+
+      // Scale the fill bar based on the percentage
+      if (fillWidth > 0) {
+        fill.scaleX = newFillWidth / fillWidth;
+      }
+      thumb.setX(newX);
+
+      if (onChange) {
+        onChange(clampedValue);
+      }
+    };
+
+    // Track click for direct position change
+    track.setInteractive({ useHandCursor: true });
+    track.on('pointerdown', (pointer) => {
+      updateSlader((pointer.x - sliderStart) / width);
+    });
+
+    // Thumb drag
+    this.input.setDraggable(thumb);
+    thumb.on('drag', (pointer) => {
+      updateSlader((pointer.x - sliderStart) / width);
+    });
+
+    return { track, fill, thumb, updateSlader };
   }
 
   create() {
@@ -41,53 +110,41 @@ export class OptionsScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Sound Volume Option
-    this.add.text(centerX - 300, 200, 'Sound Volume:', {
+    this.add.text(centerX - 400, 200, 'Sound Volume:', {
       font: 'bold 24px Arial',
       fill: '#ffffff'
     }).setOrigin(0, 0.5);
 
-    const soundSlider = this.add.rectangle(centerX + 100, 200, 200, 30, 0x444444, 1)
-      .setOrigin(0.5)
-      .setStrokeStyle(2, 0xffffff);
-
-    const soundFill = this.add.rectangle(centerX - 100 + gameState.settings.soundVolume * 100, 200, gameState.settings.soundVolume * 200, 30, 0xff6b00, 1)
-      .setOrigin(0, 0.5);
-
-    soundSlider.setInteractive({ useHandCursor: true });
-    soundSlider.on('pointerdown', (pointer) => {
-      const localX = pointer.x - (centerX - 100);
-      const newVolume = Math.max(0, Math.min(1, localX / 200));
-      gameState.settings.soundVolume = newVolume;
-      soundFill.setDisplayOrigin(0, 0);
-      soundFill.setX(centerX - 100 + newVolume * 100);
-      soundFill.setScale(newVolume * 2, 1);
-    });
+    this.createSlider(
+      centerX - 100,
+      200,
+      250,
+      30,
+      gameState.settings.soundVolume,
+      (value) => {
+        gameState.settings.soundVolume = value;
+      }
+    );
 
     // Music Volume Option
-    this.add.text(centerX - 300, 280, 'Music Volume:', {
+    this.add.text(centerX - 400, 280, 'Music Volume:', {
       font: 'bold 24px Arial',
       fill: '#ffffff'
     }).setOrigin(0, 0.5);
 
-    const musicSlider = this.add.rectangle(centerX + 100, 280, 200, 30, 0x444444, 1)
-      .setOrigin(0.5)
-      .setStrokeStyle(2, 0xffffff);
-
-    const musicFill = this.add.rectangle(centerX - 100 + gameState.settings.musicVolume * 100, 280, gameState.settings.musicVolume * 200, 30, 0xff6b00, 1)
-      .setOrigin(0, 0.5);
-
-    musicSlider.setInteractive({ useHandCursor: true });
-    musicSlider.on('pointerdown', (pointer) => {
-      const localX = pointer.x - (centerX - 100);
-      const newVolume = Math.max(0, Math.min(1, localX / 200));
-      gameState.settings.musicVolume = newVolume;
-      musicFill.setDisplayOrigin(0, 0);
-      musicFill.setX(centerX - 100 + newVolume * 100);
-      musicFill.setScale(newVolume * 2, 1);
-    });
+    this.createSlider(
+      centerX - 100,
+      280,
+      250,
+      30,
+      gameState.settings.musicVolume,
+      (value) => {
+        gameState.settings.musicVolume = value;
+      }
+    );
 
     // Graphics Quality Option
-    this.add.text(centerX - 300, 360, 'Graphics Quality:', {
+    this.add.text(centerX - 400, 360, 'Graphics Quality:', {
       font: 'bold 24px Arial',
       fill: '#ffffff'
     }).setOrigin(0, 0.5);

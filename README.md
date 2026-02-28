@@ -8,11 +8,56 @@ A fast-paced action game built with Phaser 3 where players battle waves of enemi
 - Role-based combat system (Warrior, Mage, Archer)
 - Dynamic enemy AI with spawn management
 - Particle effects and visual polish
-- Enemy wiki and information system
+- Enemy wiki and information system with detailed sprites and animations
+- **Progressive wave system with 6 unique enemy types**
+- **Enemy unlocking system: new enemies appear as difficulty increases**
 - **Comprehensive handler architecture for game systems**
 - **Performance-optimized collision detection with spatial partitioning**
 - **Object pooling for reduced garbage collection**
 - **Centralized buff, powerup, and projectile management**
+
+## Enemy Types
+
+ChaosCrucible features 6 unique enemy types, each with distinct abilities and visual design:
+
+### Available From Wave 1
+- **Slime** (Common): Weak blob enemy with bouncy movement.
+	- HP: 40 | DMG: 8 | SPD: 60
+	- Abilities: Split Bounce, Sticky Slow
+
+- **Skeleton** (Medium): Bone warrior with ranged attacks.
+	- HP: 55 | DMG: 12 | SPD: 65
+	- Abilities: Bone Throw, Shielded Guard
+
+- **Devil** (Elite): Winged demon with high damage and mobility.
+	- HP: 85 | DMG: 18 | SPD: 70
+	- Abilities: Hellfire Burst, Winged Dash
+
+### Unlocked at Wave 3+
+- **Frost Wraith** (Specialist): Ghostly ice entity with high speed.
+	- HP: 70 | DMG: 15 | SPD: 80
+	- Abilities: Freeze, Icy Dash
+
+### Unlocked at Wave 5+
+- **Bomber Beetle** (Specialist): Explosive insect with hazard pressure.
+	- HP: 60 | DMG: 10 | SPD: 50
+	- Abilities: Explosive Bomb, Quick Escape
+
+### Unlocked at Wave 7+
+- **Storm Mage** (Elite): Magic-focused enemy with strong burst attacks.
+	- HP: 90 | DMG: 20 | SPD: 60
+	- Abilities: Lightning Strike, Teleport
+
+## Wave Progression
+
+The game uses progressive enemy unlocking as waves increase:
+
+- **Waves 1-2**: Slime, Skeleton, Devil
+- **Waves 3-4**: Frost Wraith added
+- **Waves 5-6**: Bomber Beetle added
+- **Waves 7+**: Storm Mage added
+
+Enemy count and elite frequency both scale up over time for increasing challenge.
 
 ## Recent Stability Updates
 
