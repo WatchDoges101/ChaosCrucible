@@ -66,18 +66,10 @@ export class MenuScene extends Phaser.Scene {
       fill: '#ffffff',
       stroke: '#550000',
       strokeThickness: 10
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1002);
 
-    // Subtle shake to make the title feel powerful
-    this.tweens.add({
-      targets: titleText,
-      x: centerX + 3,
-      y: 102,
-      duration: 90,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
+    // Add burning flame effect around the title
+    this.createTitleFlames(titleText, centerX, 120);
 
     // Buttons with interactive areas
     const buttons = [
@@ -164,25 +156,43 @@ export class MenuScene extends Phaser.Scene {
 
   createFlameParticles(width, height) {
     // Create flame particles using Phaser's built-in particle system
-    // Create graphics for flame particles
+    // Create graphics for flame particles with flame-like shapes
     const flameGraphics = this.make.graphics({ x: 0, y: 0, add: false });
     
-    // Red flame particle
-    flameGraphics.fillStyle(0xff3300, 1);
-    flameGraphics.fillCircle(8, 8, 8);
+    // Red flame particle - teardrop shape made from overlapping circles
+    flameGraphics.fillStyle(0xff2200, 1);
+    flameGraphics.fillCircle(8, 6, 5);    // Main body
+    flameGraphics.fillCircle(5, 10, 3);   // Left bottom
+    flameGraphics.fillCircle(8, 11, 3);   // Center bottom
+    flameGraphics.fillCircle(11, 10, 3);  // Right bottom
+    flameGraphics.fillCircle(8, 2, 2);    // Top point
     flameGraphics.generateTexture('flameRed', 16, 16);
     flameGraphics.clear();
     
     // Orange flame particle
     flameGraphics.fillStyle(0xff6600, 1);
-    flameGraphics.fillCircle(8, 8, 8);
+    flameGraphics.fillCircle(8, 6, 5.5);  // Main body
+    flameGraphics.fillCircle(5, 11, 3.5); // Left bottom
+    flameGraphics.fillCircle(8, 12, 3.5); // Center bottom
+    flameGraphics.fillCircle(11, 11, 3.5);// Right bottom
+    flameGraphics.fillCircle(8, 1, 2.5);  // Top point
     flameGraphics.generateTexture('flameOrange', 16, 16);
     flameGraphics.clear();
     
-    // Yellow flame particle
-    flameGraphics.fillStyle(0xffaa00, 1);
-    flameGraphics.fillCircle(6, 6, 6);
+    // Yellow flame particle - brighter and sharper
+    flameGraphics.fillStyle(0xffdd00, 1);
+    flameGraphics.fillCircle(6, 5, 4);    // Main body
+    flameGraphics.fillCircle(4, 8, 2.5);  // Left
+    flameGraphics.fillCircle(6, 9, 2.5);  // Center
+    flameGraphics.fillCircle(8, 8, 2.5);  // Right
+    flameGraphics.fillCircle(6, 1, 1.5);  // Top point
     flameGraphics.generateTexture('flameYellow', 12, 12);
+    flameGraphics.clear();
+
+    // White/bright hot center
+    flameGraphics.fillStyle(0xffff99, 1);
+    flameGraphics.fillCircle(4, 4, 3);
+    flameGraphics.generateTexture('flameWhite', 8, 8);
     
     flameGraphics.destroy();
 
@@ -253,6 +263,110 @@ export class MenuScene extends Phaser.Scene {
       blendMode: 'ADD'
     });
     hotSpots.setDepth(-400);
+  }
+
+  createTitleFlames(titleText, centerX, centerY) {
+    // Get title bounds for particle positioning
+    const titleBounds = titleText.getBounds();
+    const titleWidth = titleBounds.width;
+    const titleHeight = titleBounds.height;
+
+    // Create orange/red flames rising from bottom of text
+    const flameBottom = this.add.particles(centerX, centerY + titleHeight / 2 + 10, 'flameRed', {
+      x: { min: -titleWidth / 2.5, max: titleWidth / 2.5 },
+      y: 0,
+      speed: { min: 50, max: 120 },
+      angle: { min: 255, max: 285 },
+      scale: { start: 1.3, end: 0.1 },
+      alpha: { start: 0.95, end: 0 },
+      lifespan: 1800,
+      frequency: 25,
+      blendMode: 'ADD'
+    });
+    flameBottom.setDepth(1000);
+
+    // Create orange flames on the sides
+    const flameLeft = this.add.particles(centerX - titleWidth / 2 - 15, centerY, 'flameOrange', {
+      x: { min: -15, max: 0 },
+      y: { min: -titleHeight / 2.5, max: titleHeight / 2.5 },
+      speed: { min: 40, max: 100 },
+      angle: { min: -35, max: 35 },
+      scale: { start: 1.2, end: 0.1 },
+      alpha: { start: 0.9, end: 0 },
+      lifespan: 1400,
+      frequency: 40,
+      blendMode: 'ADD'
+    });
+    flameLeft.setDepth(1000);
+
+    const flameRight = this.add.particles(centerX + titleWidth / 2 + 15, centerY, 'flameOrange', {
+      x: { min: 0, max: 15 },
+      y: { min: -titleHeight / 2.5, max: titleHeight / 2.5 },
+      speed: { min: 40, max: 100 },
+      angle: { min: 145, max: 215 },
+      scale: { start: 1.2, end: 0.1 },
+      alpha: { start: 0.9, end: 0 },
+      lifespan: 1400,
+      frequency: 40,
+      blendMode: 'ADD'
+    });
+    flameRight.setDepth(1000);
+
+    // Create bright yellow hot flames in the center
+    const flameHot = this.add.particles(centerX, centerY, 'flameYellow', {
+      x: { min: -titleWidth / 2.2, max: titleWidth / 2.2 },
+      y: { min: -titleHeight / 2.8, max: titleHeight / 2.8 },
+      speed: { min: 60, max: 140 },
+      angle: { min: 265, max: 275 },
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 1200,
+      frequency: 50,
+      blendMode: 'ADD'
+    });
+    flameHot.setDepth(1000);
+
+    // Add white hot core particles
+    const hotCore = this.add.particles(centerX, centerY, 'flameWhite', {
+      x: { min: -titleWidth / 3, max: titleWidth / 3 },
+      y: { min: -titleHeight / 3, max: titleHeight / 3 },
+      speed: { min: 70, max: 150 },
+      angle: { min: 260, max: 280 },
+      scale: { start: 0.7, end: 0 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 1000,
+      frequency: 60,
+      blendMode: 'ADD'
+    });
+    hotCore.setDepth(1001);
+
+    // Add ember particles floating dramatically upward
+    const embers = this.add.particles(centerX, centerY + titleHeight / 2, 'flameYellow', {
+      x: { min: -titleWidth / 2.5, max: titleWidth / 2.5 },
+      y: 10,
+      speed: { min: 30, max: 80 },
+      angle: { min: 265, max: 275 },
+      scale: { start: 0.4, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 3000,
+      frequency: 80,
+      blendMode: 'ADD',
+      gravityY: -50
+    });
+    embers.setDepth(999);
+
+    // Glow effect: add a yellow/orange tint to the text
+    titleText.setTint(0xffccaa);
+    
+    // Add a subtle pulsing glow effect
+    this.tweens.add({
+      targets: titleText,
+      alpha: { from: 1, to: 0.97 },
+      duration: 100,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
   }
 
   shutdown() {

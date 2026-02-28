@@ -238,18 +238,15 @@ export class ComingSoonScene extends Phaser.Scene {
   }
 
   createBackButton(x, y) {
-    const button = this.add.rectangle(x, y, 120, 44, 0x7a1a00, 0.9)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
     const text = this.add.text(x, y, 'Back', {
       font: 'bold 20px Arial',
       fill: '#ffffff'
-    }).setOrigin(0.5);
+    }).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
 
-    button.on('pointerover', () => {
+    text.on('pointerover', () => {
       this.tweens.add({
-        targets: [button, text],
+        targets: text,
         scaleX: 1.08,
         scaleY: 1.08,
         duration: 150,
@@ -257,9 +254,9 @@ export class ComingSoonScene extends Phaser.Scene {
       });
     });
 
-    button.on('pointerout', () => {
+    text.on('pointerout', () => {
       this.tweens.add({
-        targets: [button, text],
+        targets: text,
         scaleX: 1,
         scaleY: 1,
         duration: 150,
@@ -267,7 +264,7 @@ export class ComingSoonScene extends Phaser.Scene {
       });
     });
 
-    button.on('pointerdown', () => {
+    text.on('pointerdown', () => {
       this.scene.start('MenuScene');
     });
   }

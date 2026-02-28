@@ -184,10 +184,9 @@ export class CharacterSelectionScene extends Phaser.Scene {
   }
 
   createBackButton(x, y) {
-    const button = this.add.rectangle(x, y, 160, 58, 0x111111, 0.95)
+    const button = this.add.zone(x, y, 160, 58)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.95)
       .setDepth(5000)
       .setScrollFactor(0);
 
@@ -202,24 +201,22 @@ export class CharacterSelectionScene extends Phaser.Scene {
 
     button.on('pointerover', () => {
       this.tweens.add({
-        targets: [button, text],
+        targets: text,
         scaleX: 1.1,
         scaleY: 1.1,
         duration: 150,
         ease: 'Power2'
       });
-      button.setFillStyle(0x2a2a2a);
     });
 
     button.on('pointerout', () => {
       this.tweens.add({
-        targets: [button, text],
+        targets: text,
         scaleX: 1,
         scaleY: 1,
         duration: 150,
         ease: 'Power2'
       });
-      button.setFillStyle(0x111111);
     });
 
     button.on('pointerdown', () => {

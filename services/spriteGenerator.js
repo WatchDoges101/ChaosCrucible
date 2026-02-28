@@ -11,15 +11,10 @@
  * Returns a Phaser container with the character drawn
  */
 export function generateCharacterSprite(scene, role = 'Male', x = 0, y = 0, customColors = null) {
-  console.log(`[SpriteGen] Creating sprite for role: ${role} at (${x}, ${y})`);
-  console.log(`[SpriteGen] Scene key: ${scene.scene.key}`);
-  console.trace();  // Log the call stack to see where this was called from
-  
   const container = scene.add.container(x, y);
   
   // Generate color palette for this character
   const colors = customColors || generateColorPalette(role);
-  console.log(`[SpriteGen] Colors:`, colors);
   
   // Draw character based on role
   switch (role) {
@@ -38,9 +33,6 @@ export function generateCharacterSprite(scene, role = 'Male', x = 0, y = 0, cust
     default:
       drawMaleCharacter(scene, container, colors);
   }
-
-  console.log(`[SpriteGen] Container children count:`, container.length);
-  console.log(`[SpriteGen] Container:`, container);
   
   // Store metadata
   container.setData('role', role);
@@ -91,8 +83,6 @@ function randomizeColor(baseColor) {
  * Draw Male character (basic warrior) with animatable limbs
  */
 function drawMaleCharacter(scene, container, colors) {
-  console.log('[SpriteGen] Drawing Male character...');
-
   // Draw body (static)
   const bodyGraphics = scene.add.graphics();
   
@@ -143,8 +133,6 @@ function drawMaleCharacter(scene, container, colors) {
   swordGraphics.y = 6;
   container.add(swordGraphics);
   container.weapon = swordGraphics;
-
-  console.log('[SpriteGen] Male character complete with animatable parts');
 }
 
 /**

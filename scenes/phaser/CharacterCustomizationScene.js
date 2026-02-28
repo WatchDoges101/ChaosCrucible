@@ -345,10 +345,9 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     const backButtonX = 110;
     const backButtonY = 50;
 
-    const backButton = this.add.rectangle(backButtonX, backButtonY, 170, 64, 0x111111, 0.95)
+    const backButton = this.add.zone(backButtonX, backButtonY, 170, 64)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .setStrokeStyle(3, 0xffffff, 0.95)
       .setScrollFactor(0)
       .setDepth(5000);
 
@@ -366,23 +365,21 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
     backButton.on('pointerover', () => {
       this.tweens.add({
-        targets: [backButton, backText],
+        targets: backText,
         scaleX: 1.15,
         scaleY: 1.15,
         duration: 200,
         ease: 'Back.easeOut'
       });
-      backButton.setFillStyle(0x2a2a2a);
     });
 
     backButton.on('pointerout', () => {
       this.tweens.add({
-        targets: [backButton, backText],
+        targets: backText,
         scaleX: 1,
         scaleY: 1,
         duration: 200
       });
-      backButton.setFillStyle(0x111111);
     });
 
     const goBackToSelection = () => {
@@ -403,7 +400,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     };
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
 
-    const startButton = this.add.rectangle(centerX + 160, buttonY, 200, 70, 0x27ae60, 0.9)
+    const startButton = this.add.zone(centerX + 160, buttonY, 200, 70)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -419,7 +416,7 @@ export class CharacterCustomizationScene extends Phaser.Scene {
     
     // Pulsing glow effect on start button
     this.tweens.add({
-      targets: startButton,
+      targets: startText,
       alpha: { from: 0.9, to: 1 },
       scaleX: { from: 1, to: 1.05 },
       scaleY: { from: 1, to: 1.05 },
@@ -431,24 +428,22 @@ export class CharacterCustomizationScene extends Phaser.Scene {
 
     startButton.on('pointerover', () => {
       this.tweens.add({
-        targets: [startButton, startText],
+        targets: startText,
         scaleX: 1.2,
         scaleY: 1.2,
         duration: 200,
         ease: 'Back.easeOut'
       });
-      startButton.setFillStyle(0x2ecc71);
       startText.setFill('#ffffff');
     });
 
     startButton.on('pointerout', () => {
       this.tweens.add({
-        targets: [startButton, startText],
+        targets: startText,
         scaleX: 1,
         scaleY: 1,
         duration: 200
       });
-      startButton.setFillStyle(0x27ae60);
       startText.setFill('#ffff00');
     });
 

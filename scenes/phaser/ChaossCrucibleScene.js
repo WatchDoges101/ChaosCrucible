@@ -14,6 +14,7 @@ import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers
 
 export class ChaossCrucibleScene extends Phaser.Scene {
 	constructor() {
+		super({ key: 'ChaossCrucibleScene', active: false });
 
 		// Arena dimensions - much larger for zoomed view
 		this.ARENA_WIDTH = 5000;
@@ -135,6 +136,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.isInsideStructure = false;
 		this.currentStructure = null;
 		this.interiorContainer = null;
+		this.centerpieceParts = null;
 	}
 
 	create() {
@@ -142,6 +144,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.tweens.timeScale = 1;
 		this.tweens.resumeAll();
 		this.time.timeScale = 1;
+		this.centerpieceStatue = null;
+		this.depthSortedActors = [];
 
 		const centerX = this.ARENA_WIDTH / 2;
 		const centerY = this.ARENA_HEIGHT / 2;
@@ -1969,79 +1973,83 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	setWorldDepth(gameObject, worldY, offset = 0) {
+		if (!gameObject || !gameObject.setDepth) return;
+		gameObject.setDepth(50 + worldY * 0.01 + offset);
+	}
+
 	createCenterpieceStatue(centerX, centerY) {
-		const statue = this.make.graphics({ x: 0, y: 0, add: false });
+		const statueBase = this.make.graphics({ x: 0, y: 0, add: false });
+		const statueTop = this.make.graphics({ x: 0, y: 0, add: false });
 
-		// Outer ritual platform
-		statue.fillStyle(0x2c2020, 1);
-		statue.fillCircle(centerX, centerY + 180, 230);
-		statue.fillStyle(0x4a1a1a, 0.95);
-		statue.fillCircle(centerX, centerY + 180, 190);
-
-		// Massive pedestal
-		statue.fillStyle(0x362424, 1);
-		statue.fillRect(centerX - 160, centerY + 20, 320, 170);
-		statue.fillStyle(0x522727, 1);
-		statue.fillRect(centerX - 180, centerY + 160, 360, 45);
-
-		// Body and shoulders
-		statue.fillStyle(0x472020, 1);
-		statue.fillRect(centerX - 100, centerY - 190, 200, 230);
-		statue.fillStyle(0x5e2a2a, 1);
-		statue.fillRect(centerX - 170, centerY - 170, 340, 65);
-
-		// Arms with claw-like hands
-		statue.fillStyle(0x3b1717, 1);
-		statue.fillRect(centerX - 210, centerY - 130, 65, 210);
-		statue.fillRect(centerX + 145, centerY - 130, 65, 210);
-		statue.fillTriangle(centerX - 210, centerY + 80, centerX - 145, centerY + 80, centerX - 178, centerY + 130);
-		statue.fillTriangle(centerX + 145, centerY + 80, centerX + 210, centerY + 80, centerX + 178, centerY + 130);
-
-		// Head
-		statue.fillStyle(0x5a2b2b, 1);
-		statue.fillCircle(centerX, centerY - 235, 82);
-
-		// Horns
-		statue.fillStyle(0x2b1414, 1);
-		statue.fillTriangle(centerX - 58, centerY - 290, centerX - 145, centerY - 370, centerX - 82, centerY - 252);
-		statue.fillTriangle(centerX + 58, centerY - 290, centerX + 145, centerY - 370, centerX + 82, centerY - 252);
-
-		// Eyes and mouth glow carvings
-		statue.fillStyle(0xff2200, 0.95);
-		statue.fillCircle(centerX - 30, centerY - 248, 10);
-		statue.fillCircle(centerX + 30, centerY - 248, 10);
-		statue.fillRect(centerX - 36, centerY - 215, 72, 12);
-
-		// Blood streaks
-		statue.fillStyle(0x7a0000, 0.7);
+		// Base + body
+		statueBase.fillStyle(0x2c2020, 1);
+		statueBase.fillCircle(centerX, centerY + 180, 230);
+		statueBase.fillStyle(0x4a1a1a, 0.95);
+		statueBase.fillCircle(centerX, centerY + 180, 190);
+		statueBase.fillStyle(0x362424, 1);
+		statueBase.fillRect(centerX - 160, centerY + 20, 320, 170);
+		statueBase.fillStyle(0x522727, 1);
+		statueBase.fillRect(centerX - 180, centerY + 160, 360, 45);
+		statueBase.fillStyle(0x472020, 1);
+		statueBase.fillRect(centerX - 100, centerY - 190, 200, 230);
+		statueBase.fillStyle(0x5e2a2a, 1);
+		statueBase.fillRect(centerX - 170, centerY - 170, 340, 65);
+		statueBase.fillStyle(0x3b1717, 1);
+		statueBase.fillRect(centerX - 210, centerY - 130, 65, 210);
+		statueBase.fillRect(centerX + 145, centerY - 130, 65, 210);
+		statueBase.fillTriangle(centerX - 210, centerY + 80, centerX - 145, centerY + 80, centerX - 178, centerY + 130);
+		statueBase.fillTriangle(centerX + 145, centerY + 80, centerX + 210, centerY + 80, centerX + 178, centerY + 130);
+		statueBase.fillStyle(0x7a0000, 0.7);
 		for (let i = 0; i < 12; i++) {
 			const streakX = centerX - 75 + Math.random() * 150;
 			const streakY = centerY - 80 + Math.random() * 210;
 			const length = 26 + Math.random() * 55;
-			statue.fillRect(streakX, streakY, 5, length);
+			statueBase.fillRect(streakX, streakY, 5, length);
 		}
-
-		// Runic ring marks
-		statue.lineStyle(4, 0xaa2200, 0.85);
-		statue.strokeCircle(centerX, centerY + 180, 205);
-		statue.lineStyle(2, 0xff8844, 0.65);
+		statueBase.lineStyle(4, 0xaa2200, 0.85);
+		statueBase.strokeCircle(centerX, centerY + 180, 205);
+		statueBase.lineStyle(2, 0xff8844, 0.65);
 		for (let i = 0; i < 16; i++) {
 			const a = (i / 16) * Math.PI * 2;
 			const x1 = centerX + Math.cos(a) * 178;
 			const y1 = centerY + 180 + Math.sin(a) * 178;
 			const x2 = centerX + Math.cos(a) * 196;
 			const y2 = centerY + 180 + Math.sin(a) * 196;
-			statue.lineBetween(x1, y1, x2, y2);
+			statueBase.lineBetween(x1, y1, x2, y2);
 		}
 
-		this.add.existing(statue);
-		statue.setDepth(8);
-		this.arenaObjects.push(statue);
+		// Top (head + horns)
+		statueTop.fillStyle(0x5a2b2b, 1);
+		statueTop.fillCircle(centerX, centerY - 235, 82);
+		statueTop.fillStyle(0x2b1414, 1);
+		statueTop.fillTriangle(centerX - 58, centerY - 290, centerX - 145, centerY - 370, centerX - 82, centerY - 252);
+		statueTop.fillTriangle(centerX + 58, centerY - 290, centerX + 145, centerY - 370, centerX + 82, centerY - 252);
+		statueTop.fillStyle(0xff2200, 0.95);
+		statueTop.fillCircle(centerX - 30, centerY - 248, 10);
+		statueTop.fillCircle(centerX + 30, centerY - 248, 10);
+		statueTop.fillRect(centerX - 36, centerY - 215, 72, 12);
 
-		const eyeGlowLeft = this.add.circle(centerX - 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD').setDepth(9);
-		const eyeGlowRight = this.add.circle(centerX + 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD').setDepth(9);
+		this.add.existing(statueBase);
+		this.add.existing(statueTop);
+		this.setWorldDepth(statueBase, centerY + 170);
+		this.setWorldDepth(statueTop, centerY - 170, 4);
+		this.arenaObjects.push(statueBase, statueTop);
+
+		const eyeGlowLeft = this.add.circle(centerX - 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD');
+		const eyeGlowRight = this.add.circle(centerX + 30, centerY - 248, 23, 0xff3300, 0.32).setBlendMode('ADD');
 		const baseGlow = this.add.circle(centerX, centerY + 180, 265, 0xff2200, 0.12).setBlendMode('ADD').setDepth(4);
 		this.arenaObjects.push(eyeGlowLeft, eyeGlowRight, baseGlow);
+		this.setWorldDepth(eyeGlowLeft, centerY - 170, 5);
+		this.setWorldDepth(eyeGlowRight, centerY - 170, 5);
+
+		this.centerpieceParts = {
+			base: statueBase,
+			top: statueTop,
+			eyeGlowLeft,
+			eyeGlowRight,
+			headAnchorY: centerY - 170
+		};
 
 		this.tweens.add({
 			targets: [eyeGlowLeft, eyeGlowRight],
@@ -2066,11 +2074,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.createCenterpieceLavaCracks(centerX, centerY + 175);
 		this.createStatueBloodPouring(centerX, centerY);
 
-		// Collision footprint tuned to the pedestal and body
-		this.addObstacle(centerX, centerY + 120, 'rect', 300, 240, 'centerpiece_statue_body');
-		this.addObstacle(centerX, centerY - 245, 'rect', 155, 135, 'centerpiece_statue_head');
-		// Block the bottom ritual platform circle completely - matched to outer circle radius
-		this.addObstacle(centerX, centerY + 180, 'circle', 235, 0, 'centerpiece_statue_platform');
+		// Collision footprint: keep lower mass collidable, allow passing behind top/head
+		this.addObstacle(centerX, centerY + 120, 'rect', 300, 220, 'centerpiece_statue_body');
+		this.addObstacle(centerX, centerY + 180, 'circle', 225, 0, 'centerpiece_statue_platform');
 	}
 
 	createCenterpieceLavaCracks(centerX, centerY) {
@@ -2181,7 +2187,6 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	createBattlefieldStatues(centerX, centerY) {
-		const guardianGroup = this.make.graphics({ x: 0, y: 0, add: false });
 		const guardianOffsets = [
 			{ x: -520, y: -320 },
 			{ x: 520, y: -320 },
@@ -2192,22 +2197,30 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		guardianOffsets.forEach((offset, index) => {
 			const gx = centerX + offset.x;
 			const gy = centerY + offset.y;
+			const lower = this.make.graphics({ x: 0, y: 0, add: false });
+			const upper = this.make.graphics({ x: 0, y: 0, add: false });
 
-			guardianGroup.fillStyle(index % 2 === 0 ? 0x5a4a4a : 0x4a3a3a, 1);
-			guardianGroup.fillRect(gx - 45, gy + 35, 90, 18);
-			guardianGroup.fillStyle(0x6a5656, 1);
-			guardianGroup.fillRect(gx - 32, gy - 46, 64, 85);
-			guardianGroup.fillStyle(0x3a2a2a, 1);
-			guardianGroup.fillCircle(gx, gy - 58, 30);
-			guardianGroup.fillStyle(0x220f0f, 1);
-			guardianGroup.fillTriangle(gx - 16, gy - 88, gx - 42, gy - 120, gx - 25, gy - 73);
-			guardianGroup.fillTriangle(gx + 16, gy - 88, gx + 42, gy - 120, gx + 25, gy - 73);
+			lower.fillStyle(index % 2 === 0 ? 0x5a4a4a : 0x4a3a3a, 1);
+			lower.fillRect(gx - 45, gy + 35, 90, 18);
+			lower.fillStyle(0x6a5656, 1);
+			lower.fillRect(gx - 32, gy - 40, 64, 80);
+			upper.fillStyle(0x3a2a2a, 1);
+			upper.fillCircle(gx, gy - 58, 30);
+			upper.fillStyle(0x220f0f, 1);
+			upper.fillTriangle(gx - 16, gy - 88, gx - 42, gy - 120, gx - 25, gy - 73);
+			upper.fillTriangle(gx + 16, gy - 88, gx + 42, gy - 120, gx + 25, gy - 73);
+			upper.fillStyle(0xff4400, 0.85);
+			upper.fillCircle(gx - 9, gy - 62, 4);
+			upper.fillCircle(gx + 9, gy - 62, 4);
 
-			guardianGroup.fillStyle(0xff4400, 0.85);
-			guardianGroup.fillCircle(gx - 9, gy - 62, 4);
-			guardianGroup.fillCircle(gx + 9, gy - 62, 4);
+			this.add.existing(lower);
+			this.add.existing(upper);
+			this.setWorldDepth(lower, gy + 35);
+			this.setWorldDepth(upper, gy - 70, 3);
+			this.arenaObjects.push(lower, upper);
 
-			const aura = this.add.circle(gx, gy - 15, 58, 0xff5522, 0.12).setBlendMode('ADD').setDepth(6);
+			const aura = this.add.circle(gx, gy - 15, 58, 0xff5522, 0.12).setBlendMode('ADD');
+			this.setWorldDepth(aura, gy - 70, 4);
 			this.arenaObjects.push(aura);
 			this.tweens.add({
 				targets: aura,
@@ -2219,12 +2232,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				ease: 'Sine.inOut'
 			});
 
-			this.addObstacle(gx, gy - 10, 'rect', 88, 130, `guardian_statue_${index}`);
+			this.addObstacle(gx, gy + 6, 'rect', 70, 86, `guardian_statue_${index}`);
 		});
-
-		this.add.existing(guardianGroup);
-		guardianGroup.setDepth(7);
-		this.arenaObjects.push(guardianGroup);
 	}
 
 	createRockObstacle(x, y) {
@@ -2269,6 +2278,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(obstacleGraphics);
 		this.arenaObjects.push(obstacleGraphics);
+		this.depthSortedActors.push({
+			type: 'single',
+			baseY: y + size * 0.8,
+			obj: obstacleGraphics
+		});
 
 		// Store collision data - circular collision matching visual size
 		this.addObstacle(x, y, 'circle', size * 0.8, 0, 'rock');
@@ -2314,6 +2328,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(pillarGraphics);
 		this.arenaObjects.push(pillarGraphics);
+		this.depthSortedActors.push({
+			type: 'single',
+			baseY: y + height / 2,
+			obj: pillarGraphics
+		});
 
 		// Store collision data - narrow rectangular collision for thin pillar
 		this.addObstacle(x, y, 'rect', width * 0.6, height * 0.85, 'pillar');
@@ -2379,6 +2398,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(obeliskGraphics);
 		this.arenaObjects.push(obeliskGraphics, glowCircle);
+		this.depthSortedActors.push({
+			type: 'single',
+			baseY: y + height / 2,
+			obj: obeliskGraphics,
+			glow: glowCircle
+		});
 
 		// Store collision data - use average width since obelisk tapers
 		const avgWidth = (baseWidth + topWidth) / 2;
@@ -2427,6 +2452,11 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(statueGraphics);
 		this.arenaObjects.push(statueGraphics);
+		this.depthSortedActors.push({
+			type: 'single',
+			baseY: y + 35,
+			obj: statueGraphics
+		});
 
 		// Store collision data - circular collision for broken statue base
 		this.addObstacle(x, y, 'circle', 35, 0, 'statue');
@@ -2495,6 +2525,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.add.existing(altarGraphics);
 		this.arenaObjects.push(altarGraphics, flame, flameGlow);
+		this.depthSortedActors.push({
+			type: 'single',
+			baseY: y + 30,
+			obj: altarGraphics,
+			glow: flameGlow,
+			fx: flame
+		});
 
 		// Store collision data - rectangular collision matching altar footprint
 		this.addObstacle(x, y, 'rect', 110, 50, 'altar');
@@ -2886,36 +2923,41 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	createTower(x, y, name) {
 		const width = 100;
 		const height = 220;
-		const towerGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+		const towerLower = this.make.graphics({ x: 0, y: 0, add: false });
+		const towerUpper = this.make.graphics({ x: 0, y: 0, add: false });
 
 		// Tower base
-		towerGraphics.fillStyle(0x5a4a3a, 1);
-		towerGraphics.fillRect(x - width / 2, y - height / 2, width, height);
+		towerLower.fillStyle(0x5a4a3a, 1);
+		towerLower.fillRect(x - width / 2, y - height / 2 + 40, width, height - 40);
+		towerUpper.fillStyle(0x5a4a3a, 1);
+		towerUpper.fillRect(x - width / 2, y - height / 2, width, 40);
 
 		// Stone rings/bands
-		towerGraphics.lineStyle(3, 0x3a2a1a, 1);
+		towerLower.lineStyle(3, 0x3a2a1a, 1);
 		for (let i = 0; i < 8; i++) {
-			towerGraphics.lineBetween(x - width / 2, y - height / 2 + i * 27, x + width / 2, y - height / 2 + i * 27);
+			towerLower.lineBetween(x - width / 2, y - height / 2 + 40 + i * 27, x + width / 2, y - height / 2 + 40 + i * 27);
 		}
+		towerUpper.lineStyle(3, 0x3a2a1a, 1);
+		towerUpper.lineBetween(x - width / 2, y - height / 2 + 20, x + width / 2, y - height / 2 + 20);
 
 		// Spiral staircase pattern
-		towerGraphics.lineStyle(2, 0x7a6a5a, 0.7);
+		towerLower.lineStyle(2, 0x7a6a5a, 0.7);
 		for (let i = 0; i < 4; i++) {
-			towerGraphics.lineBetween(x - 15, y - height / 2 + 15 + i * 55, x + 15, y - height / 2 + 45 + i * 55);
+			towerLower.lineBetween(x - 15, y - height / 2 + 55 + i * 55, x + 15, y - height / 2 + 85 + i * 55);
 		}
 
 		// Conical roof
-		towerGraphics.fillStyle(0x4a3a2a, 1);
-		towerGraphics.beginPath();
-		towerGraphics.moveTo(x - width / 2, y - height / 2);
-		towerGraphics.lineTo(x, y - height / 2 - 60);
-		towerGraphics.lineTo(x + width / 2, y - height / 2);
-		towerGraphics.closePath();
-		towerGraphics.fill();
+		towerUpper.fillStyle(0x4a3a2a, 1);
+		towerUpper.beginPath();
+		towerUpper.moveTo(x - width / 2, y - height / 2);
+		towerUpper.lineTo(x, y - height / 2 - 60);
+		towerUpper.lineTo(x + width / 2, y - height / 2);
+		towerUpper.closePath();
+		towerUpper.fill();
 
 		// Tower window (entrance)
-		towerGraphics.fillStyle(0x8844ff, 0.6);
-		towerGraphics.fillCircle(x, y - 30, 20);
+		towerUpper.fillStyle(0x8844ff, 0.6);
+		towerUpper.fillCircle(x, y - 30, 20);
 
 		// Mystical energy at entrance
 		const entranceGlow = this.add.circle(x, y - 30, 30, 0x8844ff, 0.2);
@@ -2929,10 +2971,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			ease: 'Sine.inOut'
 		});
 
-		this.add.existing(towerGraphics);
-		towerGraphics.setDepth(6);
-		entranceGlow.setDepth(5);
-		this.arenaObjects.push(towerGraphics, entranceGlow);
+		this.add.existing(towerLower);
+		this.add.existing(towerUpper);
+		this.arenaObjects.push(towerLower, towerUpper, entranceGlow);
 
 		// Store structure data
 		this.structures.push({
@@ -2959,6 +3000,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.addObstacle(x - 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_left');
 		// Bottom right (entrance gap at center)
 		this.addObstacle(x + 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_right');
+
+		this.depthSortedActors.push({
+			type: 'split',
+			baseY: y + height / 2,
+			upperStartY: y - height / 2 + 40,
+			lower: towerLower,
+			upper: towerUpper,
+			glow: entranceGlow
+		});
 	}
 
 	/**
@@ -4180,6 +4230,58 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	updateDepthSorting() {
+		if (!this.player || !this.playerData) return;
+
+		const depthScale = 0.01;
+		const playerDepth = 100 + this.playerData.y * depthScale;
+		this.player.setDepth(playerDepth);
+
+		if (this.centerpieceStatue) {
+			const statue = this.centerpieceStatue;
+			const lowerDepth = 100 + statue.baseY * depthScale;
+			statue.lower.setDepth(lowerDepth);
+			if (this.playerData.y < statue.headY) {
+				statue.upper.setDepth(playerDepth + 20);
+				if (statue.eyeGlowLeft) statue.eyeGlowLeft.setDepth(playerDepth + 21);
+				if (statue.eyeGlowRight) statue.eyeGlowRight.setDepth(playerDepth + 21);
+			} else {
+				statue.upper.setDepth(playerDepth - 3);
+				if (statue.eyeGlowLeft) statue.eyeGlowLeft.setDepth(playerDepth - 2);
+				if (statue.eyeGlowRight) statue.eyeGlowRight.setDepth(playerDepth - 2);
+			}
+		}
+
+		for (const actor of this.depthSortedActors) {
+			if (actor.type === 'single') {
+				const baseDepth = 100 + actor.baseY * depthScale;
+				actor.obj.setDepth(baseDepth);
+				if (actor.glow) actor.glow.setDepth(baseDepth + 1);
+				if (actor.fx) actor.fx.setDepth(baseDepth + 2);
+				continue;
+			}
+
+			const lowerDepth = 100 + actor.baseY * depthScale;
+			actor.lower.setDepth(lowerDepth);
+			if (this.playerData.y < actor.upperStartY) {
+				actor.upper.setDepth(playerDepth + 14);
+				if (actor.glow) actor.glow.setDepth(playerDepth + 15);
+			} else {
+				actor.upper.setDepth(playerDepth - 2);
+				if (actor.glow) actor.glow.setDepth(playerDepth - 1);
+			}
+		}
+
+		if (this.enemies) {
+			for (const enemyData of this.enemies) {
+				if (!enemyData.enemy) continue;
+				const enemyDepth = 100 + enemyData.enemy.y * depthScale;
+				enemyData.enemy.setDepth(enemyDepth);
+				if (enemyData.healthBar) enemyData.healthBar.setDepth(enemyDepth + 1);
+			}
+		}
+	}
+
 	update(time, delta) {
 		if (!this.player) return;
 
@@ -4244,6 +4346,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.playerData.y = adjustedPos.y;
 
 		this.player.setPosition(this.playerData.x, this.playerData.y);
+		this.updateDepthSorting();
 
 		// Check if player is standing in lava
 		this.checkLavaDamage(time);
