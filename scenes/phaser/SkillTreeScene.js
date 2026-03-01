@@ -1,6 +1,7 @@
 // Skill Tree UI Scene for Phaser
 import { gameState } from '../../services/gameState.js';
 import { createAnimatedCharacter } from '../../services/spriteGenerator.js';
+import { AbilityEffectsHandler } from '../../handlers/AbilityEffectsHandler.js';
 
 const SKILL_TREE_ROLES = [
   { id: 'WARRIOR', label: 'WARRIOR' },
@@ -181,6 +182,8 @@ export default class SkillTreeScene extends Phaser.Scene {
     }
 
     const leveling = gameState.characters[selectedRole].leveling;
+    const abilityEffectsHandler = new AbilityEffectsHandler(this);
+    abilityEffectsHandler.setLeveling(leveling);
     drawRoundedPanel(centerX - 210, 324, 420, 84, 14, 0.92, 15);
 
     const statsTextDepth = 16;
@@ -245,7 +248,8 @@ export default class SkillTreeScene extends Phaser.Scene {
         if (branchCanUnlock) {
           if (leveling.unlockSkill([branch])) {
             gameState.saveSkillTreeForRole(selectedRole);
-            this.scene.restart();
+            abilityEffectsHandler.showUnlockCelebration([branch], node.name);
+            this.time.delayedCall(460, () => this.scene.restart());
           }
         }
       });
@@ -297,7 +301,8 @@ export default class SkillTreeScene extends Phaser.Scene {
           if (childCanUnlock) {
             if (leveling.unlockSkill([branch, child])) {
               gameState.saveSkillTreeForRole(selectedRole);
-              this.scene.restart();
+              abilityEffectsHandler.showUnlockCelebration([branch, child], childNode.name);
+              this.time.delayedCall(460, () => this.scene.restart());
             }
           }
         });

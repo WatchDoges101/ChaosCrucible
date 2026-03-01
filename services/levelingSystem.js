@@ -139,6 +139,29 @@ class LevelingSystem {
     this.skillTree = JSON.parse(JSON.stringify(skillTrees[validRole]));
   }
 
+  resolveSkillPath(path) {
+    const segments = Array.isArray(path) ? path : [path];
+    if (!segments.length) {
+      return { node: null, parent: null };
+    }
+
+    let container = this.skillTree;
+    let parent = null;
+    let node = null;
+
+    for (const key of segments) {
+      if (!container || typeof container !== 'object' || !container[key]) {
+        return { node: null, parent: null };
+      }
+
+      parent = node;
+      node = container[key];
+      container = node.children || {};
+    }
+
+    return { node, parent };
+  }
+
   addXP(amount) {
     this.xp += amount;
     while (this.level < LEVEL_XP.length && this.xp >= LEVEL_XP[this.level]) {
@@ -148,17 +171,22 @@ class LevelingSystem {
   }
 
   unlockSkill(path) {
-    let node = this.skillTree;
-    for (const key of path) {
-      node = node[key];
-      if (!node) return false;
+    const { node, parent } = this.resolveSkillPath(path);
+    if (!node || node.unlocked) {
+      return false;
     }
-    if (!node.unlocked && this.tokens >= node.cost) {
-      node.unlocked = true;
-      this.tokens -= node.cost;
-      return true;
+
+    if (parent && !parent.unlocked) {
+      return false;
     }
-    return false;
+
+    if (this.tokens < node.cost) {
+      return false;
+    }
+
+    node.unlocked = true;
+    this.tokens -= node.cost;
+    return true;
   }
 
   getUnlockedSkills() {

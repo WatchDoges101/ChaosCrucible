@@ -19,6 +19,61 @@ export class SkillTreeHandler {
     this.autoSaveTimer = null;
   }
 
+  mergeSkillTreeState(targetTree, savedTree) {
+    if (!targetTree || !savedTree) {
+      return;
+    }
+
+    Object.keys(savedTree).forEach((key) => {
+      if (!targetTree[key]) {
+        return;
+      }
+
+      const targetNode = targetTree[key];
+      const savedNode = savedTree[key];
+
+      targetNode.unlocked = Boolean(savedNode.unlocked);
+      targetNode.level = savedNode.level || 0;
+
+      if (targetNode.children && savedNode.children) {
+        this.mergeSkillTreeState(targetNode.children, savedNode.children);
+      }
+    });
+  }
+
+  serializeSkillTree(skillTree) {
+    const serialized = {};
+    if (!skillTree) {
+      return serialized;
+    }
+
+    Object.keys(skillTree).forEach((key) => {
+      const node = skillTree[key];
+      serialized[key] = {
+        unlocked: Boolean(node.unlocked),
+        level: node.level || 0,
+        children: this.serializeSkillTree(node.children)
+      };
+    });
+
+    return serialized;
+  }
+
+  resetSkillTreeState(skillTree) {
+    if (!skillTree) {
+      return;
+    }
+
+    Object.keys(skillTree).forEach((key) => {
+      const node = skillTree[key];
+      node.unlocked = false;
+      node.level = 0;
+      if (node.children) {
+        this.resetSkillTreeState(node.children);
+      }
+    });
+  }
+
   /**
    * Initialize skill tree handler for a character
    * @param {string} role - Character role
@@ -40,14 +95,9 @@ export class SkillTreeHandler {
       if (savedData && gameState.characters[role]) {
         const leveling = gameState.characters[role].leveling;
         
-        // Restore unlocked skills
+        // Restore unlocked skills (including nested child nodes)
         if (savedData.skillTree) {
-          Object.keys(savedData.skillTree).forEach(branch => {
-            if (leveling.skillTree[branch]) {
-              leveling.skillTree[branch].unlocked = savedData.skillTree[branch].unlocked || false;
-              leveling.skillTree[branch].level = savedData.skillTree[branch].level || 0;
-            }
-          });
+          this.mergeSkillTreeState(leveling.skillTree, savedData.skillTree);
         }
 
         // Restore tokens and XP
@@ -99,14 +149,8 @@ export class SkillTreeHandler {
         lastSaved: new Date().toISOString()
       };
 
-      // Save skill tree state
-      Object.keys(leveling.skillTree).forEach(branch => {
-        const node = leveling.skillTree[branch];
-        dataToSave.skillTree[branch] = {
-          unlocked: node.unlocked || false,
-          level: node.level || 0
-        };
-      });
+      // Save skill tree state (including nested child nodes)
+      dataToSave.skillTree = this.serializeSkillTree(leveling.skillTree);
 
       const success = saveToStorage(`${this.storageKey}_${role}`, dataToSave);
       if (success) {
@@ -327,11 +371,8 @@ export class SkillTreeHandler {
     if (gameState.characters[role]) {
       const leveling = gameState.characters[role].leveling;
       
-      // Reset all skills to locked
-      Object.keys(leveling.skillTree).forEach(branch => {
-        leveling.skillTree[branch].unlocked = false;
-        leveling.skillTree[branch].level = 0;
-      });
+      // Reset all skills to locked (including nested child nodes)
+      this.resetSkillTreeState(leveling.skillTree);
 
       leveling.tokens = 0;
       leveling.level = 1;

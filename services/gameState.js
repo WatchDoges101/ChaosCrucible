@@ -337,25 +337,14 @@ class GameState {
     }
 
     const leveling = this.characters[this.selectedRole].leveling;
-    
-    try {
-      // Navigate to the skill in the tree
-      let skill = leveling.skillTree;
-      
-      if (typeof skillPath === 'string') {
-        skill = skill[skillPath];
-      } else if (Array.isArray(skillPath)) {
-        for (let i = 0; i < skillPath.length; i++) {
-          skill = skill[skillPath[i]];
-        }
-      }
 
-      if (skill && !skill.unlocked) {
-        skill.unlocked = true;
-        if (skill.cost && leveling.tokens >= skill.cost) {
-          leveling.tokens -= skill.cost;
+    try {
+      if (typeof leveling.unlockSkill === 'function') {
+        const unlocked = leveling.unlockSkill(skillPath);
+        if (!unlocked) {
+          return false;
         }
-        // Auto-save
+
         this.saveSkillTreeForRole(this.selectedRole);
         return true;
       }

@@ -77,6 +77,17 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - **Wiki hub section added**: Added a dedicated `Wiki` scene that routes to Enemy and Powerup wiki pages with proper in-section back navigation.
 - **Powerup visuals unified**: In-game and wiki now use the same shared Phaser sprite helper for consistent powerup appearance.
 
+## March 2026 Skill Tree, Ability FX & Collision Updates
+
+- **Skill tree unlock fixes**: Child node unlock traversal now correctly resolves nested nodes (e.g., Gunner `Burst` and `Explosive Rounds`) with proper parent + token validation.
+- **Nested skill persistence fixed**: Skill tree save/load/reset now preserves nested child node unlock state, not only top-level branches.
+- **Unlock celebration effects**: New unlock showcase visuals (banner, pulse, sparks, and camera feedback) trigger immediately when a skill is unlocked.
+- **Ability manifestation in combat**: Unlocked abilities now visibly affect combat feedback (burst pulses, trails, and role-specific activation effects).
+- **Explosive rounds wall impacts**: Gunner explosive rounds now detonate on structure/obstacle collision, with AoE splash and blast visuals.
+- **Projectile-to-world collision pass**: Player projectiles now collide with obstacle geometry instead of passing through walls.
+- **Structure collision improvements**: Temple, dungeon, and tower use unified frame colliders with explicit doorway gaps for cleaner movement boundaries.
+- **Centerpiece depth correction**: Central statue top/head layering now correctly occludes the player when moving behind it.
+
 ## Code Quality & Architecture (February 2026 Audit)
 
 A comprehensive code audit was conducted to improve code organization and maintainability. See [AUDIT.md](AUDIT.md) for the full report.
@@ -143,6 +154,7 @@ ChaosCrucible/
 ├── constants/
 │   └── gameConstants.js        # Game-wide constants and enums
 ├── handlers/                    # Input and game logic handlers
+│   ├── AbilityEffectsHandler.js # Ability unlock and combat VFX routing
 │   ├── BuffHandler.js          # Buff/debuff and shield management with UI
 │   ├── CollisionHandler.js     # Centralized collision detection
 │   ├── EnemySpawnHandler.js    # Enemy spawning and AI management
@@ -153,6 +165,7 @@ ChaosCrucible/
 │   ├── ProjectileHandler.js    # Player and enemy projectile management
 │   └── WaveHandler.js          # Wave progression and difficulty scaling
 ├── helpers/                     # Reusable utility modules
+│   ├── abilityEffectsHelpers.js # Skill unlock and combat ability visual effects
 │   ├── animationHelpers.js     # Animation and tween utilities
 │   ├── arenaHelpers.js         # Arena/environment creation
 │   ├── colorHelpers.js         # Color manipulation utilities

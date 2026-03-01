@@ -7,6 +7,7 @@ This document provides an overview of all helper functions and handlers availabl
 ```
 helpers/
 ├── animationHelpers.js      - Animation and tween utilities
+├── abilityEffectsHelpers.js  - Ability unlock and combat VFX utilities
 ├── arenaHelpers.js          - Arena environment creation
 ├── cameraHelpers.js         - Camera management (part of sceneHelpers.js)
 ├── colorHelpers.js          - Color manipulation utilities
@@ -20,6 +21,7 @@ helpers/
 └── validationHelpers.js     - Input validation
 
 handlers/
+├── AbilityEffectsHandler.js - Routes unlock/combat events into ability VFX
 ├── EnemySpawnHandler.js     - Enemy spawning and AI management
 └── InputHandler.js          - Input handling utilities
 ```

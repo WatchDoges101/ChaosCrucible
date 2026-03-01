@@ -3,6 +3,7 @@ import { createAnimatedCharacterWithViews } from '../../services/spriteGenerator
 import { generateEnemySprite } from '../../services/spriteGenerator.js';
 import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 import { attachPauseKey, detachPauseKey } from '../../handlers/PauseHandler.js';
+import { AbilityEffectsHandler } from '../../handlers/AbilityEffectsHandler.js';
 import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers.js';
 import { createPowerupSprite } from '../../helpers/powerupSpriteHelpers.js';
 
@@ -183,6 +184,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		};
 
 		this.roleConfig = this.getRoleConfig(character.role);
+		this.abilityEffectsHandler = new AbilityEffectsHandler(this);
+		this.abilityEffectsHandler.setLeveling(gameState.characters?.[character.role]?.leveling || null);
 
 		// Track facing for front/back sprite switching
 		this.playerFacing = 'down';
@@ -680,8 +683,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const cooldownScale = this.getCooldownScale(now);
 		this.attackState.nextBasicTime = now + this.roleConfig.basicCooldown * cooldownScale;
 		const damageMultiplier = this.getDamageMultiplier(now);
+		const role = gameState.character.role;
 
-		switch (gameState.character.role) {
+		switch (role) {
 			case 'archer':
 				this.spawnProjectile({
 					x: this.playerData.x,
@@ -692,7 +696,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					color: 0xd4af37,
 					radius: 3,
 					range: 520,
-					type: 'arrow'
+					type: 'arrow',
+					source: 'basic'
 				});
 				break;
 			case 'gunner':
@@ -704,7 +709,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					damage: this.roleConfig.basicDamage * damageMultiplier,
 					color: 0xffdd55,
 					radius: 2,
-					range: 480
+					range: 480,
+					source: 'basic'
 				});
 				break;
 			case 'brute':
@@ -713,6 +719,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				this.performMeleeSlash(aim, this.roleConfig.meleeRange, this.roleConfig.basicDamage * damageMultiplier);
 				break;
 		}
+
+		this.abilityEffectsHandler?.onBasicAttack(role, this.playerData.x, this.playerData.y);
 
 		this.playAttackAnimation();
 	}
@@ -723,8 +731,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const cooldownScale = this.getCooldownScale(now);
 		this.attackState.nextAbilityTime = now + this.roleConfig.abilityCooldown * cooldownScale;
 		const damageMultiplier = this.getDamageMultiplier(now);
+		const role = gameState.character.role;
+		this.abilityEffectsHandler?.onAbilityCast(role, this.playerData.x, this.playerData.y);
 
-		switch (gameState.character.role) {
+		switch (role) {
 			case 'archer':
 				this.fireArcherVolley(aim, damageMultiplier);
 				break;
@@ -852,7 +862,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				color: 0xffcc55,
 				radius: 3,
 				range: 600,
-				type: 'arrow'
+				type: 'arrow',
+				source: 'ability'
 			});
 		}
 	}
@@ -884,7 +895,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 					damage: this.roleConfig.abilityDamage * damageMultiplier,
 					color: 0xffee88,
 					radius: 2,
-					range: 520
+					range: 520,
+					source: 'ability'
 				});
 				// Small shake between shots (throttled)
 				if (i > 0) {
@@ -947,7 +959,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 	}
 
-	spawnProjectile({ x, y, vx, vy, damage, color, radius, range, type = 'bullet' }) {
+	spawnProjectile({ x, y, vx, vy, damage, color, radius, range, type = 'bullet', source = 'basic' }) {
 		let sprite;
 		
 		if (type === 'arrow') {
@@ -984,10 +996,14 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			vx,
 			vy,
 			damage,
+			color,
 			radius,
 			rangeRemaining: range,
-			type
+			type,
+			source
 		});
+
+		this.abilityEffectsHandler?.onProjectileSpawn(this.projectiles[this.projectiles.length - 1], gameState.character.role, source);
 	}
 
 	updateProjectiles(deltaScale) {
@@ -1008,7 +1024,30 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				}
 			}
 
+			this.abilityEffectsHandler?.onProjectileStep(proj);
+
+			const obstacleHit = this.checkProjectileObstacleCollision(proj);
+			if (obstacleHit) {
+				this.abilityEffectsHandler?.onProjectileHit(
+					proj,
+					obstacleHit.hitX,
+					obstacleHit.hitY,
+					this.enemies,
+					null,
+					(targetEnemy, dmg, knock) => this.damageEnemy(targetEnemy, dmg, knock)
+				);
+
+				if (!proj.explosiveRounds) {
+					this.spawnProjectileObstacleImpact(obstacleHit.hitX, obstacleHit.hitY, proj.color || 0xffdd88);
+				}
+
+				if (proj.sprite) proj.sprite.destroy();
+				this.projectiles.splice(i, 1);
+				continue;
+			}
+
 			let hit = false;
+			let hitEnemyData = null;
 			for (let j = this.enemies.length - 1; j >= 0; j--) {
 				const enemyData = this.enemies[j];
 				const radius = this.getEnemyRadius(enemyData.sizeScale);
@@ -1018,8 +1057,20 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				if (dist <= radius + proj.radius) {
 					this.damageEnemy(enemyData, proj.damage, { x: dx / (dist || 1), y: dy / (dist || 1) });
 					hit = true;
+					hitEnemyData = enemyData;
 					break;
 				}
+			}
+
+			if (hit) {
+				this.abilityEffectsHandler?.onProjectileHit(
+					proj,
+					proj.x,
+					proj.y,
+					this.enemies,
+					hitEnemyData,
+					(targetEnemy, dmg, knock) => this.damageEnemy(targetEnemy, dmg, knock)
+				);
 			}
 
 			const outOfBounds =
@@ -2309,6 +2360,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			headAnchorY: centerY - 170
 		};
 
+		this.centerpieceStatue = {
+			lower: statueBase,
+			upper: statueTop,
+			eyeGlowLeft,
+			eyeGlowRight,
+			baseY: centerY + 170,
+			headY: centerY + 28
+		};
+
 		this.tweens.add({
 			targets: [eyeGlowLeft, eyeGlowRight],
 			alpha: { from: 0.18, to: 0.5 },
@@ -2824,6 +2884,121 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	/**
+	 * Add a rectangular structure frame with a single doorway gap.
+	 */
+	addStructureCollisionFrame({
+		x,
+		y,
+		width,
+		height,
+		doorSide = 'bottom',
+		doorWidth = 50,
+		wallThickness = 20,
+		markerPrefix = 'structure'
+	}) {
+		const halfW = width / 2;
+		const halfH = height / 2;
+		const doorHalf = doorWidth / 2;
+		const t = wallThickness;
+
+		if (doorSide === 'bottom') {
+			this.addObstacle(x, y - halfH - t / 2, 'rect', width + t * 2, t, `${markerPrefix}_top`);
+			this.addObstacle(x - halfW - t / 2, y, 'rect', t, height, `${markerPrefix}_left`);
+			this.addObstacle(x + halfW + t / 2, y, 'rect', t, height, `${markerPrefix}_right`);
+			this.addObstacle(x - (doorHalf + (halfW - doorHalf) / 2), y + halfH + t / 2, 'rect', halfW - doorHalf, t, `${markerPrefix}_bottom_left`);
+			this.addObstacle(x + (doorHalf + (halfW - doorHalf) / 2), y + halfH + t / 2, 'rect', halfW - doorHalf, t, `${markerPrefix}_bottom_right`);
+			return;
+		}
+
+		if (doorSide === 'top') {
+			this.addObstacle(x - (doorHalf + (halfW - doorHalf) / 2), y - halfH - t / 2, 'rect', halfW - doorHalf, t, `${markerPrefix}_top_left`);
+			this.addObstacle(x + (doorHalf + (halfW - doorHalf) / 2), y - halfH - t / 2, 'rect', halfW - doorHalf, t, `${markerPrefix}_top_right`);
+			this.addObstacle(x - halfW - t / 2, y, 'rect', t, height, `${markerPrefix}_left`);
+			this.addObstacle(x + halfW + t / 2, y, 'rect', t, height, `${markerPrefix}_right`);
+			this.addObstacle(x, y + halfH + t / 2, 'rect', width + t * 2, t, `${markerPrefix}_bottom`);
+			return;
+		}
+
+		this.addObstacle(x, y - halfH - t / 2, 'rect', width + t * 2, t, `${markerPrefix}_top`);
+		this.addObstacle(x, y + halfH + t / 2, 'rect', width + t * 2, t, `${markerPrefix}_bottom`);
+		this.addObstacle(x - halfW - t / 2, y, 'rect', t, height, `${markerPrefix}_left`);
+		this.addObstacle(x + halfW + t / 2, y, 'rect', t, height, `${markerPrefix}_right`);
+	}
+
+	checkProjectileObstacleCollision(projectile) {
+		if (!projectile) return null;
+
+		for (const obstacle of this.obstacles) {
+			if (obstacle.type === 'circle') {
+				const dx = projectile.x - obstacle.x;
+				const dy = projectile.y - obstacle.y;
+				const distance = Math.hypot(dx, dy);
+				const minDistance = (projectile.radius || 0) + obstacle.radius;
+				if (distance <= minDistance) {
+					const safeDistance = distance || 0.0001;
+					const nx = dx / safeDistance;
+					const ny = dy / safeDistance;
+					return {
+						obstacle,
+						hitX: obstacle.x + nx * obstacle.radius,
+						hitY: obstacle.y + ny * obstacle.radius
+					};
+				}
+				continue;
+			}
+
+			if (obstacle.type === 'rect') {
+				const minX = obstacle.x - obstacle.width / 2;
+				const maxX = obstacle.x + obstacle.width / 2;
+				const minY = obstacle.y - obstacle.height / 2;
+				const maxY = obstacle.y + obstacle.height / 2;
+				const closestX = Phaser.Math.Clamp(projectile.x, minX, maxX);
+				const closestY = Phaser.Math.Clamp(projectile.y, minY, maxY);
+				const dx = projectile.x - closestX;
+				const dy = projectile.y - closestY;
+				const distance = Math.hypot(dx, dy);
+				if (distance <= (projectile.radius || 0)) {
+					return {
+						obstacle,
+						hitX: closestX,
+						hitY: closestY
+					};
+				}
+			}
+		}
+
+		return null;
+	}
+
+	spawnProjectileObstacleImpact(x, y, color = 0xffdd88) {
+		const burst = this.add.circle(x, y, 5, color, 0.85);
+		if (this.uiCamera) this.uiCamera.ignore(burst);
+
+		for (let i = 0; i < 7; i++) {
+			const angle = (i / 7) * Math.PI * 2;
+			const spark = this.add.circle(x, y, 2, color, 0.95);
+			if (this.uiCamera) this.uiCamera.ignore(spark);
+			this.tweens.add({
+				targets: spark,
+				x: x + Math.cos(angle) * (16 + Math.random() * 10),
+				y: y + Math.sin(angle) * (16 + Math.random() * 10),
+				alpha: 0,
+				duration: 180,
+				ease: 'Sine.out',
+				onComplete: () => spark.destroy()
+			});
+		}
+
+		this.tweens.add({
+			targets: burst,
+			scale: 1.9,
+			alpha: 0,
+			duration: 190,
+			onComplete: () => burst.destroy()
+		});
+	}
+
+	/**
 	 * Check if a circular entity collides with any obstacles
 	 * @param {number} entityX - Entity x position
 	 * @param {number} entityY - Entity y position
@@ -3090,17 +3265,19 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			description: 'An ancient stone temple\nPress [ENTER] to explore'
 		});
 
-		// Create precise collision perimeter for temple
-		// Top block
-		this.addObstacle(x, y - height / 2 - 10, 'rect', width + 20, 20, 'temple_top');
-		// Left side
-		this.addObstacle(x - width / 2 - 10, y - 20, 'rect', 20, 100, 'temple_left');
-		// Right side
-		this.addObstacle(x + width / 2 + 10, y - 20, 'rect', 20, 100, 'temple_right');
-		// Bottom left (entrance gap at center)
-		this.addObstacle(x - 45, y + height / 2 + 5, 'rect', 40, 15, 'temple_bottom_left');
-		// Bottom right (entrance gap at center)
-		this.addObstacle(x + 45, y + height / 2 + 5, 'rect', 40, 15, 'temple_bottom_right');
+		this.addStructureCollisionFrame({
+			x,
+			y: y + 10,
+			width: width + 12,
+			height: height - 25,
+			doorSide: 'bottom',
+			doorWidth: 58,
+			wallThickness: 22,
+			markerPrefix: 'temple'
+		});
+
+		// Roof peak collision cap
+		this.addObstacle(x, y - height / 2 - 30, 'rect', width + 26, 28, 'temple_roof_cap');
 	}
 
 	createDungeon(x, y, name) {
@@ -3165,17 +3342,16 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			description: 'A dark, ominous dungeon\nPress [ENTER] to enter'
 		});
 
-		// Create precise collision perimeter for dungeon
-		// Top block
-		this.addObstacle(x, y - height / 2 - 10, 'rect', width + 20, 20, 'dungeon_top');
-		// Left side
-		this.addObstacle(x - width / 2 - 10, y - 15, 'rect', 20, 90, 'dungeon_left');
-		// Right side
-		this.addObstacle(x + width / 2 + 10, y - 15, 'rect', 20, 90, 'dungeon_right');
-		// Bottom left (entrance gap at center)
-		this.addObstacle(x - 35, y + height / 2 + 5, 'rect', 35, 15, 'dungeon_bottom_left');
-		// Bottom right (entrance gap at center)
-		this.addObstacle(x + 35, y + height / 2 + 5, 'rect', 35, 15, 'dungeon_bottom_right');
+		this.addStructureCollisionFrame({
+			x,
+			y,
+			width,
+			height: height - 18,
+			doorSide: 'bottom',
+			doorWidth: 48,
+			wallThickness: 20,
+			markerPrefix: 'dungeon'
+		});
 	}
 
 	createTower(x, y, name) {
@@ -3247,17 +3423,19 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			description: 'A mystical tower of magic\nPress [ENTER] to ascend'
 		});
 
-		// Create precise collision perimeter for tower
-		// Top block (includes roof cone)
-		this.addObstacle(x, y - height / 2 - 40, 'rect', width + 20, 35, 'tower_top');
-		// Left side
-		this.addObstacle(x - width / 2 - 10, y - 10, 'rect', 20, height - 70, 'tower_left');
-		// Right side
-		this.addObstacle(x + width / 2 + 10, y - 10, 'rect', 20, height - 70, 'tower_right');
-		// Bottom left (entrance gap at center)
-		this.addObstacle(x - 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_left');
-		// Bottom right (entrance gap at center)
-		this.addObstacle(x + 30, y + height / 2 - 10, 'rect', 30, 15, 'tower_bottom_right');
+		this.addStructureCollisionFrame({
+			x,
+			y: y + 6,
+			width,
+			height: height - 32,
+			doorSide: 'top',
+			doorWidth: 52,
+			wallThickness: 20,
+			markerPrefix: 'tower'
+		});
+
+		// Roof cone cap collision
+		this.addObstacle(x, y - height / 2 - 42, 'rect', width + 18, 34, 'tower_roof_cap');
 
 		this.depthSortedActors.push({
 			type: 'split',
