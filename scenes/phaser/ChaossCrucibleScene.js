@@ -38,6 +38,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			lastShakeAt: 0,
 			minIntervalMs: 45
 		};
+		this.walkCycle = 0;
 		this.playerDamageState = {
 			nextDamageTime: 0,
 			damageCooldown: 500 // 0.5 seconds between damage
@@ -120,10 +121,21 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			container: null,
 			background: null,
 			border: null,
+			frameGlow: null,
+			grid: null,
+			centerMarker: null,
 			playerDot: null,
+			playerHeading: null,
+			playerPulse: null,
 			enemyDots: [],
 			size: 180,
 			scale: null // Will be calculated based on arena size
+		};
+
+		this.uiStatsState = {
+			enemies: -1,
+			score: -1,
+			waveLabel: ''
 		};
 
 		// Enemy tracking indicators
@@ -149,6 +161,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.tweens.timeScale = 1;
 		this.tweens.resumeAll();
 		this.time.timeScale = 1;
+		this.enemyCountText = null;
+		this.scoreText = null;
+		this.waveText = null;
+		this.nameText = null;
+		this.enemyCountLabel = null;
+		this.scoreLabel = null;
+		this.waveLabelText = null;
+		this.infoPanel = null;
+		this.infoPanelGlow = null;
 		this.centerpieceStatue = null;
 		this.depthSortedActors = [];
 		this.isPlayerDead = false;
@@ -292,40 +313,86 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.player.getChildren().forEach(child => this.uiCamera.ignore(child));
 		}
 
-		// ===== INITIALIZE WAVE SYSTEM =====
-		// Start wave 1
-		this.startWave(1);
-
 		// ===== UI TEXT (on UI camera) =====
 		// Reset score at start of game
 		gameState.resetScore();
 
 		const displayName = character.name || 'Player';
-		const nameText = this.add.text(20, 20, displayName, {
-			font: 'bold 28px Arial',
-			fill: '#ffffff'
+		const panelX = 26;
+		const panelY = 22;
+		const panelWidth = 330;
+		const panelHeight = 168;
+
+		this.infoPanelGlow = this.add.rectangle(
+			panelX + panelWidth / 2,
+			panelY + panelHeight / 2,
+			panelWidth + 8,
+			panelHeight + 8,
+			0x1a2945,
+			0.35
+		);
+
+		this.infoPanel = this.add.rectangle(
+			panelX + panelWidth / 2,
+			panelY + panelHeight / 2,
+			panelWidth,
+			panelHeight,
+			0x05080f,
+			0.72
+		).setStrokeStyle(2, 0x4f628f, 0.82);
+
+		const infoAccent = this.add.rectangle(panelX + panelWidth / 2, panelY + 32, panelWidth - 18, 2, 0x66bbff, 0.7);
+
+		this.nameText = this.add.text(panelX + 16, panelY + 10, displayName, {
+			font: 'bold 24px Arial',
+			fill: '#f2f7ff',
+			stroke: '#000000',
+			strokeThickness: 4
 		});
 
-		// Enemy counter
-		this.enemyCountText = this.add.text(20, 60, `Enemies: ${this.enemies.length}`,
-			{
+		const createInfoRow = (y, label, value, color) => {
+			const labelText = this.add.text(panelX + 16, y, label, {
+				font: 'bold 15px Arial',
+				fill: '#8aa4d2',
+				stroke: '#000000',
+				strokeThickness: 3
+			});
+			const valueText = this.add.text(panelX + panelWidth - 16, y, value, {
 				font: 'bold 20px Arial',
-				fill: '#FF6B00'
+				fill: color,
+				stroke: '#000000',
+				strokeThickness: 4
 			});
+			valueText.setOrigin(1, 0);
+			return { labelText, valueText };
+		};
 
-		// Score display
-		this.scoreText = this.add.text(20, 100, `Score: ${gameState.score}`,
-			{
-				font: 'bold 20px Arial',
-				fill: '#FFD700'
-			});
+		const enemiesRow = createInfoRow(panelY + 52, 'ENEMIES', `${this.enemies.length}`, '#ffb266');
+		const scoreRow = createInfoRow(panelY + 88, 'SCORE', `${gameState.score}`, '#ffe08a');
+		const waveRow = createInfoRow(panelY + 124, 'WAVE', `${this.waveState.currentWave}`, '#8fe4ff');
 
-		// Wave display
-		this.waveText = this.add.text(20, 140, `Wave: ${this.waveState.currentWave}`,
-			{
-				font: 'bold 24px Arial',
-				fill: '#00FFFF'
-			});
+		this.enemyCountLabel = enemiesRow.labelText;
+		this.scoreLabel = scoreRow.labelText;
+		this.waveLabelText = waveRow.labelText;
+		this.enemyCountText = enemiesRow.valueText;
+		this.scoreText = scoreRow.valueText;
+		this.waveText = waveRow.valueText;
+		this.uiStatsState.enemies = this.enemies.length;
+		this.uiStatsState.score = gameState.score;
+		this.uiStatsState.waveLabel = `${this.waveState.currentWave}`;
+
+		this.tweens.add({
+			targets: [this.infoPanelGlow, infoAccent],
+			alpha: { from: 0.28, to: 0.6 },
+			duration: 1450,
+			ease: 'Sine.inOut',
+			yoyo: true,
+			repeat: -1
+		});
+
+		// ===== INITIALIZE WAVE SYSTEM =====
+		// Start wave 1 after HUD text exists (avoids stale text refs from previous scene instances)
+		this.startWave(1);
 
 		// Initialize player health
 		if (!character.hp) {
@@ -333,171 +400,105 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			character.maxHp = 100;
 		}
 
-		// ===== PLAYER HEALTH BAR (on UI camera, bottom left) =====
-		const healthBarX = 40;
-		const healthBarY = gameConfig.height - 50; // Bottom left of screen
+		// ===== UNIFIED STATUS BARS (Effects / Shield / Health) =====
+		const statusX = 40;
+		const statusBarLeft = statusX + 36;
+		const statusBarWidth = 300;
+		const statusBarHeight = 24;
+		const statusRowGap = 38;
+		const healthBarY = gameConfig.height - 50;
+		const shieldBarY = healthBarY - statusRowGap;
+		const effectsBarY = shieldBarY - statusRowGap;
 
-		// Heart icon using graphics
-		const heartGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-		heartGraphics.fillStyle(0xff0000, 1);
-		heartGraphics.beginPath();
-		heartGraphics.arc(healthBarX - 6, healthBarY - 3, 5, 0, Math.PI * 2); // Left bump
-		heartGraphics.fill();
-		heartGraphics.beginPath();
-		heartGraphics.arc(healthBarX + 6, healthBarY - 3, 5, 0, Math.PI * 2); // Right bump
-		heartGraphics.fill();
+		// Backplate panel for visual cohesion
+		this.statusPanel = this.add.rectangle(
+			statusX + 165,
+			healthBarY - statusRowGap,
+			364,
+			136,
+			0x05080f,
+			0.55
+		).setStrokeStyle(2, 0x39445f, 0.8);
 
-		// Heart point
-		heartGraphics.beginPath();
-		heartGraphics.moveTo(healthBarX - 11, healthBarY);
-		heartGraphics.lineTo(healthBarX + 11, healthBarY);
-		heartGraphics.lineTo(healthBarX, healthBarY + 11);
-		heartGraphics.lineTo(healthBarX - 11, healthBarY);
-		heartGraphics.fill();
+		const createStatusBar = ({ y, iconText, labelText, fillColor }) => {
+			const label = this.add.text(statusX, y - 17, labelText, {
+				font: 'bold 14px Arial',
+				fill: '#d7e5ff',
+				stroke: '#000000',
+				strokeThickness: 3
+			}).setOrigin(0, 0.5);
 
-		// Add outline
-		heartGraphics.lineStyle(1.5, 0x990000, 1);
-		heartGraphics.beginPath();
-		heartGraphics.arc(healthBarX - 6, healthBarY - 3, 5, 0, Math.PI * 2);
-		heartGraphics.stroke();
-		this.add.existing(heartGraphics);
-
-		// Health bar background (black)
-		this.playerHealthBg = this.add.rectangle(
-			healthBarX + 35,
-			healthBarY,
-			300,
-			30,
-			0x000000,
-			0.9
-		);
-		this.playerHealthBg.setOrigin(0, 0.5);
-
-		// Health bar border
-		this.playerHealthBorder = this.add.rectangle(
-			healthBarX + 35,
-			healthBarY,
-			300,
-			30,
-			0x333333
-		);
-		this.playerHealthBorder.setOrigin(0, 0.5);
-		this.playerHealthBorder.setStrokeStyle(2, 0x666666);
-		this.playerHealthBorder.isFilled = false;
-
-		// Health bar foreground (red)
-		this.playerHealthFg = this.add.rectangle(
-			healthBarX + 35,
-			healthBarY,
-			300,
-			30,
-			0xff0000,
-			1
-		);
-		this.playerHealthFg.setOrigin(0, 0.5);
-
-		// Health text
-		this.playerHealthText = this.add.text(
-			healthBarX + 190,
-			healthBarY,
-			`${character.hp} / ${character.maxHp}`,
-			{
-				font: 'bold 16px Arial',
+			const icon = this.add.text(statusX + 16, y, iconText, {
+				font: 'bold 20px Arial',
 				fill: '#ffffff',
 				stroke: '#000000',
-				strokeThickness: 4
-			}
-		);
-		this.playerHealthText.setOrigin(0.5, 0.5);
+				strokeThickness: 3
+			}).setOrigin(0.5, 0.5);
 
-		// ===== POWERUP/BUFF INDICATOR (on UI camera, left side, stacked vertically) =====
-		const buffStartY = gameConfig.height - 220;
-		const buffStartX = 40;
+			const bg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight, 0x10172b, 0.95);
+			bg.setOrigin(0, 0.5);
+			bg.setStrokeStyle(2, 0x5d6e95, 0.75);
 
-		// SHIELD SECTION
-		const shieldLabelY = buffStartY;
-		this.shieldLabel = this.add.text(buffStartX, shieldLabelY, 'SHIELD', {
-			font: 'bold 18px Arial',
-			fill: '#88ccff',
-			stroke: '#000000',
-			strokeThickness: 3
-		});
-		this.shieldLabel.setOrigin(0, 0);
+			const fgGlow = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight, fillColor, 0.22);
+			fgGlow.setOrigin(0, 0.5);
 
-		const shieldBoxY = shieldLabelY + 28;
-		this.shieldBg = this.add.rectangle(buffStartX + 35, shieldBoxY + 15, 300, 30, 0x001a33, 0.9);
-		this.shieldBg.setOrigin(0, 0.5);
-		this.shieldBg.setStrokeStyle(3, 0x88ccff);
+			const fg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight - 4, fillColor, 0.92);
+			fg.setOrigin(0, 0.5);
 
-		this.shieldIcon = this.add.text(buffStartX + 50, shieldBoxY + 15, '⬡', {
-			font: 'bold 20px Arial',
-			fill: '#88ccff'
-		});
-		this.shieldIcon.setOrigin(0.5, 0.5);
-
-		this.shieldText = this.add.text(buffStartX + 185, shieldBoxY + 15, '0/100', {
-			font: 'bold 20px Arial',
-			fill: '#88ccff',
-			stroke: '#000000',
-			strokeThickness: 2
-		});
-		this.shieldText.setOrigin(0, 0.5);
-
-		// ACTIVE EFFECTS SECTION
-		const effectsLabelY = shieldBoxY + 44;
-		this.effectsLabel = this.add.text(buffStartX, effectsLabelY, 'ACTIVE EFFECTS', {
-			font: 'bold 18px Arial',
-			fill: '#ffcc00',
-			stroke: '#000000',
-			strokeThickness: 3
-		});
-		this.effectsLabel.setOrigin(0, 0);
-
-		// Active buffs panel (will show up to 3 active buffs)
-		this.activeBuffPanels = [];
-		for (let i = 0; i < 3; i++) {
-			const buffY = effectsLabelY + 34 + i * 50;
-			const buffBg = this.add.rectangle(buffStartX + 240, buffY + 8, 220, 42, 0x1a1a1a, 0.95);
-			buffBg.setOrigin(1, 0.5);
-			buffBg.setStrokeStyle(2, 0x666666);
-			
-			const buffIcon = this.add.text(buffStartX + 20, buffY + 8, '●', {
-				font: 'bold 24px Arial',
-				fill: '#ffffff'
-			});
-			buffIcon.setOrigin(0.5, 0.5);
-
-			const buffName = this.add.text(buffStartX + 35, buffY - 5, '', {
-				font: 'bold 16px Arial',
-				fill: '#ffffff'
-			});
-			buffName.setOrigin(0, 0.5);
-
-			const buffTimeBg = this.add.rectangle(buffStartX + 35, buffY + 18, 120, 8, 0x000000, 0.9);
-			buffTimeBg.setOrigin(0, 0.5);
-
-			const buffTimeBar = this.add.rectangle(buffStartX + 35, buffY + 18, 120, 8, 0x00ff00, 1);
-			buffTimeBar.setOrigin(0, 0.5);
-
-			const buffTimeText = this.add.text(buffStartX + 165, buffY + 18, '0s', {
+			const text = this.add.text(statusBarLeft + statusBarWidth / 2, y, '', {
 				font: 'bold 14px Arial',
 				fill: '#ffffff',
 				stroke: '#000000',
-				strokeThickness: 2
-			});
-			buffTimeText.setOrigin(1, 0.5);
+				strokeThickness: 3
+			}).setOrigin(0.5, 0.5);
 
-			this.activeBuffPanels.push({
-				bg: buffBg,
-				icon: buffIcon,
-				name: buffName,
-				timeBg: buffTimeBg,
-				timeBar: buffTimeBar,
-				timeText: buffTimeText,
-				visible: false,
-				type: null
-			});
-		}
+			return { label, icon, bg, fgGlow, fg, text };
+		};
+
+		const effectsBar = createStatusBar({
+			y: effectsBarY,
+			iconText: '✦',
+			labelText: 'EFFECTS',
+			fillColor: 0xd5a738
+		});
+
+		const shieldBar = createStatusBar({
+			y: shieldBarY,
+			iconText: '⬡',
+			labelText: 'SHIELD',
+			fillColor: 0x66bbff
+		});
+
+		const healthBar = createStatusBar({
+			y: healthBarY,
+			iconText: '♥',
+			labelText: 'HEALTH',
+			fillColor: 0xff4d66
+		});
+
+		this.effectsLabel = effectsBar.label;
+		this.effectsIcon = effectsBar.icon;
+		this.effectsBg = effectsBar.bg;
+		this.effectsFgGlow = effectsBar.fgGlow;
+		this.effectsFg = effectsBar.fg;
+		this.effectsText = effectsBar.text;
+
+		this.shieldLabel = shieldBar.label;
+		this.shieldIcon = shieldBar.icon;
+		this.shieldBg = shieldBar.bg;
+		this.shieldFgGlow = shieldBar.fgGlow;
+		this.shieldFg = shieldBar.fg;
+		this.shieldText = shieldBar.text;
+
+		this.playerHealthLabel = healthBar.label;
+		this.playerHealthIcon = healthBar.icon;
+		this.playerHealthBg = healthBar.bg;
+		this.playerHealthFgGlow = healthBar.fgGlow;
+		this.playerHealthFg = healthBar.fg;
+		this.playerHealthText = healthBar.text;
+
+		this.statusBarWidth = statusBarWidth;
+		this.activeBuffPanels = [];
 
 		// ===== MINIMAP (on UI camera, top right) =====
 		const minimapSize = this.minimap.size;
@@ -513,8 +514,17 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			minimapY + minimapSize / 2,
 			minimapSize,
 			minimapSize,
-			0x000000,
-			0.7
+			0x060d1d,
+			0.78
+		);
+
+		this.minimap.frameGlow = this.add.rectangle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			minimapSize + 8,
+			minimapSize + 8,
+			0x1b355a,
+			0.32
 		);
 
 		// Minimap border
@@ -524,17 +534,41 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			minimapSize,
 			minimapSize
 		);
-		this.minimap.border.setStrokeStyle(3, 0x00FFFF);
+		this.minimap.border.setStrokeStyle(3, 0x66bbff);
 		this.minimap.border.isFilled = false;
+
+		this.minimap.grid = this.add.graphics();
+		this.minimap.grid.lineStyle(1, 0x3b4f73, 0.38);
+		for (let step = 1; step < 4; step++) {
+			const linePos = minimapX + (minimapSize * step / 4);
+			this.minimap.grid.lineBetween(linePos, minimapY + 2, linePos, minimapY + minimapSize - 2);
+			this.minimap.grid.lineBetween(minimapX + 2, linePos, minimapX + minimapSize - 2, linePos);
+		}
+
+		this.minimap.centerMarker = this.add.circle(
+			minimapX + (this.ARENA_WIDTH / 2) * this.minimap.scale,
+			minimapY + (this.ARENA_HEIGHT / 2) * this.minimap.scale,
+			2.4,
+			0x8aa4d2,
+			0.8
+		);
+
+		this.minimap.playerPulse = this.add.circle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			7,
+			0x7fffbf,
+			0.16
+		);
 
 		// Minimap label
 		this.minimapLabel = this.add.text(
 			minimapX + minimapSize / 2,
 			minimapY - 8,
-			'MAP',
+			'ARENA MAP',
 			{
 				font: 'bold 14px Arial',
-				fill: '#00FFFF',
+				fill: '#8fd6ff',
 				stroke: '#000000',
 				strokeThickness: 3
 			}
@@ -545,34 +579,86 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.minimap.playerDot = this.add.circle(
 			minimapX + minimapSize / 2,
 			minimapY + minimapSize / 2,
-			4,
-			0x00FF00,
+			4.2,
+			0x7fffbf,
 			1
 		);
+
+		this.minimap.playerHeading = this.add.triangle(
+			minimapX + minimapSize / 2,
+			minimapY + minimapSize / 2,
+			0,
+			-7,
+			5,
+			6,
+			-5,
+			6,
+			0x7fffbf,
+			0.95
+		);
+		this.minimap.playerHeading.setStrokeStyle(1, 0xd9ffef, 0.8);
+
+		this.tweens.add({
+			targets: [this.minimap.frameGlow, this.minimap.playerPulse],
+			alpha: { from: 0.2, to: 0.52 },
+			duration: 1000,
+			ease: 'Sine.inOut',
+			yoyo: true,
+			repeat: -1
+		});
+
+		this.tweens.add({
+			targets: this.minimap.playerPulse,
+			scale: { from: 0.75, to: 1.35 },
+			duration: 1000,
+			ease: 'Sine.inOut',
+			yoyo: true,
+			repeat: -1
+		});
 
 		// Container for minimap
 		this.minimap.container = this.add.container(0, 0);
 
 		// Hide HUD elements from the main camera (UI camera only)
 		const hudElements = [
-			nameText,
+			this.infoPanelGlow,
+			this.infoPanel,
+			infoAccent,
+			this.nameText,
+			this.enemyCountLabel,
 			this.enemyCountText,
+			this.scoreLabel,
 			this.scoreText,
+			this.waveLabelText,
 			this.waveText,
-			heartGraphics,
+			this.statusPanel,
+			this.playerHealthLabel,
+			this.playerHealthIcon,
 			this.playerHealthBg,
-			this.playerHealthBorder,
+			this.playerHealthFgGlow,
 			this.playerHealthFg,
 			this.playerHealthText,
 			this.shieldLabel,
+			this.shieldFgGlow,
 			this.shieldBg,
+			this.shieldFg,
 			this.shieldIcon,
 			this.shieldText,
 			this.effectsLabel,
+			this.effectsIcon,
+			this.effectsBg,
+			this.effectsFgGlow,
+			this.effectsFg,
+			this.effectsText,
 			this.minimap.background,
+			this.minimap.frameGlow,
 			this.minimap.border,
+			this.minimap.grid,
+			this.minimap.centerMarker,
+			this.minimap.playerPulse,
 			this.minimapLabel,
-			this.minimap.playerDot
+			this.minimap.playerDot,
+			this.minimap.playerHeading
 		];
 		this.activeBuffPanels.forEach(panel => {
 			hudElements.push(panel.bg, panel.icon, panel.name, panel.timeBg, panel.timeBar, panel.timeText);
@@ -2550,6 +2636,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				ease: 'Sine.inOut'
 			});
 
+			this.depthSortedActors.push({
+				type: 'split',
+				baseY: gy + 40,
+				upperStartY: gy + 6,
+				lower,
+				upper,
+				glow: aura
+			});
+
 			this.addObstacle(gx, gy + 6, 'rect', 70, 86, `guardian_statue_${index}`);
 		});
 	}
@@ -3686,7 +3781,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// Update wave UI
 		if (this.waveText) {
-			this.waveText.setText(`Wave: ${this.waveState.currentWave}`);
+			this.waveText.setText(`${this.waveState.currentWave}`);
 		}
 
 		// Show wave start notification with enemy composition
@@ -3771,6 +3866,53 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	animateInfoValue(textObj) {
+		if (!textObj || !textObj.scene) return;
+		this.tweens.add({
+			targets: textObj,
+			scale: { from: 1, to: 1.12 },
+			alpha: { from: 0.9, to: 1 },
+			duration: 160,
+			ease: 'Back.easeOut',
+			yoyo: true
+		});
+	}
+
+	updateInfoPanelText() {
+		if (!this.enemyCountText || !this.scoreText || !this.waveText) return;
+
+		const enemyCount = this.enemies.length;
+		const score = gameState.score;
+
+		let waveLabel;
+		if (this.waveState.waveInProgress) {
+			waveLabel = `${this.waveState.currentWave}   ${this.waveState.enemiesKilledThisWave}/${this.waveState.totalEnemiesThisWave}`;
+		} else if (this.waveState.nextWaveTimer) {
+			const remaining = Math.ceil(this.waveState.nextWaveTimer.getRemaining() / 1000);
+			waveLabel = `Next ${remaining}s`;
+		} else {
+			waveLabel = `${this.waveState.currentWave}`;
+		}
+
+		if (enemyCount !== this.uiStatsState.enemies) {
+			this.enemyCountText.setText(`${enemyCount}`);
+			this.animateInfoValue(this.enemyCountText);
+			this.uiStatsState.enemies = enemyCount;
+		}
+
+		if (score !== this.uiStatsState.score) {
+			this.scoreText.setText(`${score}`);
+			this.animateInfoValue(this.scoreText);
+			this.uiStatsState.score = score;
+		}
+
+		if (waveLabel !== this.uiStatsState.waveLabel) {
+			this.waveText.setText(waveLabel);
+			this.animateInfoValue(this.waveText);
+			this.uiStatsState.waveLabel = waveLabel;
+		}
+	}
+
 	/**
 	 * Update minimap with player and enemy positions
 	 */
@@ -3787,6 +3929,22 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const playerMapX = minimapX + (this.player.x * this.minimap.scale);
 		const playerMapY = minimapY + (this.player.y * this.minimap.scale);
 		this.minimap.playerDot.setPosition(playerMapX, playerMapY);
+		if (this.minimap.playerPulse) {
+			this.minimap.playerPulse.setPosition(playerMapX, playerMapY);
+		}
+
+		if (this.minimap.playerHeading) {
+			this.minimap.playerHeading.setPosition(playerMapX, playerMapY);
+			let heading = 0;
+			if (this.playerFacing === 'up') {
+				heading = -Math.PI / 2;
+			} else if (this.playerFacing === 'down') {
+				heading = Math.PI / 2;
+			} else {
+				heading = this.player.scaleX >= 0 ? 0 : Math.PI;
+			}
+			this.minimap.playerHeading.setRotation(heading + Math.PI / 2);
+		}
 
 		// Clear old enemy dots
 		this.minimap.enemyDots.forEach(dot => dot.destroy());
@@ -3799,14 +3957,27 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const enemyMapY = minimapY + (enemy.y * this.minimap.scale);
 
 			// Color based on enemy type
-			let color = 0xFF6B00; // Slime - orange
+			let color = 0xFF6B00;
+			let radius = 2.4;
 			if (enemyData.type === 'devil') {
-				color = 0xFF0000; // Devil - red
+				color = 0xFF0000;
+				radius = 3;
 			} else if (enemyData.type === 'skeleton') {
-				color = 0xCCCCCC; // Skeleton - gray
+				color = 0xCCCCCC;
+				radius = 2.6;
+			} else if (enemyData.type === 'frost_wraith') {
+				color = 0x7BCBFF;
+				radius = 2.8;
+			} else if (enemyData.type === 'bomber_beetle') {
+				color = 0xFFAA00;
+				radius = 3;
+			} else if (enemyData.type === 'storm_mage') {
+				color = 0xAFA4FF;
+				radius = 2.9;
 			}
 
-			const dot = this.add.circle(enemyMapX, enemyMapY, 2.5, color, 1);
+			const dot = this.add.circle(enemyMapX, enemyMapY, radius, color, 0.95);
+			dot.setStrokeStyle(1, 0x000000, 0.45);
 			this.cameras.main.ignore(dot);
 			this.minimap.enemyDots.push(dot);
 		});
@@ -4493,14 +4664,25 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	updateBuffUI(time) {
+		const barWidth = this.statusBarWidth || 300;
+
 		// Update shield display
-		this.shieldText.setText(`${Math.round(this.playerShield.value)}/${this.playerShield.max}`);
-		if (this.playerShield.value > 0) {
-			this.shieldIcon.setFill('#88ff88');
-			this.shieldText.setFill('#88ff88');
+		const shieldPercent = this.playerShield.max > 0
+			? Phaser.Math.Clamp(this.playerShield.value / this.playerShield.max, 0, 1)
+			: 0;
+		this.shieldFg.width = barWidth * shieldPercent;
+		this.shieldFgGlow.width = barWidth * shieldPercent;
+		this.shieldText.setText(`Shield ${Math.round(this.playerShield.value)} / ${this.playerShield.max}`);
+		if (shieldPercent > 0) {
+			this.shieldIcon.setFill('#8fd6ff');
+			this.shieldText.setFill('#d7f0ff');
+			this.shieldFg.setFillStyle(0x66bbff, 0.92);
+			this.shieldFgGlow.setFillStyle(0x66bbff, 0.24);
 		} else {
-			this.shieldIcon.setFill('#888888');
-			this.shieldText.setFill('#888888');
+			this.shieldIcon.setFill('#7a869f');
+			this.shieldText.setFill('#8a95ac');
+			this.shieldFg.setFillStyle(0x3f4e70, 0.9);
+			this.shieldFgGlow.setFillStyle(0x3f4e70, 0.2);
 		}
 
 		// Collect active buffs
@@ -4533,38 +4715,30 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		}
 
-		// Update buff panels
-		for (let i = 0; i < this.activeBuffPanels.length; i++) {
-			const panel = this.activeBuffPanels[i];
-			if (i < activeBuffs.length) {
+		if (activeBuffs.length > 0) {
+			let strongestPercent = 0;
+			const effectParts = [];
+			for (let i = 0; i < activeBuffs.length; i++) {
 				const buff = activeBuffs[i];
 				const maxDuration = buff.type === 'fury' ? 10000 : buff.type === 'cooldown' ? 8000 : 8000;
 				const percent = Math.max(0, Math.min(1, buff.remaining / maxDuration));
-
-				panel.icon.setText(buff.icon);
-				panel.icon.setFill(buff.color);
-				panel.name.setText(buff.name);
-				panel.name.setFill(buff.color);
-				panel.timeBar.width = 120 * percent;
-				panel.timeBar.setFillStyle(Phaser.Display.Color.HexStringToColor(buff.color).color, 1);
-				const seconds = Math.ceil(buff.remaining / 1000);
-				panel.timeText.setText(`${Math.max(0, seconds)}s`);
-				panel.timeText.setFill(buff.color);
-
-				panel.bg.setVisible(true);
-				panel.icon.setVisible(true);
-				panel.name.setVisible(true);
-				panel.timeBg.setVisible(true);
-				panel.timeBar.setVisible(true);
-				panel.timeText.setVisible(true);
-			} else {
-				panel.bg.setVisible(false);
-				panel.icon.setVisible(false);
-				panel.name.setVisible(false);
-				panel.timeBg.setVisible(false);
-				panel.timeBar.setVisible(false);
-				panel.timeText.setVisible(false);
+				strongestPercent = Math.max(strongestPercent, percent);
+				effectParts.push(`${buff.icon} ${buff.name} ${Math.ceil(buff.remaining / 1000)}s`);
 			}
+
+			this.effectsFg.width = barWidth * strongestPercent;
+			this.effectsFgGlow.width = barWidth * strongestPercent;
+			this.effectsIcon.setFill('#ffd978');
+			this.effectsText.setFill('#fff2cf');
+			this.effectsFg.setFillStyle(0xd6a33a, 0.92);
+			this.effectsFgGlow.setFillStyle(0xd6a33a, 0.24);
+			this.effectsText.setText(effectParts.join('  |  '));
+		} else {
+			this.effectsFg.width = 0;
+			this.effectsFgGlow.width = 0;
+			this.effectsIcon.setFill('#78839c');
+			this.effectsText.setFill('#8a95ac');
+			this.effectsText.setText('No Active Effects');
 		}
 	}
 
@@ -4620,6 +4794,53 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 	}
 
+	resetLegPose(sprite) {
+		if (!sprite) return;
+		const leftLeg = sprite.leftLeg;
+		const rightLeg = sprite.rightLeg;
+		if (leftLeg) {
+			if (typeof leftLeg.baseY !== 'number') leftLeg.baseY = leftLeg.y;
+			leftLeg.rotation = 0;
+			leftLeg.y = leftLeg.baseY;
+		}
+		if (rightLeg) {
+			if (typeof rightLeg.baseY !== 'number') rightLeg.baseY = rightLeg.y;
+			rightLeg.rotation = 0;
+			rightLeg.y = rightLeg.baseY;
+		}
+	}
+
+	updateLegAnimation(isMoving, deltaScale) {
+		if (!this.player?.frontSprite || !this.player?.backSprite) return;
+
+		const activeSprite = this.playerFacing === 'up' ? this.player.backSprite : this.player.frontSprite;
+		const inactiveSprite = this.playerFacing === 'up' ? this.player.frontSprite : this.player.backSprite;
+
+		this.resetLegPose(inactiveSprite);
+
+		const leftLeg = activeSprite.leftLeg;
+		const rightLeg = activeSprite.rightLeg;
+		if (!leftLeg || !rightLeg) return;
+
+		if (typeof leftLeg.baseY !== 'number') leftLeg.baseY = leftLeg.y;
+		if (typeof rightLeg.baseY !== 'number') rightLeg.baseY = rightLeg.y;
+
+		if (!isMoving) {
+			this.walkCycle = 0;
+			this.resetLegPose(activeSprite);
+			return;
+		}
+
+		this.walkCycle += 0.36 * deltaScale;
+		const swing = Math.sin(this.walkCycle) * 0.48;
+		const lift = Math.abs(Math.cos(this.walkCycle)) * 0.9;
+
+		leftLeg.rotation = swing;
+		rightLeg.rotation = -swing;
+		leftLeg.y = leftLeg.baseY - lift;
+		rightLeg.y = rightLeg.baseY - (Math.abs(Math.sin(this.walkCycle)) * 0.9);
+	}
+
 	update(time, delta) {
 		if (!this.player) return;
 
@@ -4642,7 +4863,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (this.keys.a.isDown) moveX -= 1;
 		if (this.keys.d.isDown) moveX += 1;
 
-		if (moveX !== 0 || moveY !== 0) {
+		const isMoving = moveX !== 0 || moveY !== 0;
+
+		if (isMoving) {
 			const length = Math.sqrt(moveX * moveX + moveY * moveY);
 			const speed = this.playerData.speed * this.getSpeedMultiplier(time);
 			moveX = (moveX / length) * speed;
@@ -4673,6 +4896,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const absScaleX = Math.abs(this.player.scaleX) || 1;
 			this.player.scaleX = absScaleX * direction;
 		}
+
+		this.updateLegAnimation(isMoving, deltaScale);
 
 		this.playerData.x += moveX;
 		this.playerData.y += moveY;
@@ -4821,32 +5046,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			healthBar.width = (enemy.hp / enemy.maxHp) * barWidth * sizeScale;
 		});
 
-		// Update enemy counter
-		if (this.enemyCountText) {
-			this.enemyCountText.setText(`Enemies: ${this.enemies.length}`);
-		}
-
-		// Update score display
-		if (this.scoreText) {
-			this.scoreText.setText(`Score: ${gameState.score}`);
-		}
-
-		// Update wave display
-		if (this.waveText) {
-			if (this.waveState.waveInProgress) {
-				this.waveText.setText(
-					`Wave: ${this.waveState.currentWave} (${this.waveState.enemiesKilledThisWave}/${this.waveState.totalEnemiesThisWave})`
-				);
-			} else {
-				// Show countdown to next wave
-				if (this.waveState.nextWaveTimer) {
-					const remaining = Math.ceil(this.waveState.nextWaveTimer.getRemaining() / 1000);
-					this.waveText.setText(`Next Wave in ${remaining}s`);
-				} else {
-					this.waveText.setText(`Wave: ${this.waveState.currentWave}`);
-				}
-			}
-		}
+		this.updateInfoPanelText();
 
 		// Update player health bar
 		if (this.playerHealthFg) {

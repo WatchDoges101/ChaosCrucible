@@ -88,6 +88,17 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - **Structure collision improvements**: Temple, dungeon, and tower use unified frame colliders with explicit doorway gaps for cleaner movement boundaries.
 - **Centerpiece depth correction**: Central statue top/head layering now correctly occludes the player when moving behind it.
 
+## March 2026 Interface, Wiki & Menu Presentation Updates
+
+- **HUD info panel redesign**: Replaced plain top-left labels with a styled animated stats panel for Name, Enemies, Score, and Wave.
+- **Minimap visual upgrade**: Added minimap frame glow, grid lines, center marker, player heading indicator, pulse animation, and richer enemy type markers.
+- **Character wiki expansion**: Added a dedicated `CharacterWikiScene` with animated character previews, role summaries, and basic/ability descriptions.
+- **Wiki visual consistency pass**: Standardized Character/Enemy/Powerup wiki page sizing, panel styling, typography, spacing, and back-button design.
+- **Character wiki readability updates**: Removed role tags from character titles and increased character preview sprite scale for stronger visual emphasis.
+- **Online flow redirect**: Main menu `ONLINE` now routes to the enhanced `ComingSoonScene` experience.
+- **Coming soon cinematic polish**: Added layered inferno background, dense embers/flames, energy rings, periodic fire bursts, and stronger animated title treatment.
+- **Main menu flame overhaul**: Replaced older flame tongues with layered particle fire, wall flames, embers, and title-focused heat aura effects.
+
 ## Code Quality & Architecture (February 2026 Audit)
 
 A comprehensive code audit was conducted to improve code organization and maintainability. See [AUDIT.md](AUDIT.md) for the full report.

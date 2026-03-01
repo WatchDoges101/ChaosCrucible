@@ -36,9 +36,11 @@ export class EnemyWikiScene extends Phaser.Scene {
   }
 
   createBackButton(x, y) {
-    const text = this.add.text(x, y, 'Back', {
-      font: 'bold 20px Arial',
-      fill: '#ffffff'
+    const text = this.add.text(x, y, 'BACK', {
+      font: 'bold 22px Arial',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -108,9 +110,9 @@ export class EnemyWikiScene extends Phaser.Scene {
         }
     ];
 
-    const itemWidth = Math.min(720, this.scale.width - 80);
+    const itemWidth = Math.min(760, this.scale.width - 80);
     const itemHeight = 130;
-    const gap = 24;
+    const gap = 20;
     const totalHeight = enemies.length * itemHeight + (enemies.length - 1) * gap;
     const startY = -totalHeight / 2 + itemHeight / 2;
 
@@ -120,8 +122,8 @@ export class EnemyWikiScene extends Phaser.Scene {
       const itemY = startY + index * (itemHeight + gap);
       const itemContainer = this.add.container(0, itemY);
 
-      const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.85)
-        .setStrokeStyle(2, 0xff5500, 0.7);
+      const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.86)
+        .setStrokeStyle(2, 0xff8844, 0.75);
 
       const sprite = generateEnemySprite(this, 0, 0, enemy.type);
       sprite.setScale(1.3);
@@ -138,7 +140,7 @@ export class EnemyWikiScene extends Phaser.Scene {
         -8,
         `HP: ${enemy.stats.hp}  DMG: ${enemy.stats.damage}  SPD: ${enemy.stats.speed}`,
         {
-          font: '18px Arial',
+          font: '17px Arial',
           fill: '#ffdda0'
         }
       );
@@ -150,7 +152,7 @@ export class EnemyWikiScene extends Phaser.Scene {
         {
           font: '16px Arial',
           fill: '#ffd1a3',
-          wordWrap: { width: itemWidth - 180 }
+          wordWrap: { width: itemWidth - 190 }
         }
       );
 

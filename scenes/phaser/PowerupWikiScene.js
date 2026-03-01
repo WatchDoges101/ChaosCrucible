@@ -36,9 +36,11 @@ export class PowerupWikiScene extends Phaser.Scene {
   }
 
   createBackButton(x, y) {
-    const text = this.add.text(x, y, 'Back', {
-      font: 'bold 20px Arial',
-      fill: '#ffffff'
+    const text = this.add.text(x, y, 'BACK', {
+      font: 'bold 22px Arial',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
@@ -72,7 +74,7 @@ export class PowerupWikiScene extends Phaser.Scene {
     const powerups = powerupOrder.map(type => ({ type, ...POWERUP_WIKI_DATA[type] }));
 
     const itemWidth = Math.min(760, this.scale.width - 80);
-    const itemHeight = 120;
+    const itemHeight = 130;
     const gap = 20;
     const totalHeight = powerups.length * itemHeight + (powerups.length - 1) * gap;
     const startY = -totalHeight / 2 + itemHeight / 2;
@@ -83,8 +85,8 @@ export class PowerupWikiScene extends Phaser.Scene {
       const itemY = startY + index * (itemHeight + gap);
       const itemContainer = this.add.container(0, itemY);
 
-      const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.85)
-        .setStrokeStyle(2, powerup.color, 0.8);
+      const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.86)
+        .setStrokeStyle(2, 0xff8844, 0.75);
 
       const iconX = centerX - itemWidth / 2 + 70;
       const iconY = centerY + itemY;
@@ -100,12 +102,12 @@ export class PowerupWikiScene extends Phaser.Scene {
       });
 
       const nameText = this.add.text(-itemWidth / 2 + 130, -34, powerup.name, {
-        font: 'bold 28px Arial',
+        font: 'bold 26px Arial',
         fill: '#ffffff'
       });
 
       const durationText = this.add.text(-itemWidth / 2 + 130, -3, `Duration: ${powerup.duration}`, {
-        font: '18px Arial',
+        font: '17px Arial',
         fill: '#ffdda0'
       });
 

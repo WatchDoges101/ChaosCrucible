@@ -100,12 +100,16 @@ function drawMaleCharacter(scene, container, colors) {
   bodyGraphics.lineStyle(1, 0x000000, 0.5);
   bodyGraphics.strokeRect(-4, 2, 8, 6);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (will be animated)
   const leftArmGraphics = scene.add.graphics();
@@ -154,12 +158,16 @@ function drawArcherCharacter(scene, container, colors) {
   bodyGraphics.fillStyle(colors.secondary, 1);
   bodyGraphics.fillRect(-4, 2, 8, 5);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (will be animated)
   const leftArmGraphics = scene.add.graphics();
@@ -223,12 +231,16 @@ function drawBruteCharacter(scene, container, colors) {
   bodyGraphics.lineStyle(2, 0x000000, 0.5);
   bodyGraphics.strokeRect(-6, 2, 12, 6);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-5, 12, 4, 8);
-  bodyGraphics.fillRect(1, 12, 4, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 4,
+    height: 8,
+    leftX: -3,
+    rightX: 3,
+    y: 12
+  });
 
   // Create left arm graphics (will be animated)
   const leftArmGraphics = scene.add.graphics();
@@ -290,12 +302,16 @@ function drawGunnerCharacter(scene, container, colors) {
   bodyGraphics.lineBetween(-3, 1, -3, 7);
   bodyGraphics.lineBetween(3, 1, 3, 7);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (will be animated)
   const leftArmGraphics = scene.add.graphics();
@@ -780,6 +796,36 @@ function randomChoice(arr) {
 }
 
 /**
+ * Add animatable leg limbs to a character container
+ */
+function addLegLimbs(scene, container, {
+  color,
+  width = 3,
+  height = 8,
+  leftX = -2.5,
+  rightX = 2.5,
+  y = 12
+}) {
+  const leftLegGraphics = scene.add.graphics();
+  leftLegGraphics.fillStyle(color, 1);
+  leftLegGraphics.fillRect(-width / 2, 0, width, height);
+  leftLegGraphics.x = leftX;
+  leftLegGraphics.y = y;
+  leftLegGraphics.baseY = y;
+  container.add(leftLegGraphics);
+  container.leftLeg = leftLegGraphics;
+
+  const rightLegGraphics = scene.add.graphics();
+  rightLegGraphics.fillStyle(color, 1);
+  rightLegGraphics.fillRect(-width / 2, 0, width, height);
+  rightLegGraphics.x = rightX;
+  rightLegGraphics.y = y;
+  rightLegGraphics.baseY = y;
+  container.add(rightLegGraphics);
+  container.rightLeg = rightLegGraphics;
+}
+
+/**
  * Draw Male character back view
  */
 function drawMaleCharacterBack(scene, container, colors) {
@@ -800,12 +846,16 @@ function drawMaleCharacterBack(scene, container, colors) {
   bodyGraphics.lineStyle(1, 0x000000, 0.5);
   bodyGraphics.strokeRect(-4, 3, 8, 5);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (back view - reversed position)
   const leftArmGraphics = scene.add.graphics();
@@ -854,12 +904,16 @@ function drawArcherCharacterBack(scene, container, colors) {
   bodyGraphics.fillStyle(colors.secondary, 1);
   bodyGraphics.fillRect(-4, 2, 8, 5);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (back view - reversed)
   const leftArmGraphics = scene.add.graphics();
@@ -923,12 +977,16 @@ function drawBruteCharacterBack(scene, container, colors) {
   bodyGraphics.lineStyle(2, 0x000000, 0.5);
   bodyGraphics.strokeRect(-6, 2, 12, 6);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-5, 12, 4, 8);
-  bodyGraphics.fillRect(1, 12, 4, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 4,
+    height: 8,
+    leftX: -3,
+    rightX: 3,
+    y: 12
+  });
 
   // Create left arm graphics (back view - reversed)
   const leftArmGraphics = scene.add.graphics();
@@ -990,12 +1048,16 @@ function drawGunnerCharacterBack(scene, container, colors) {
   bodyGraphics.lineBetween(-3, 1, -3, 7);
   bodyGraphics.lineBetween(3, 1, 3, 7);
 
-  // Legs
-  bodyGraphics.fillStyle(colors.primary, 1);
-  bodyGraphics.fillRect(-4, 12, 3, 8);
-  bodyGraphics.fillRect(1, 12, 3, 8);
-
   container.add(bodyGraphics);
+
+  addLegLimbs(scene, container, {
+    color: colors.primary,
+    width: 3,
+    height: 8,
+    leftX: -2.5,
+    rightX: 2.5,
+    y: 12
+  });
 
   // Create left arm graphics (back view - reversed)
   const leftArmGraphics = scene.add.graphics();

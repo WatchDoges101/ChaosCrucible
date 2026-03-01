@@ -24,7 +24,7 @@ export class WikiScene extends Phaser.Scene {
       strokeThickness: 10
     }).setOrigin(0.5);
 
-    this.add.text(centerX, 150, 'Explore enemies and powerups', {
+    this.add.text(centerX, 150, 'Explore characters, enemies, and powerups', {
       font: 'bold 24px Arial',
       fill: '#ffcc99'
     }).setOrigin(0.5);
@@ -32,8 +32,9 @@ export class WikiScene extends Phaser.Scene {
     this.createBackButton(100, 55);
 
     const cards = [
-      { label: 'ENEMIES', scene: 'EnemyWikiScene', y: 285, color: 0x7a1b12 },
-      { label: 'POWERUPS', scene: 'PowerupWikiScene', y: 445, color: 0x5a2a0a }
+      { label: 'CHARACTERS', scene: 'CharacterWikiScene', y: 245, color: 0x4a1b16 },
+      { label: 'ENEMIES', scene: 'EnemyWikiScene', y: 385, color: 0x7a1b12 },
+      { label: 'POWERUPS', scene: 'PowerupWikiScene', y: 525, color: 0x5a2a0a }
     ];
 
     cards.forEach(card => {

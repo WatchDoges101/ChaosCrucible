@@ -40,6 +40,7 @@ export class MenuScene extends Phaser.Scene {
       'ChaossCrucibleScene',
       'HostScene',
       'WikiScene',
+      'CharacterWikiScene',
       'EnemyWikiScene',
       'PowerupWikiScene',
       'OptionsScene'
@@ -75,7 +76,7 @@ export class MenuScene extends Phaser.Scene {
     // Buttons with interactive areas
     const buttons = [
       { label: 'ARENA', scene: 'CharacterSelectionScene' },
-      { label: 'ONLINE', scene: 'HostScene' },
+      { label: 'ONLINE', scene: 'ComingSoonScene' },
       { label: 'SKILL TREE', scene: 'SkillTreeScene' },
       { label: 'WIKI', scene: 'WikiScene' },
       { label: 'OPTIONS', scene: 'OptionsScene' }
@@ -155,153 +156,185 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createFlameParticles(width, height) {
-    const flameColors = [0xff2a00, 0xff5500, 0xff7a00, 0xffaa22, 0xffdd66];
-    const emberColors = [0xff6f00, 0xff9c33, 0xffc04d];
-
-    const makeFlameTongue = (baseX, baseY, widthRange, heightRange, depth, horizontalDrift = 0) => {
-      const flame = this.add.ellipse(
-        baseX,
-        baseY,
-        Phaser.Math.Between(widthRange.min, widthRange.max),
-        Phaser.Math.Between(heightRange.min, heightRange.max),
-        flameColors[Phaser.Math.Between(0, flameColors.length - 1)],
-        Phaser.Math.FloatBetween(0.55, 0.92)
-      );
-      flame.setDepth(depth);
-
-      const startY = baseY;
-      const startX = baseX;
-
-      this.tweens.add({
-        targets: flame,
-        y: startY - Phaser.Math.Between(55, 210),
-        x: startX + Phaser.Math.Between(-horizontalDrift, horizontalDrift),
-        alpha: { from: flame.alpha, to: 0.06 },
-        scaleX: Phaser.Math.FloatBetween(0.75, 1.35),
-        scaleY: Phaser.Math.FloatBetween(1.05, 1.75),
-        duration: Phaser.Math.Between(420, 980),
-        repeat: -1,
-        delay: Phaser.Math.Between(0, 650),
-        ease: 'Sine.easeOut',
-        onRepeat: () => {
-          flame.x = startX + Phaser.Math.Between(-horizontalDrift, horizontalDrift);
-          flame.y = startY + Phaser.Math.Between(-6, 8);
-          flame.alpha = Phaser.Math.FloatBetween(0.55, 0.92);
-          flame.width = Phaser.Math.Between(widthRange.min, widthRange.max);
-          flame.height = Phaser.Math.Between(heightRange.min, heightRange.max);
-          flame.setFillStyle(flameColors[Phaser.Math.Between(0, flameColors.length - 1)], flame.alpha);
-        }
-      });
-
-      return flame;
+    const createTexture = (key, color, size, radius) => {
+      if (this.textures.exists(key)) return;
+      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(size / 2, size / 2, radius);
+      graphics.generateTexture(key, size, size);
+      graphics.destroy();
     };
 
-    const floorFlameCount = 90;
-    for (let i = 0; i < floorFlameCount; i++) {
-      const x = (i / (floorFlameCount - 1)) * width;
-      const y = height + Phaser.Math.Between(8, 34);
-      makeFlameTongue(x, y, { min: 18, max: 48 }, { min: 36, max: 110 }, -540 + Phaser.Math.Between(0, 50), 22);
-    }
+    createTexture('menuFlameCore', 0xffa133, 14, 7);
+    createTexture('menuFlameMid', 0xff5a00, 16, 8);
+    createTexture('menuFlameDeep', 0xff2a00, 18, 9);
+    createTexture('menuEmber', 0xffd27a, 8, 3);
 
-    const sideFlameCount = 24;
-    for (let i = 0; i < sideFlameCount; i++) {
-      const y = height * 0.22 + i * ((height * 0.78) / sideFlameCount);
-      makeFlameTongue(0 + Phaser.Math.Between(-12, 18), y, { min: 16, max: 34 }, { min: 40, max: 92 }, -535, 28);
-      makeFlameTongue(width + Phaser.Math.Between(-18, 12), y, { min: 16, max: 34 }, { min: 40, max: 92 }, -535, 28);
-    }
+    const lowerHeat = this.add.ellipse(width / 2, height * 0.93, width * 1.2, height * 0.42, 0xb22a00, 0.18).setDepth(-620);
+    const lowerHeatCore = this.add.ellipse(width / 2, height * 0.95, width * 0.88, height * 0.25, 0xff6a00, 0.14).setDepth(-618);
+    this.tweens.add({
+      targets: [lowerHeat, lowerHeatCore],
+      alpha: { from: 0.12, to: 0.26 },
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
 
-    for (let i = 0; i < 18; i++) {
-      const ember = this.add.circle(
-        Phaser.Math.Between(0, width),
-        height + Phaser.Math.Between(0, 50),
-        Phaser.Math.Between(2, 4),
-        emberColors[Phaser.Math.Between(0, emberColors.length - 1)],
-        0.65
-      );
-      ember.setDepth(-510);
+    const floorCore = this.add.particles(width / 2, height + 20, 'menuFlameCore', {
+      x: { min: -width * 0.55, max: width * 0.55 },
+      speedY: { min: -340, max: -150 },
+      speedX: { min: -80, max: 80 },
+      scale: { start: 1.5, end: 0 },
+      alpha: { start: 0.95, end: 0 },
+      lifespan: { min: 900, max: 1500 },
+      frequency: 10,
+      blendMode: 'ADD'
+    }).setDepth(-590);
 
-      this.tweens.add({
-        targets: ember,
-        y: -30,
-        x: ember.x + Phaser.Math.Between(-30, 30),
-        alpha: { from: 0.65, to: 0 },
-        duration: Phaser.Math.Between(3200, 5200),
-        repeat: -1,
-        delay: Phaser.Math.Between(0, 2200),
-        ease: 'Sine.easeOut',
-        onRepeat: () => {
-          ember.x = Phaser.Math.Between(0, width);
-          ember.y = height + Phaser.Math.Between(0, 50);
-          ember.setFillStyle(emberColors[Phaser.Math.Between(0, emberColors.length - 1)], 0.65);
-        }
-      });
-    }
+    const floorMid = this.add.particles(width / 2, height + 25, 'menuFlameMid', {
+      x: { min: -width * 0.6, max: width * 0.6 },
+      speedY: { min: -280, max: -120 },
+      speedX: { min: -70, max: 70 },
+      scale: { start: 1.2, end: 0 },
+      alpha: { start: 0.78, end: 0 },
+      lifespan: { min: 1000, max: 1700 },
+      frequency: 12,
+      blendMode: 'ADD'
+    }).setDepth(-592);
+
+    const floorDeep = this.add.particles(width / 2, height + 30, 'menuFlameDeep', {
+      x: { min: -width * 0.62, max: width * 0.62 },
+      speedY: { min: -240, max: -90 },
+      speedX: { min: -60, max: 60 },
+      scale: { start: 1.35, end: 0 },
+      alpha: { start: 0.68, end: 0 },
+      lifespan: { min: 1200, max: 2100 },
+      frequency: 16,
+      blendMode: 'ADD'
+    }).setDepth(-594);
+
+    const leftWallFlames = this.add.particles(-5, height * 0.55, 'menuFlameMid', {
+      y: { min: -height * 0.33, max: height * 0.4 },
+      speedX: { min: 45, max: 120 },
+      speedY: { min: -150, max: 50 },
+      scale: { start: 1.1, end: 0 },
+      alpha: { start: 0.75, end: 0 },
+      lifespan: { min: 1100, max: 1700 },
+      frequency: 36,
+      blendMode: 'ADD'
+    }).setDepth(-585);
+
+    const rightWallFlames = this.add.particles(width + 5, height * 0.55, 'menuFlameMid', {
+      y: { min: -height * 0.33, max: height * 0.4 },
+      speedX: { min: -120, max: -45 },
+      speedY: { min: -150, max: 50 },
+      scale: { start: 1.1, end: 0 },
+      alpha: { start: 0.75, end: 0 },
+      lifespan: { min: 1100, max: 1700 },
+      frequency: 36,
+      blendMode: 'ADD'
+    }).setDepth(-585);
+
+    const embers = this.add.particles(width / 2, height + 10, 'menuEmber', {
+      x: { min: -width * 0.6, max: width * 0.6 },
+      speedY: { min: -260, max: -60 },
+      speedX: { min: -85, max: 85 },
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: { min: 1500, max: 3200 },
+      frequency: 26,
+      blendMode: 'ADD'
+    }).setDepth(-580);
+
+    this.tweens.add({
+      targets: [floorCore, floorMid, floorDeep, leftWallFlames, rightWallFlames, embers],
+      alpha: { from: 0.86, to: 1 },
+      duration: 240,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
   }
 
   createTitleFlames(titleText, centerX, centerY) {
     const titleBounds = titleText.getBounds();
     const titleWidth = titleBounds.width;
 
-    const glowLayer = this.add.graphics();
-    glowLayer.fillStyle(0xff5a00, 0.24);
-    glowLayer.fillRoundedRect(centerX - titleWidth / 2 - 18, centerY - 44, titleWidth + 36, 88, 38);
-    glowLayer.fillStyle(0xffaa00, 0.13);
-    glowLayer.fillRoundedRect(centerX - titleWidth / 2 - 8, centerY - 32, titleWidth + 16, 64, 30);
-    glowLayer.setDepth(999);
+    const titleAuraBack = this.add.ellipse(centerX, centerY + 6, titleWidth + 160, 126, 0xff3d00, 0.19).setDepth(995);
+    const titleAuraMid = this.add.ellipse(centerX, centerY + 4, titleWidth + 84, 94, 0xff8a00, 0.14).setDepth(996);
+    const titleAuraFront = this.add.ellipse(centerX, centerY + 4, titleWidth + 28, 72, 0xffd27a, 0.1).setDepth(997);
 
-    const tongues = [];
-    const tongueCount = 24;
-    for (let i = 0; i < tongueCount; i++) {
-      const tx = centerX - titleWidth / 2 + (i / (tongueCount - 1)) * titleWidth;
-      const tongue = this.add.ellipse(
-        tx,
-        centerY + 50,
-        Phaser.Math.Between(12, 28),
-        Phaser.Math.Between(26, 62),
-        Phaser.Utils.Array.GetRandom([0xff4400, 0xff7700, 0xffc247]),
-        Phaser.Math.FloatBetween(0.55, 0.88)
-      );
-      tongue.setDepth(1000);
-      tongues.push(tongue);
+    const createTexture = (key, color, size, radius) => {
+      if (this.textures.exists(key)) return;
+      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(size / 2, size / 2, radius);
+      graphics.generateTexture(key, size, size);
+      graphics.destroy();
+    };
 
-      this.tweens.add({
-        targets: tongue,
-        y: centerY + Phaser.Math.Between(4, 32),
-        alpha: { from: tongue.alpha, to: 0.06 },
-        scaleX: Phaser.Math.FloatBetween(0.85, 1.25),
-        scaleY: Phaser.Math.FloatBetween(1.1, 1.8),
-        duration: Phaser.Math.Between(380, 860),
-        repeat: -1,
-        delay: Phaser.Math.Between(0, 500),
-        ease: 'Sine.easeOut',
-        onRepeat: () => {
-          tongue.x = tx + Phaser.Math.Between(-12, 12);
-          tongue.y = centerY + 50;
-          tongue.alpha = Phaser.Math.FloatBetween(0.55, 0.88);
-          tongue.width = Phaser.Math.Between(12, 28);
-          tongue.height = Phaser.Math.Between(26, 62);
-          tongue.setFillStyle(Phaser.Utils.Array.GetRandom([0xff4400, 0xff7700, 0xffc247]), tongue.alpha);
-        }
-      });
-    }
+    createTexture('menuTitleFlameCore', 0xffdd88, 10, 5);
+    createTexture('menuTitleFlameMid', 0xff8a00, 14, 7);
+    createTexture('menuTitleEmber', 0xffc16a, 8, 3);
+
+    const flameBand = this.add.particles(centerX, centerY + 52, 'menuTitleFlameMid', {
+      x: { min: -titleWidth * 0.56, max: titleWidth * 0.56 },
+      speedY: { min: -185, max: -55 },
+      speedX: { min: -42, max: 42 },
+      scale: { start: 1.05, end: 0 },
+      alpha: { start: 0.88, end: 0 },
+      lifespan: { min: 620, max: 1080 },
+      frequency: 14,
+      blendMode: 'ADD'
+    }).setDepth(998);
+
+    const flameBandCore = this.add.particles(centerX, centerY + 52, 'menuTitleFlameCore', {
+      x: { min: -titleWidth * 0.5, max: titleWidth * 0.5 },
+      speedY: { min: -145, max: -40 },
+      speedX: { min: -34, max: 34 },
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.96, end: 0 },
+      lifespan: { min: 500, max: 900 },
+      frequency: 11,
+      blendMode: 'ADD'
+    }).setDepth(999);
+
+    const titleEmbers = this.add.particles(centerX, centerY + 56, 'menuTitleEmber', {
+      x: { min: -titleWidth * 0.6, max: titleWidth * 0.6 },
+      speedY: { min: -230, max: -80 },
+      speedX: { min: -62, max: 62 },
+      scale: { start: 0.8, end: 0 },
+      alpha: { start: 0.72, end: 0 },
+      lifespan: { min: 1200, max: 2200 },
+      frequency: 20,
+      blendMode: 'ADD'
+    }).setDepth(1000);
 
     this.tweens.add({
-      targets: [glowLayer, ...tongues],
-      alpha: { from: 0.8, to: 1 },
-      duration: 260,
+      targets: [titleAuraBack, titleAuraMid, titleAuraFront, flameBand, flameBandCore, titleEmbers],
+      alpha: { from: 0.78, to: 1 },
+      duration: 250,
       yoyo: true,
       repeat: -1,
-      ease: 'Sine.easeInOut'
+      ease: 'Sine.inOut'
     });
 
-    // Glow effect: add a yellow/orange tint to the text
-    titleText.setTint(0xffccaa);
-    
-    // Add a subtle pulsing glow effect
+    this.tweens.add({
+      targets: [titleAuraBack, titleAuraMid, titleAuraFront],
+      scaleX: { from: 0.992, to: 1.01 },
+      scaleY: { from: 0.992, to: 1.02 },
+      duration: 880,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+
+    titleText.setTint(0xfff0d1);
     this.tweens.add({
       targets: titleText,
-      alpha: { from: 1, to: 0.97 },
-      duration: 100,
+      alpha: { from: 0.97, to: 1 },
+      duration: 180,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.inOut'
