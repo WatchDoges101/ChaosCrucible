@@ -137,6 +137,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.currentStructure = null;
 		this.interiorContainer = null;
 		this.centerpieceParts = null;
+		this.isPlayerDead = false;
+		this.isDeathSequencePlaying = false;
+		this.deathUi = null;
 	}
 
 	create() {
@@ -146,6 +149,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.time.timeScale = 1;
 		this.centerpieceStatue = null;
 		this.depthSortedActors = [];
+		this.isPlayerDead = false;
+		this.isDeathSequencePlaying = false;
+		this.deathUi = null;
 
 		const centerX = this.ARENA_WIDTH / 2;
 		const centerY = this.ARENA_HEIGHT / 2;
@@ -1034,6 +1040,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	damageEnemy(enemyData, damage, knockback) {
 		if (!enemyData || !enemyData.enemy) return;
+		if (!Number.isFinite(enemyData.enemy.maxHp) || enemyData.enemy.maxHp <= 0) {
+			enemyData.enemy.maxHp = 50;
+		}
+		if (!Number.isFinite(enemyData.enemy.hp)) {
+			enemyData.enemy.hp = enemyData.enemy.maxHp;
+		}
 		enemyData.enemy.hp = Math.max(0, enemyData.enemy.hp - damage);
 		if (enemyData.healthBar) {
 			enemyData.healthBar.width = (enemyData.enemy.hp / enemyData.enemy.maxHp) * 40 * enemyData.sizeScale;
@@ -1115,6 +1127,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	damagePlayer(damage) {
 		if (!gameState.character) return;
+		if (this.isPlayerDead || this.isDeathSequencePlaying) return;
 		
 		const now = this.time.now;
 		if (now < this.playerDamageState.nextDamageTime) return;
@@ -1137,8 +1150,245 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.floatDamage(this.playerData.x, this.playerData.y - 20, damage);
 		
 		if (gameState.character.hp <= 0) {
-			// Player died - could add death handling here
+			this.triggerPlayerDeathSequence();
 		}
+	}
+
+	triggerPlayerDeathSequence() {
+		if (this.isDeathSequencePlaying || this.isPlayerDead || !this.player) return;
+
+		this.isDeathSequencePlaying = true;
+
+		if (this.handlePauseEsc) {
+			detachPauseKey(this, this.handlePauseEsc);
+			this.handlePauseEsc = null;
+		}
+
+		if (this.waveState.nextWaveTimer) {
+			this.waveState.nextWaveTimer.destroy();
+			this.waveState.nextWaveTimer = null;
+		}
+
+		this.waveState.waveInProgress = false;
+		this.playerDamageState.nextDamageTime = Number.MAX_SAFE_INTEGER;
+		this.playerData.vx = 0;
+		this.playerData.vy = 0;
+
+		for (let i = this.projectiles.length - 1; i >= 0; i--) {
+			if (this.projectiles[i].sprite) this.projectiles[i].sprite.destroy();
+		}
+		this.projectiles = [];
+
+		for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
+			if (this.enemyProjectiles[i].sprite) this.enemyProjectiles[i].sprite.destroy();
+		}
+		this.enemyProjectiles = [];
+
+		this.enemies.forEach(enemyData => {
+			enemyData.vx = 0;
+			enemyData.vy = 0;
+			enemyData.paused = true;
+		});
+
+		const deathX = this.player.x;
+		const deathY = this.player.y;
+
+		this.playerData.x = deathX;
+		this.playerData.y = deathY;
+
+		this.spawnDeathBloodSquirts(deathX, deathY + 4);
+		this.scheduleDeathBleedPulses(deathX, deathY + 6);
+		this.safeCameraShake(260, 0.02, 0);
+
+		const playerChildren = this.player.getChildren ? this.player.getChildren() : [this.player];
+		playerChildren.forEach(child => {
+			if (child.setTint) child.setTint(0x992222);
+		});
+
+		const startingScaleY = this.player.scaleY;
+
+		this.tweens.add({
+			targets: this.player,
+			angle: this.player.scaleX >= 0 ? 85 : -85,
+			y: deathY + 8,
+			scaleX: this.player.scaleX * 0.96,
+			scaleY: startingScaleY * 0.84,
+			alpha: 0.5,
+			duration: 760,
+			ease: 'Cubic.easeOut'
+		});
+
+		this.tweens.add({
+			targets: this.player,
+			scaleY: startingScaleY * 0.8,
+			duration: 420,
+			delay: 760,
+			ease: 'Sine.easeInOut',
+			yoyo: true,
+			repeat: 1
+		});
+
+		this.time.delayedCall(950, () => {
+			this.isPlayerDead = true;
+			this.showDeathOverlay();
+		});
+	}
+
+	scheduleDeathBleedPulses(x, y) {
+		const pulseDelays = [140, 320, 520, 760];
+		pulseDelays.forEach(delay => {
+			this.time.delayedCall(delay, () => {
+				if (!this.scene.isActive()) return;
+				this.spawnDeathBloodSquirts(
+					x + Phaser.Math.Between(-8, 8),
+					y + Phaser.Math.Between(-4, 8)
+				);
+			});
+		});
+	}
+
+	spawnDeathBloodSquirts(x, y) {
+		const bloodColors = [0xff1a1a, 0xcc0000, 0x8b0000, 0x5a0000];
+		const dropletCount = 34;
+
+		for (let i = 0; i < dropletCount; i++) {
+			const radius = Phaser.Math.FloatBetween(2, 5);
+			const color = bloodColors[Math.floor(Math.random() * bloodColors.length)];
+			const droplet = this.add.circle(x, y, radius, color, Phaser.Math.FloatBetween(0.75, 1));
+			droplet.setDepth(2200);
+
+			if (this.uiCamera) {
+				this.uiCamera.ignore(droplet);
+			}
+
+			const angle = Phaser.Math.FloatBetween(-Math.PI * 1.05, Math.PI * 0.05);
+			const distance = Phaser.Math.FloatBetween(45, 170);
+			const targetX = x + Math.cos(angle) * distance;
+			const targetY = y + Math.sin(angle) * distance + Phaser.Math.FloatBetween(30, 90);
+
+			this.tweens.add({
+				targets: droplet,
+				x: targetX,
+				y: targetY,
+				alpha: 0,
+				scaleX: Phaser.Math.FloatBetween(0.7, 1.4),
+				scaleY: Phaser.Math.FloatBetween(0.7, 1.4),
+				duration: Phaser.Math.Between(420, 900),
+				ease: 'Cubic.easeOut',
+				onComplete: () => droplet.destroy()
+			});
+		}
+
+		for (let i = 0; i < 10; i++) {
+			const splatter = this.add.ellipse(
+				x + Phaser.Math.Between(-24, 24),
+				y + Phaser.Math.Between(10, 30),
+				Phaser.Math.Between(10, 22),
+				Phaser.Math.Between(4, 10),
+				0x5a0000,
+				0.85
+			);
+			splatter.setDepth(2100);
+			splatter.setAngle(Phaser.Math.Between(-40, 40));
+
+			if (this.uiCamera) {
+				this.uiCamera.ignore(splatter);
+			}
+
+			this.tweens.add({
+				targets: splatter,
+				alpha: 0,
+				duration: Phaser.Math.Between(2200, 3200),
+				onComplete: () => splatter.destroy()
+			});
+		}
+	}
+
+	showDeathOverlay() {
+		const { width, height } = this.scale;
+
+		const darken = this.add.rectangle(width / 2, height / 2, width, height, 0x2a0000, 0);
+		darken.setDepth(9000);
+
+		const title = this.add.text(width / 2, height * 0.42, 'YOU DIED', {
+			font: 'bold 96px Arial',
+			fill: '#ff3333',
+			stroke: '#2b0000',
+			strokeThickness: 10
+		});
+		title.setOrigin(0.5);
+		title.setDepth(9001);
+		title.setAlpha(0);
+		title.setScale(1.25);
+
+		const homeButton = this.add.rectangle(width / 2, height * 0.63, 240, 74, 0x440000, 0.92)
+			.setOrigin(0.5)
+			.setDepth(9001)
+			.setAlpha(0)
+			.setInteractive({ useHandCursor: true });
+
+		homeButton.setStrokeStyle(3, 0xff6666);
+
+		const homeText = this.add.text(width / 2, height * 0.63, 'HOME', {
+			font: 'bold 34px Arial',
+			fill: '#ffffff',
+			stroke: '#000000',
+			strokeThickness: 5
+		});
+		homeText.setOrigin(0.5);
+		homeText.setDepth(9002);
+		homeText.setAlpha(0);
+
+		this.cameras.main.ignore(darken);
+		this.cameras.main.ignore(title);
+		this.cameras.main.ignore(homeButton);
+		this.cameras.main.ignore(homeText);
+
+		homeButton.on('pointerover', () => {
+			homeButton.setFillStyle(0x660000, 1);
+			homeText.setScale(1.06);
+		});
+
+		homeButton.on('pointerout', () => {
+			homeButton.setFillStyle(0x440000, 0.92);
+			homeText.setScale(1);
+		});
+
+		homeButton.on('pointerdown', () => {
+			this.input.enabled = false;
+			this.scene.start('MenuScene');
+		});
+
+		this.tweens.add({
+			targets: darken,
+			alpha: 0.78,
+			duration: 550,
+			ease: 'Quad.easeOut'
+		});
+
+		this.tweens.add({
+			targets: title,
+			alpha: 1,
+			scale: 1,
+			duration: 420,
+			delay: 260,
+			ease: 'Back.easeOut'
+		});
+
+		this.tweens.add({
+			targets: [homeButton, homeText],
+			alpha: 1,
+			duration: 360,
+			delay: 520,
+			ease: 'Sine.easeOut'
+		});
+
+		this.deathUi = {
+			darken,
+			title,
+			homeButton,
+			homeText
+		};
 	}
 
 	/**
@@ -3538,6 +3788,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const sizeScale = Phaser.Math.FloatBetween(1.0, 1.3);
 		enemy.setScale(sizeScale);
 		enemy.setTint(0x66ccff);
+		enemy.hp = 65 * sizeScale;
+		enemy.maxHp = 65 * sizeScale;
 
 		// Frosty animation: shimmer and fade
 		this.tweens.add({
@@ -3587,6 +3839,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const sizeScale = Phaser.Math.FloatBetween(1.2, 1.5);
 		enemy.setScale(sizeScale);
 		enemy.setTint(0xffaa00);
+		enemy.hp = 95 * sizeScale;
+		enemy.maxHp = 95 * sizeScale;
 
 		// Bomber animation: shake and flash
 		this.tweens.add({
@@ -3643,6 +3897,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const sizeScale = Phaser.Math.FloatBetween(1.1, 1.4);
 		enemy.setScale(sizeScale);
 		enemy.setTint(0x8888ff);
+		enemy.hp = 72 * sizeScale;
+		enemy.maxHp = 72 * sizeScale;
 
 		// Storm Mage animation: glow and pulse
 		this.tweens.add({
@@ -4285,8 +4541,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	update(time, delta) {
 		if (!this.player) return;
 
-		if (this.keys.esc && Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
+		if (!this.isDeathSequencePlaying && this.keys.esc && Phaser.Input.Keyboard.JustDown(this.keys.esc)) {
 			openPauseMenu(this, 'ChaossCrucibleScene');
+		}
+
+		if (this.isPlayerDead || this.isDeathSequencePlaying) {
+			return;
 		}
 
 		const deltaScale = delta ? delta / 16.666 : 1;
