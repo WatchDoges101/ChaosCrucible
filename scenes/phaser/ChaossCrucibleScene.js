@@ -401,55 +401,56 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 
 		// ===== UNIFIED STATUS BARS (Effects / Shield / Health) =====
+		const statusHudScale = 1.5;
 		const statusX = 40;
-		const statusBarLeft = statusX + 36;
-		const statusBarWidth = 300;
-		const statusBarHeight = 24;
-		const statusRowGap = 38;
-		const healthBarY = gameConfig.height - 50;
+		const statusBarLeft = statusX + 36 * statusHudScale;
+		const statusBarWidth = 300 * statusHudScale;
+		const statusBarHeight = 24 * statusHudScale;
+		const statusRowGap = 38 * statusHudScale;
+		const healthBarY = gameConfig.height - 60;
 		const shieldBarY = healthBarY - statusRowGap;
 		const effectsBarY = shieldBarY - statusRowGap;
 
 		// Backplate panel for visual cohesion
 		this.statusPanel = this.add.rectangle(
-			statusX + 165,
+			statusX + 165 * statusHudScale,
 			healthBarY - statusRowGap,
-			364,
-			136,
+			364 * statusHudScale,
+			136 * statusHudScale,
 			0x05080f,
 			0.55
-		).setStrokeStyle(2, 0x39445f, 0.8);
+		).setStrokeStyle(3, 0x39445f, 0.8);
 
 		const createStatusBar = ({ y, iconText, labelText, fillColor }) => {
 			const label = this.add.text(statusX, y - 17, labelText, {
-				font: 'bold 14px Arial',
+				font: 'bold 21px Arial',
 				fill: '#d7e5ff',
 				stroke: '#000000',
-				strokeThickness: 3
+				strokeThickness: 4
 			}).setOrigin(0, 0.5);
 
 			const icon = this.add.text(statusX + 16, y, iconText, {
-				font: 'bold 20px Arial',
+				font: 'bold 30px Arial',
 				fill: '#ffffff',
 				stroke: '#000000',
-				strokeThickness: 3
+				strokeThickness: 4
 			}).setOrigin(0.5, 0.5);
 
 			const bg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight, 0x10172b, 0.95);
 			bg.setOrigin(0, 0.5);
-			bg.setStrokeStyle(2, 0x5d6e95, 0.75);
+			bg.setStrokeStyle(3, 0x5d6e95, 0.75);
 
 			const fgGlow = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight, fillColor, 0.22);
 			fgGlow.setOrigin(0, 0.5);
 
-			const fg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight - 4, fillColor, 0.92);
+			const fg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight - (4 * statusHudScale), fillColor, 0.92);
 			fg.setOrigin(0, 0.5);
 
 			const text = this.add.text(statusBarLeft + statusBarWidth / 2, y, '', {
-				font: 'bold 14px Arial',
+				font: 'bold 21px Arial',
 				fill: '#ffffff',
 				stroke: '#000000',
-				strokeThickness: 3
+				strokeThickness: 4
 			}).setOrigin(0.5, 0.5);
 
 			return { label, icon, bg, fgGlow, fg, text };
@@ -3886,7 +3887,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		let waveLabel;
 		if (this.waveState.waveInProgress) {
-			waveLabel = `${this.waveState.currentWave}   ${this.waveState.enemiesKilledThisWave}/${this.waveState.totalEnemiesThisWave}`;
+			waveLabel = `${this.waveState.currentWave}`;
 		} else if (this.waveState.nextWaveTimer) {
 			const remaining = Math.ceil(this.waveState.nextWaveTimer.getRemaining() / 1000);
 			waveLabel = `Next ${remaining}s`;
@@ -4664,7 +4665,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	updateBuffUI(time) {
-		const barWidth = this.statusBarWidth || 300;
+		const barWidth = this.statusBarWidth || 450;
 
 		// Update shield display
 		const shieldPercent = this.playerShield.max > 0
@@ -5053,7 +5054,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const character = gameState.character;
 			const hpPercentRaw = character.maxHp ? character.hp / character.maxHp : 0;
 			const hpPercent = Phaser.Math.Clamp(hpPercentRaw, 0, 1);
-			this.playerHealthFg.width = 300 * hpPercent;
+			this.playerHealthFg.width = (this.statusBarWidth || 450) * hpPercent;
 			this.playerHealthText.setText(`${Math.round(character.hp)} / ${character.maxHp}`);
 		}
 
@@ -5165,6 +5166,16 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	updateEnemyProjectiles(deltaScale) {
 		for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
 			const proj = this.enemyProjectiles[i];
+			if (!proj || typeof proj.vx !== 'number' || typeof proj.vy !== 'number') {
+				this.enemyProjectiles.splice(i, 1);
+				continue;
+			}
+
+			if (!proj.sprite || !proj.sprite.scene || typeof proj.sprite.destroy !== 'function') {
+				this.enemyProjectiles.splice(i, 1);
+				continue;
+			}
+
 			const stepX = proj.vx * deltaScale;
 			const stepY = proj.vy * deltaScale;
 			proj.x += stepX;
