@@ -30,7 +30,7 @@ export class EnemyWikiScene extends Phaser.Scene {
     this.createEnemyList(centerX, centerY + 40);
 
     this.escBackHandler = () => {
-      this.scene.start('MenuScene');
+      this.scene.start('WikiScene');
     };
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
@@ -63,7 +63,7 @@ export class EnemyWikiScene extends Phaser.Scene {
     });
 
     text.on('pointerdown', () => {
-      this.scene.start('MenuScene');
+      this.scene.start('WikiScene');
     });
   }
 

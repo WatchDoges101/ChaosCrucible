@@ -1,4 +1,5 @@
 import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
+import { createPowerupSprite, POWERUP_WIKI_DATA } from '../../helpers/powerupSpriteHelpers.js';
 
 /**
  * PowerupWikiScene
@@ -29,7 +30,7 @@ export class PowerupWikiScene extends Phaser.Scene {
     this.createPowerupList(centerX, centerY + 40);
 
     this.escBackHandler = () => {
-      this.scene.start('MenuScene');
+      this.scene.start('WikiScene');
     };
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
@@ -62,37 +63,13 @@ export class PowerupWikiScene extends Phaser.Scene {
     });
 
     text.on('pointerdown', () => {
-      this.scene.start('MenuScene');
+      this.scene.start('WikiScene');
     });
   }
 
   createPowerupList(centerX, centerY) {
-    const powerups = [
-      {
-        name: 'Blood Orb',
-        color: 0xff4d4d,
-        effect: 'Instantly restores 30 HP (up to max health).',
-        duration: 'Instant'
-      },
-      {
-        name: 'Fury Totem',
-        color: 0xffaa33,
-        effect: 'Increases all outgoing damage by 35%.',
-        duration: '10s'
-      },
-      {
-        name: 'Time Shard',
-        color: 0x66ccff,
-        effect: 'Reduces attack cooldowns by 30%.',
-        duration: '8s'
-      },
-      {
-        name: 'Iron Aegis',
-        color: 0x99ccff,
-        effect: 'Adds 100 shield that absorbs incoming damage first.',
-        duration: 'Until depleted'
-      }
-    ];
+    const powerupOrder = ['blood_orb', 'fury_totem', 'time_shard', 'iron_aegis'];
+    const powerups = powerupOrder.map(type => ({ type, ...POWERUP_WIKI_DATA[type] }));
 
     const itemWidth = Math.min(760, this.scale.width - 80);
     const itemHeight = 120;
@@ -109,17 +86,17 @@ export class PowerupWikiScene extends Phaser.Scene {
       const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.85)
         .setStrokeStyle(2, powerup.color, 0.8);
 
-      const iconRing = this.add.circle(-itemWidth / 2 + 70, 0, 30, 0x111111, 0.8)
-        .setStrokeStyle(3, powerup.color, 1);
-      const iconCore = this.add.circle(-itemWidth / 2 + 70, 0, 15, powerup.color, 0.9);
-
-      this.tweens.add({
-        targets: [iconRing, iconCore],
-        scale: { from: 0.95, to: 1.05 },
-        duration: 900,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.inOut'
+      const iconX = centerX - itemWidth / 2 + 70;
+      const iconY = centerY + itemY;
+      createPowerupSprite(this, {
+        type: powerup.type,
+        x: iconX,
+        y: iconY,
+        tint: powerup.color,
+        float: false,
+        depth: 5,
+        scale: 1.1,
+        ignoreUiCamera: false
       });
 
       const nameText = this.add.text(-itemWidth / 2 + 130, -34, powerup.name, {
@@ -138,7 +115,7 @@ export class PowerupWikiScene extends Phaser.Scene {
         wordWrap: { width: itemWidth - 180 }
       });
 
-      itemContainer.add([panel, iconRing, iconCore, nameText, durationText, effectText]);
+      itemContainer.add([panel, nameText, durationText, effectText]);
       listContainer.add(itemContainer);
     });
   }

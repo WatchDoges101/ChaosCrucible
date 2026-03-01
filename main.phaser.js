@@ -20,6 +20,7 @@ import { HostScene } from './scenes/phaser/HostScene.js';
 import { OptionsScene } from './scenes/phaser/OptionsScene.js';
 import { EnemyWikiScene } from './scenes/phaser/EnemyWikiScene.js';
 import { PowerupWikiScene } from './scenes/phaser/PowerupWikiScene.js';
+import { WikiScene } from './scenes/phaser/WikiScene.js';
 import { ComingSoonScene } from './scenes/phaser/ComingSoonScene.js';
 import SkillTreeScene from './scenes/phaser/SkillTreeScene.js';
 import { gameState } from './services/gameState.js';
@@ -43,6 +44,7 @@ window.sceneClasses = {
   'SkillTreeScene': SkillTreeScene,
   'EnemyWikiScene': EnemyWikiScene,
   'PowerupWikiScene': PowerupWikiScene,
+  'WikiScene': WikiScene,
   'OptionsScene': OptionsScene,
   'ComingSoonScene': ComingSoonScene
 };

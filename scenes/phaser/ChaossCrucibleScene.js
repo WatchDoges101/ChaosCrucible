@@ -4,6 +4,7 @@ import { generateEnemySprite } from '../../services/spriteGenerator.js';
 import { cleanupScene } from '../../helpers/sceneCleanupHelpers.js';
 import { attachPauseKey, detachPauseKey } from '../../handlers/PauseHandler.js';
 import { ensureSceneRegistered, openPauseMenu } from '../../helpers/pauseHelpers.js';
+import { createPowerupSprite } from '../../helpers/powerupSpriteHelpers.js';
 
 /**
  * =================================================================
@@ -4206,7 +4207,6 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	spawnPowerup(type, x, y) {
 		const container = this.createPowerupVisuals(type, x, y);
-		container.setDepth(6);
 		const powerup = {
 			type,
 			x,
@@ -4219,118 +4219,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	createPowerupVisuals(type, x, y) {
-		const container = this.add.container(x, y);
-		const tint = this.powerupCatalog[type]?.color || 0xffffff;
-		let applyFloat = true;
-
-		if (type === 'blood_orb') {
-			const glow = this.add.circle(0, 0, 18, tint, 0.25);
-			const core = this.add.circle(0, 0, 10, tint, 0.9);
-			const highlight = this.add.circle(-3, -4, 3, 0xffffff, 0.9);
-			const ring = this.add.circle(0, 0, 13, 0xff2222, 0.6).setStrokeStyle(2, 0xff7777, 0.9);
-			container.add([glow, ring, core, highlight]);
-			this.tweens.add({
-				targets: glow,
-				scale: { from: 0.9, to: 1.15 },
-				alpha: { from: 0.2, to: 0.4 },
-				duration: 900,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-			this.tweens.add({
-				targets: ring,
-				angle: { from: 0, to: 360 },
-				duration: 2600,
-				repeat: -1
-			});
-		} else if (type === 'fury_totem') {
-			const base = this.add.circle(0, 0, 16, 0x4a1a00, 0.8);
-			const flame = this.add.triangle(0, -4, 0, 18, 14, -10, -14, -10, tint, 0.9);
-			const ember = this.add.circle(0, -10, 5, 0xffdd55, 0.9);
-			container.add([base, flame, ember]);
-			this.tweens.add({
-				targets: [flame, ember],
-				scaleY: { from: 0.9, to: 1.15 },
-				alpha: { from: 0.7, to: 1 },
-				duration: 320,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-			this.tweens.add({
-				targets: container,
-				y: y - 6,
-				duration: 1400,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-			applyFloat = false;
-		} else if (type === 'time_shard') {
-			const shard = this.add.polygon(0, 0, [0, -16, 12, 0, 0, 16, -12, 0], tint, 0.95);
-			const outline = this.add.polygon(0, 0, [0, -18, 14, 0, 0, 18, -14, 0], 0x224455, 0.6);
-			const spark = this.add.circle(0, -12, 3, 0xffffff, 0.9);
-			container.add([outline, shard, spark]);
-			this.tweens.add({
-				targets: container,
-				angle: { from: -8, to: 8 },
-				duration: 1200,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-			this.tweens.add({
-				targets: spark,
-				y: -16,
-				alpha: { from: 0.4, to: 1 },
-				duration: 600,
-				yoyo: true,
-				repeat: -1
-			});
-		} else if (type === 'iron_aegis') {
-			const ring = this.add.circle(0, 0, 18, 0x1b2d3d, 0.7).setStrokeStyle(3, tint, 0.9);
-			const sigil = this.add.star(0, 0, 6, 4, 9, tint, 0.9);
-			const core = this.add.circle(0, 0, 5, 0xffffff, 0.7);
-			container.add([ring, sigil, core]);
-			this.tweens.add({
-				targets: ring,
-				scale: { from: 0.9, to: 1.1 },
-				alpha: { from: 0.6, to: 0.9 },
-				duration: 900,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-			this.tweens.add({
-				targets: sigil,
-				angle: { from: 0, to: 360 },
-				duration: 2400,
-				repeat: -1
-			});
-		} else {
-			const glow = this.add.circle(0, 0, 16, tint, 0.4);
-			const core = this.add.circle(0, 0, 8, tint, 0.9);
-			container.add([glow, core]);
-		}
-
-		if (applyFloat) {
-			this.tweens.add({
-				targets: container,
-				y: y - 8,
-				duration: 1600,
-				yoyo: true,
-				repeat: -1,
-				ease: 'Sine.inOut'
-			});
-		}
-
-		if (this.uiCamera) {
-			this.uiCamera.ignore(container);
-			container.list.forEach(child => this.uiCamera.ignore(child));
-		}
-
-		return container;
+		return createPowerupSprite(this, {
+			type,
+			x,
+			y,
+			tint: this.powerupCatalog[type]?.color || 0xffffff,
+			float: true,
+			depth: 6,
+			ignoreUiCamera: true
+		});
 	}
 
 	collectPowerup(powerup, time) {

@@ -74,6 +74,8 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - **Character identity persistence**: Default warrior naming is uppercase, and chosen character names are saved/reloaded locally per role.
 - **Champion selection refresh**: Removed mini flavor descriptions, removed Health from visible stats, and added per-champion level progress bars.
 - **Main menu fire visuals reworked**: Replaced particle-based menu flames with fully animated flame layers for a stronger title-screen look.
+- **Wiki hub section added**: Added a dedicated `Wiki` scene that routes to Enemy and Powerup wiki pages with proper in-section back navigation.
+- **Powerup visuals unified**: In-game and wiki now use the same shared Phaser sprite helper for consistent powerup appearance.
 
 ## Code Quality & Architecture (February 2026 Audit)
 

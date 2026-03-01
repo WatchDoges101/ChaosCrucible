@@ -39,6 +39,7 @@ export class MenuScene extends Phaser.Scene {
       'CharacterCustomizationScene',
       'ChaossCrucibleScene',
       'HostScene',
+      'WikiScene',
       'EnemyWikiScene',
       'PowerupWikiScene',
       'OptionsScene'
@@ -76,8 +77,7 @@ export class MenuScene extends Phaser.Scene {
       { label: 'ARENA', scene: 'CharacterSelectionScene' },
       { label: 'ONLINE', scene: 'HostScene' },
       { label: 'SKILL TREE', scene: 'SkillTreeScene' },
-      { label: 'ENEMIES', scene: 'EnemyWikiScene' },
-      { label: 'POWERUPS', scene: 'PowerupWikiScene' },
+      { label: 'WIKI', scene: 'WikiScene' },
       { label: 'OPTIONS', scene: 'OptionsScene' }
     ];
 
