@@ -1067,8 +1067,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				pointsAwarded = 100;
 			} else if (enemyData.type === 'skeleton') {
 				pointsAwarded = 50;
+			} else if (enemyData.type === 'frost_wraith') {
+				pointsAwarded = 70;
+			} else if (enemyData.type === 'bomber_beetle') {
+				pointsAwarded = 80;
+			} else if (enemyData.type === 'storm_mage') {
+				pointsAwarded = 90;
 			}
 			gameState.addScore(pointsAwarded);
+			gameState.addXP(pointsAwarded);
 
 			// Display floating points animation at enemy position
 			this.floatPoints(enemyData.enemy.x, enemyData.enemy.y, pointsAwarded);

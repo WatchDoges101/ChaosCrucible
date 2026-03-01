@@ -243,8 +243,10 @@ export default class SkillTreeScene extends Phaser.Scene {
 
       branchIcon.on('pointerdown', () => {
         if (branchCanUnlock) {
-          leveling.unlockSkill([branch]);
-          this.scene.restart();
+          if (leveling.unlockSkill([branch])) {
+            gameState.saveSkillTreeForRole(selectedRole);
+            this.scene.restart();
+          }
         }
       });
 
@@ -293,8 +295,10 @@ export default class SkillTreeScene extends Phaser.Scene {
 
         childIcon.on('pointerdown', () => {
           if (childCanUnlock) {
-            leveling.unlockSkill([branch, child]);
-            this.scene.restart();
+            if (leveling.unlockSkill([branch, child])) {
+              gameState.saveSkillTreeForRole(selectedRole);
+              this.scene.restart();
+            }
           }
         });
       });

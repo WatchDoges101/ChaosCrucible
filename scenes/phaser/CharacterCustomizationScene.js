@@ -148,8 +148,9 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       this.characterNameText.setText(this.characterName);
     });
 
-    // Default name
-    this.characterName = this.selectedRole;
+    // Default/saved name
+    const defaultName = (this.selectedRole || 'WARRIOR').toUpperCase();
+    this.characterName = gameState.getPreferredName(this.selectedRole, defaultName);
     this.characterNameText.setText(this.characterName);
 
     console.log('[CharacterCustomization] Name input created');
@@ -456,9 +457,14 @@ export class CharacterCustomizationScene extends Phaser.Scene {
       // Epic screen shake and flash
       this.cameras.main.shake(500, 0.01);
       this.cameras.main.flash(500, 255, 255, 0);
+
+			const finalName = (this.characterName || '').trim() || (this.selectedRole || 'WARRIOR').toUpperCase();
+			this.characterName = finalName;
+			this.characterNameText.setText(finalName);
+			gameState.savePreferredName(this.selectedRole, finalName);
       
       // Save character customization
-      gameState.initCharacter(this.selectedRole, this.characterName, this.selectedColorScheme);
+      gameState.initCharacter(this.selectedRole, finalName, this.selectedColorScheme);
       console.log('[CharacterCustomization] Starting ChaossCrucibleScene...');
       
       this.time.delayedCall(500, () => {

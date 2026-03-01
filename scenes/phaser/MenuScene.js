@@ -155,205 +155,144 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createFlameParticles(width, height) {
-    // Create flame particles using Phaser's built-in particle system
-    // Create graphics for flame particles with flame-like shapes
-    const flameGraphics = this.make.graphics({ x: 0, y: 0, add: false });
-    
-    // Red flame particle - teardrop shape made from overlapping circles
-    flameGraphics.fillStyle(0xff2200, 1);
-    flameGraphics.fillCircle(8, 6, 5);    // Main body
-    flameGraphics.fillCircle(5, 10, 3);   // Left bottom
-    flameGraphics.fillCircle(8, 11, 3);   // Center bottom
-    flameGraphics.fillCircle(11, 10, 3);  // Right bottom
-    flameGraphics.fillCircle(8, 2, 2);    // Top point
-    flameGraphics.generateTexture('flameRed', 16, 16);
-    flameGraphics.clear();
-    
-    // Orange flame particle
-    flameGraphics.fillStyle(0xff6600, 1);
-    flameGraphics.fillCircle(8, 6, 5.5);  // Main body
-    flameGraphics.fillCircle(5, 11, 3.5); // Left bottom
-    flameGraphics.fillCircle(8, 12, 3.5); // Center bottom
-    flameGraphics.fillCircle(11, 11, 3.5);// Right bottom
-    flameGraphics.fillCircle(8, 1, 2.5);  // Top point
-    flameGraphics.generateTexture('flameOrange', 16, 16);
-    flameGraphics.clear();
-    
-    // Yellow flame particle - brighter and sharper
-    flameGraphics.fillStyle(0xffdd00, 1);
-    flameGraphics.fillCircle(6, 5, 4);    // Main body
-    flameGraphics.fillCircle(4, 8, 2.5);  // Left
-    flameGraphics.fillCircle(6, 9, 2.5);  // Center
-    flameGraphics.fillCircle(8, 8, 2.5);  // Right
-    flameGraphics.fillCircle(6, 1, 1.5);  // Top point
-    flameGraphics.generateTexture('flameYellow', 12, 12);
-    flameGraphics.clear();
+    const flameColors = [0xff2a00, 0xff5500, 0xff7a00, 0xffaa22, 0xffdd66];
+    const emberColors = [0xff6f00, 0xff9c33, 0xffc04d];
 
-    // White/bright hot center
-    flameGraphics.fillStyle(0xffff99, 1);
-    flameGraphics.fillCircle(4, 4, 3);
-    flameGraphics.generateTexture('flameWhite', 8, 8);
-    
-    flameGraphics.destroy();
+    const makeFlameTongue = (baseX, baseY, widthRange, heightRange, depth, horizontalDrift = 0) => {
+      const flame = this.add.ellipse(
+        baseX,
+        baseY,
+        Phaser.Math.Between(widthRange.min, widthRange.max),
+        Phaser.Math.Between(heightRange.min, heightRange.max),
+        flameColors[Phaser.Math.Between(0, flameColors.length - 1)],
+        Phaser.Math.FloatBetween(0.55, 0.92)
+      );
+      flame.setDepth(depth);
 
-    // Bottom flame emitters (main burning effect)
-    const bottomFlameLeft = this.add.particles(0, height, 'flameRed', {
-      x: { min: 0, max: width / 2 },
-      y: 0,
-      speed: { min: 50, max: 150 },
-      angle: { min: 250, max: 290 },
-      scale: { start: 1.5, end: 0 },
-      alpha: { start: 0.9, end: 0 },
-      lifespan: 3000,
-      frequency: 50,
-      blendMode: 'ADD'
-    });
-    bottomFlameLeft.setDepth(-500);
+      const startY = baseY;
+      const startX = baseX;
 
-    const bottomFlameRight = this.add.particles(width, height, 'flameOrange', {
-      x: { min: width / 2, max: width },
-      y: 0,
-      speed: { min: 50, max: 150 },
-      angle: { min: 250, max: 290 },
-      scale: { start: 1.5, end: 0 },
-      alpha: { start: 0.9, end: 0 },
-      lifespan: 3000,
-      frequency: 50,
-      blendMode: 'ADD'
-    });
-    bottomFlameRight.setDepth(-500);
+      this.tweens.add({
+        targets: flame,
+        y: startY - Phaser.Math.Between(55, 210),
+        x: startX + Phaser.Math.Between(-horizontalDrift, horizontalDrift),
+        alpha: { from: flame.alpha, to: 0.06 },
+        scaleX: Phaser.Math.FloatBetween(0.75, 1.35),
+        scaleY: Phaser.Math.FloatBetween(1.05, 1.75),
+        duration: Phaser.Math.Between(420, 980),
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 650),
+        ease: 'Sine.easeOut',
+        onRepeat: () => {
+          flame.x = startX + Phaser.Math.Between(-horizontalDrift, horizontalDrift);
+          flame.y = startY + Phaser.Math.Between(-6, 8);
+          flame.alpha = Phaser.Math.FloatBetween(0.55, 0.92);
+          flame.width = Phaser.Math.Between(widthRange.min, widthRange.max);
+          flame.height = Phaser.Math.Between(heightRange.min, heightRange.max);
+          flame.setFillStyle(flameColors[Phaser.Math.Between(0, flameColors.length - 1)], flame.alpha);
+        }
+      });
 
-    // Side flame emitters
-    const leftFlame = this.add.particles(0, 0, 'flameOrange', {
-      x: 0,
-      y: { min: height * 0.3, max: height },
-      speed: { min: 30, max: 80 },
-      angle: { min: -20, max: 20 },
-      scale: { start: 1.2, end: 0 },
-      alpha: { start: 0.8, end: 0 },
-      lifespan: 2500,
-      frequency: 80,
-      blendMode: 'ADD'
-    });
-    leftFlame.setDepth(-500);
+      return flame;
+    };
 
-    const rightFlame = this.add.particles(width, 0, 'flameOrange', {
-      x: 0,
-      y: { min: height * 0.3, max: height },
-      speed: { min: 30, max: 80 },
-      angle: { min: 160, max: 200 },
-      scale: { start: 1.2, end: 0 },
-      alpha: { start: 0.8, end: 0 },
-      lifespan: 2500,
-      frequency: 80,
-      blendMode: 'ADD'
-    });
-    rightFlame.setDepth(-500);
+    const floorFlameCount = 90;
+    for (let i = 0; i < floorFlameCount; i++) {
+      const x = (i / (floorFlameCount - 1)) * width;
+      const y = height + Phaser.Math.Between(8, 34);
+      makeFlameTongue(x, y, { min: 18, max: 48 }, { min: 36, max: 110 }, -540 + Phaser.Math.Between(0, 50), 22);
+    }
 
-    // Add bright yellow/white hot spots
-    const hotSpots = this.add.particles(width / 2, height, 'flameYellow', {
-      x: { min: -width * 0.3, max: width * 0.3 },
-      y: 0,
-      speed: { min: 80, max: 200 },
-      angle: { min: 260, max: 280 },
-      scale: { start: 0.8, end: 0 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 2000,
-      frequency: 100,
-      blendMode: 'ADD'
-    });
-    hotSpots.setDepth(-400);
+    const sideFlameCount = 24;
+    for (let i = 0; i < sideFlameCount; i++) {
+      const y = height * 0.22 + i * ((height * 0.78) / sideFlameCount);
+      makeFlameTongue(0 + Phaser.Math.Between(-12, 18), y, { min: 16, max: 34 }, { min: 40, max: 92 }, -535, 28);
+      makeFlameTongue(width + Phaser.Math.Between(-18, 12), y, { min: 16, max: 34 }, { min: 40, max: 92 }, -535, 28);
+    }
+
+    for (let i = 0; i < 18; i++) {
+      const ember = this.add.circle(
+        Phaser.Math.Between(0, width),
+        height + Phaser.Math.Between(0, 50),
+        Phaser.Math.Between(2, 4),
+        emberColors[Phaser.Math.Between(0, emberColors.length - 1)],
+        0.65
+      );
+      ember.setDepth(-510);
+
+      this.tweens.add({
+        targets: ember,
+        y: -30,
+        x: ember.x + Phaser.Math.Between(-30, 30),
+        alpha: { from: 0.65, to: 0 },
+        duration: Phaser.Math.Between(3200, 5200),
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 2200),
+        ease: 'Sine.easeOut',
+        onRepeat: () => {
+          ember.x = Phaser.Math.Between(0, width);
+          ember.y = height + Phaser.Math.Between(0, 50);
+          ember.setFillStyle(emberColors[Phaser.Math.Between(0, emberColors.length - 1)], 0.65);
+        }
+      });
+    }
   }
 
   createTitleFlames(titleText, centerX, centerY) {
-    // Get title bounds for particle positioning
     const titleBounds = titleText.getBounds();
     const titleWidth = titleBounds.width;
-    const titleHeight = titleBounds.height;
 
-    // Create orange/red flames rising from bottom of text
-    const flameBottom = this.add.particles(centerX, centerY + titleHeight / 2 + 10, 'flameRed', {
-      x: { min: -titleWidth / 2.5, max: titleWidth / 2.5 },
-      y: 0,
-      speed: { min: 50, max: 120 },
-      angle: { min: 255, max: 285 },
-      scale: { start: 1.3, end: 0.1 },
-      alpha: { start: 0.95, end: 0 },
-      lifespan: 1800,
-      frequency: 25,
-      blendMode: 'ADD'
-    });
-    flameBottom.setDepth(1000);
+    const glowLayer = this.add.graphics();
+    glowLayer.fillStyle(0xff5a00, 0.24);
+    glowLayer.fillRoundedRect(centerX - titleWidth / 2 - 18, centerY - 44, titleWidth + 36, 88, 38);
+    glowLayer.fillStyle(0xffaa00, 0.13);
+    glowLayer.fillRoundedRect(centerX - titleWidth / 2 - 8, centerY - 32, titleWidth + 16, 64, 30);
+    glowLayer.setDepth(999);
 
-    // Create orange flames on the sides
-    const flameLeft = this.add.particles(centerX - titleWidth / 2 - 15, centerY, 'flameOrange', {
-      x: { min: -15, max: 0 },
-      y: { min: -titleHeight / 2.5, max: titleHeight / 2.5 },
-      speed: { min: 40, max: 100 },
-      angle: { min: -35, max: 35 },
-      scale: { start: 1.2, end: 0.1 },
-      alpha: { start: 0.9, end: 0 },
-      lifespan: 1400,
-      frequency: 40,
-      blendMode: 'ADD'
-    });
-    flameLeft.setDepth(1000);
+    const tongues = [];
+    const tongueCount = 24;
+    for (let i = 0; i < tongueCount; i++) {
+      const tx = centerX - titleWidth / 2 + (i / (tongueCount - 1)) * titleWidth;
+      const tongue = this.add.ellipse(
+        tx,
+        centerY + 50,
+        Phaser.Math.Between(12, 28),
+        Phaser.Math.Between(26, 62),
+        Phaser.Utils.Array.GetRandom([0xff4400, 0xff7700, 0xffc247]),
+        Phaser.Math.FloatBetween(0.55, 0.88)
+      );
+      tongue.setDepth(1000);
+      tongues.push(tongue);
 
-    const flameRight = this.add.particles(centerX + titleWidth / 2 + 15, centerY, 'flameOrange', {
-      x: { min: 0, max: 15 },
-      y: { min: -titleHeight / 2.5, max: titleHeight / 2.5 },
-      speed: { min: 40, max: 100 },
-      angle: { min: 145, max: 215 },
-      scale: { start: 1.2, end: 0.1 },
-      alpha: { start: 0.9, end: 0 },
-      lifespan: 1400,
-      frequency: 40,
-      blendMode: 'ADD'
-    });
-    flameRight.setDepth(1000);
+      this.tweens.add({
+        targets: tongue,
+        y: centerY + Phaser.Math.Between(4, 32),
+        alpha: { from: tongue.alpha, to: 0.06 },
+        scaleX: Phaser.Math.FloatBetween(0.85, 1.25),
+        scaleY: Phaser.Math.FloatBetween(1.1, 1.8),
+        duration: Phaser.Math.Between(380, 860),
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 500),
+        ease: 'Sine.easeOut',
+        onRepeat: () => {
+          tongue.x = tx + Phaser.Math.Between(-12, 12);
+          tongue.y = centerY + 50;
+          tongue.alpha = Phaser.Math.FloatBetween(0.55, 0.88);
+          tongue.width = Phaser.Math.Between(12, 28);
+          tongue.height = Phaser.Math.Between(26, 62);
+          tongue.setFillStyle(Phaser.Utils.Array.GetRandom([0xff4400, 0xff7700, 0xffc247]), tongue.alpha);
+        }
+      });
+    }
 
-    // Create bright yellow hot flames in the center
-    const flameHot = this.add.particles(centerX, centerY, 'flameYellow', {
-      x: { min: -titleWidth / 2.2, max: titleWidth / 2.2 },
-      y: { min: -titleHeight / 2.8, max: titleHeight / 2.8 },
-      speed: { min: 60, max: 140 },
-      angle: { min: 265, max: 275 },
-      scale: { start: 0.9, end: 0 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 1200,
-      frequency: 50,
-      blendMode: 'ADD'
+    this.tweens.add({
+      targets: [glowLayer, ...tongues],
+      alpha: { from: 0.8, to: 1 },
+      duration: 260,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
     });
-    flameHot.setDepth(1000);
-
-    // Add white hot core particles
-    const hotCore = this.add.particles(centerX, centerY, 'flameWhite', {
-      x: { min: -titleWidth / 3, max: titleWidth / 3 },
-      y: { min: -titleHeight / 3, max: titleHeight / 3 },
-      speed: { min: 70, max: 150 },
-      angle: { min: 260, max: 280 },
-      scale: { start: 0.7, end: 0 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 1000,
-      frequency: 60,
-      blendMode: 'ADD'
-    });
-    hotCore.setDepth(1001);
-
-    // Add ember particles floating dramatically upward
-    const embers = this.add.particles(centerX, centerY + titleHeight / 2, 'flameYellow', {
-      x: { min: -titleWidth / 2.5, max: titleWidth / 2.5 },
-      y: 10,
-      speed: { min: 30, max: 80 },
-      angle: { min: 265, max: 275 },
-      scale: { start: 0.4, end: 0 },
-      alpha: { start: 0.8, end: 0 },
-      lifespan: 3000,
-      frequency: 80,
-      blendMode: 'ADD',
-      gravityY: -50
-    });
-    embers.setDepth(999);
 
     // Glow effect: add a yellow/orange tint to the text
     titleText.setTint(0xffccaa);

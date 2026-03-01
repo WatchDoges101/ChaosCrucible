@@ -66,6 +66,15 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - Combat camera shake is throttled and clamped to avoid stacked shake glitches during rapid attacks.
 - Vite dev server is configured for container/forwarded-port reliability (`host: 0.0.0.0`, `strictPort: true`).
 
+## March 2026 Gameplay & UI Updates
+
+- **Player death flow upgraded**: Added collapse + bleed-out sequence, blood effects, red death overlay, and `HOME` return button.
+- **Enemy damage reliability fixes**: Corrected missing HP initialization on advanced enemy variants that could cause invulnerability.
+- **XP and leveling persistence**: XP now saves locally on gain, level-ups award unlock tokens, and skill-tree progression persists reliably.
+- **Character identity persistence**: Default warrior naming is uppercase, and chosen character names are saved/reloaded locally per role.
+- **Champion selection refresh**: Removed mini flavor descriptions, removed Health from visible stats, and added per-champion level progress bars.
+- **Main menu fire visuals reworked**: Replaced particle-based menu flames with fully animated flame layers for a stronger title-screen look.
+
 ## Code Quality & Architecture (February 2026 Audit)
 
 A comprehensive code audit was conducted to improve code organization and maintainability. See [AUDIT.md](AUDIT.md) for the full report.

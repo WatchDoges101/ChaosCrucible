@@ -33,6 +33,9 @@ class GameState {
         // Add other character-specific state here
       };
     }
+
+		this.restoreLevelingProgressForRole(role);
+
     this.character = {
       ...this.characters[role],
       role: role,
@@ -46,15 +49,60 @@ class GameState {
   }
 
   /**
+   * Restore saved leveling/skill tree data for a role
+   * @param {string} role - Character role key
+   */
+  restoreLevelingProgressForRole(role) {
+    if (!role || !this.characters[role]) {
+      return false;
+    }
+
+    const savedData = this.loadSkillTreeForRole(role);
+    if (!savedData) {
+      return false;
+    }
+
+    const leveling = this.characters[role].leveling;
+    if (!leveling) {
+      return false;
+    }
+
+    if (Number.isFinite(savedData.level) && savedData.level >= 1) {
+      leveling.level = savedData.level;
+    }
+
+    if (Number.isFinite(savedData.xp) && savedData.xp >= 0) {
+      leveling.xp = savedData.xp;
+    }
+
+    if (Number.isFinite(savedData.tokens) && savedData.tokens >= 0) {
+      leveling.tokens = savedData.tokens;
+    }
+
+    if (Number.isFinite(savedData.pendingXP) && savedData.pendingXP >= 0) {
+      leveling.pendingXP = savedData.pendingXP;
+    }
+
+    if (savedData.skillTree && typeof savedData.skillTree === 'object') {
+      leveling.skillTree = savedData.skillTree;
+    }
+
+    return true;
+  }
+
+  /**
    * Initialize character from role
    */
   initCharacter(role, name = null, colors = null) {
+    const preferredName = this.getPreferredName(role, role);
+    const resolvedName = (typeof name === 'string' && name.trim()) ? name.trim() : preferredName;
+
     this.character = {
       x: 100,
       y: 100,
       radius: 20,
       role: role,
-      name: name || role,
+      name: resolvedName,
       colors: colors || null,
       hp: 100,
       maxHp: 100,
@@ -62,7 +110,44 @@ class GameState {
       abilities: [],
       leveling: new LevelingSystem()
     };
+    this.savePreferredName(role, resolvedName);
+    this.saveCharacter();
     this.emit('characterInitialized', this.character);
+  }
+
+  /**
+   * Save preferred character name for a role
+   * @param {string} role - Character role
+   * @param {string} name - Player-chosen name
+   */
+  savePreferredName(role, name) {
+    if (!role || typeof role !== 'string') return;
+    if (!name || typeof name !== 'string') return;
+
+    try {
+      localStorage.setItem(`preferredName_${role}`, name.trim());
+    } catch (e) {
+      console.error('Failed to save preferred name:', e);
+    }
+  }
+
+  /**
+   * Load preferred character name for a role
+   * @param {string} role - Character role
+   * @param {string} fallback - Fallback name if no saved name exists
+   * @returns {string}
+   */
+  getPreferredName(role, fallback = 'WARRIOR') {
+    try {
+      const saved = localStorage.getItem(`preferredName_${role}`);
+      if (saved && typeof saved === 'string' && saved.trim()) {
+        return saved.trim();
+      }
+    } catch (e) {
+      console.error('Failed to load preferred name:', e);
+    }
+
+    return fallback;
   }
 
   /**
@@ -279,6 +364,52 @@ class GameState {
     }
     
     return false;
+  }
+
+  /**
+   * Add XP to a role, process level-ups, and persist progress immediately
+   * @param {number} amount - XP amount to award
+   * @param {string} role - Optional role override (defaults to selectedRole)
+   * @returns {{role:string, amount:number, level:number, levelsGained:number, xp:number, tokens:number}|null}
+   */
+  addXP(amount, role = this.selectedRole) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return null;
+    }
+
+    if (!role) {
+      return null;
+    }
+
+    if (!this.characters[role]) {
+      this.characters[role] = {
+        leveling: new LevelingSystem(role),
+        abilities: []
+      };
+    }
+
+    const leveling = this.characters[role].leveling;
+    const previousLevel = leveling.level;
+    leveling.addXP(amount);
+    const levelsGained = leveling.level - previousLevel;
+
+    this.saveSkillTreeForRole(role);
+
+    const payload = {
+      role,
+      amount,
+      level: leveling.level,
+      levelsGained,
+      xp: leveling.xp,
+      tokens: leveling.tokens
+    };
+
+    this.emit('xpChanged', payload);
+    if (levelsGained > 0) {
+      this.emit('levelUp', payload);
+    }
+
+    return payload;
   }
 }
 

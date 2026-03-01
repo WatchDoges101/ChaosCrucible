@@ -1,5 +1,6 @@
 import { gameState } from '../../services/gameState.js';
 import { generateCharacterSprite } from '../../services/spriteGenerator.js';
+import { LEVEL_XP } from '../../services/levelingSystem.js';
 import { cleanupScene, stopAllTweens } from '../../helpers/sceneCleanupHelpers.js';
 
 /**
@@ -333,20 +334,38 @@ export class CharacterSelectionScene extends Phaser.Scene {
     text.setDepth(3);
     button.text = text;
 
-    // Tagline - larger
-    const charData = this.characterData[role.name];
-    const tagline = this.add.text(x + 40, y + 25, charData.description.substring(0, 32) + '...', {
+    const levelInfo = this.getRoleLevelInfo(role.name);
+
+    const levelText = this.add.text(x + 40, y + 18, `LEVEL ${levelInfo.level}`, {
       fontFamily: 'Arial',
-      fontSize: '14px',
-      fill: '#dddddd',
-      fontStyle: 'italic'
+      fontSize: '16px',
+      fill: '#ffe08a',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 2
     }).setOrigin(0.5);
-    tagline.setDepth(3);
-    button.tagline = tagline;
+    levelText.setDepth(3);
+
+    const levelBarWidth = 210;
+    const levelBarHeight = 12;
+    const levelBarX = x + 40 - levelBarWidth / 2;
+    const levelBarY = y + 40;
+
+    const levelBarBg = this.add.graphics();
+    levelBarBg.fillStyle(0x222222, 0.9);
+    levelBarBg.fillRoundedRect(levelBarX, levelBarY, levelBarWidth, levelBarHeight, 6);
+    levelBarBg.lineStyle(2, 0x666666, 0.7);
+    levelBarBg.strokeRoundedRect(levelBarX, levelBarY, levelBarWidth, levelBarHeight, 6);
+    levelBarBg.setDepth(3);
+
+    const levelBarFill = this.add.graphics();
+    levelBarFill.fillStyle(0xffc857, 1);
+    levelBarFill.fillRoundedRect(levelBarX, levelBarY, Math.max(6, levelBarWidth * levelInfo.progress), levelBarHeight, 6);
+    levelBarFill.setDepth(3);
 
     // Store text references for cleanup
     const buttonRef = this.buttons[this.buttons.length - 1];
-    buttonRef.texts.push(text, tagline);
+    buttonRef.texts.push(text, levelText, levelBarBg, levelBarFill);
     buttonRef.sprite = spritePreview;
 
     // Hover effects
@@ -365,7 +384,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
         ease: 'Back.easeOut'
       });
       this.tweens.add({
-        targets: [text, tagline],
+        targets: [text, levelText],
         scale: 1.1,
         duration: 200,
         ease: 'Back.easeOut'
@@ -389,7 +408,7 @@ export class CharacterSelectionScene extends Phaser.Scene {
         duration: 200
       });
       this.tweens.add({
-        targets: [text, tagline],
+        targets: [text, levelText],
         scale: 1,
         duration: 200
       });
@@ -412,6 +431,32 @@ export class CharacterSelectionScene extends Phaser.Scene {
       this.input.enabled = false;
       this.scene.start('CharacterCustomizationScene', { role: role.name });
     });
+  }
+
+  getRoleLevelInfo(role) {
+    let level = 1;
+    let xp = 0;
+
+    const inMemory = gameState.characters[role]?.leveling;
+    if (inMemory) {
+      if (Number.isFinite(inMemory.level)) level = Math.max(1, inMemory.level);
+      if (Number.isFinite(inMemory.xp)) xp = Math.max(0, inMemory.xp);
+    } else {
+      const saved = gameState.loadSkillTreeForRole(role);
+      if (saved) {
+        if (Number.isFinite(saved.level)) level = Math.max(1, saved.level);
+        if (Number.isFinite(saved.xp)) xp = Math.max(0, saved.xp);
+      }
+    }
+
+    const maxIndex = LEVEL_XP.length - 1;
+    const safeLevel = Math.min(level, maxIndex);
+    const currentThreshold = LEVEL_XP[safeLevel - 1] || 0;
+    const nextThreshold = LEVEL_XP[safeLevel] || currentThreshold;
+    const span = Math.max(1, nextThreshold - currentThreshold);
+    const progress = safeLevel >= maxIndex ? 1 : Phaser.Math.Clamp((xp - currentThreshold) / span, 0, 1);
+
+    return { level, xp, progress };
   }
   
   createDetailsPanel(x, y, panelWidth, panelHeight) {
@@ -495,16 +540,27 @@ export class CharacterSelectionScene extends Phaser.Scene {
     this.detailsContainer.add(nameText);
     yOffset += 58;
     
-    // Description - larger
-    const descText = this.add.text(leftMargin, yOffset, data.description, {
+    const levelInfo = this.getRoleLevelInfo(characterKey);
+    const levelLabel = this.add.text(leftMargin, yOffset, `LEVEL ${levelInfo.level}`, {
       fontFamily: 'Arial',
-      fontSize: '17px',
-      fill: '#dddddd',
-      fontStyle: 'italic',
-      wordWrap: { width: panelWidth - 40 }
+      fontSize: '19px',
+      fill: '#ffe08a',
+      fontStyle: 'bold'
     }).setOrigin(0, 0);
-    this.detailsContainer.add(descText);
-    yOffset += 40;
+    this.detailsContainer.add(levelLabel);
+
+    const levelBarWidth = panelWidth - 40;
+    const levelBarHeight = 16;
+    const levelBarBg = this.add.graphics();
+    levelBarBg.fillStyle(0x333333, 0.8);
+    levelBarBg.fillRoundedRect(leftMargin, yOffset + 24, levelBarWidth, levelBarHeight, 8);
+    this.detailsContainer.add(levelBarBg);
+
+    const levelBarFill = this.add.graphics();
+    levelBarFill.fillStyle(0xffc857, 1);
+    levelBarFill.fillRoundedRect(leftMargin, yOffset + 24, Math.max(6, levelBarWidth * levelInfo.progress), levelBarHeight, 8);
+    this.detailsContainer.add(levelBarFill);
+    yOffset += 52;
     
     // Stats header - larger
     const statsHeader = this.add.text(leftMargin, yOffset, '⚡ STATS', {
@@ -518,7 +574,6 @@ export class CharacterSelectionScene extends Phaser.Scene {
     // Stats bars with rounded corners - larger
     const stats = [
       { name: 'Damage', value: data.stats.damage, color: 0xff4444 },
-      { name: 'Health', value: data.stats.health, color: 0x44ff44 },
       { name: 'Speed', value: data.stats.speed, color: 0x4444ff }
     ];
     
