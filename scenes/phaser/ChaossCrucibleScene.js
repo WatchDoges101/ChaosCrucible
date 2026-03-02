@@ -138,6 +138,26 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			waveLabel: ''
 		};
 
+		this.comboState = {
+			count: 0,
+			multiplier: 1,
+			expiresAt: 0,
+			windowMs: 3200
+		};
+		this.comboHudText = null;
+
+		this.waveMutator = {
+			name: 'Standard',
+			description: 'No modifier',
+			playerDamageMultiplier: 1,
+			playerSpeedMultiplier: 1,
+			cooldownScaleMultiplier: 1,
+			enemySpeedMultiplier: 1,
+			bountyChanceBonus: 0,
+			bonusPowerup: false
+		};
+		this.bountyDrops = [];
+
 		// Enemy tracking indicators
 		this.enemyIndicators = [];
 
@@ -165,11 +185,26 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.scoreText = null;
 		this.waveText = null;
 		this.nameText = null;
+		this.comboHudText = null;
 		this.enemyCountLabel = null;
 		this.scoreLabel = null;
 		this.waveLabelText = null;
 		this.infoPanel = null;
 		this.infoPanelGlow = null;
+		this.comboState.count = 0;
+		this.comboState.multiplier = 1;
+		this.comboState.expiresAt = 0;
+		this.waveMutator = {
+			name: 'Standard',
+			description: 'No modifier',
+			playerDamageMultiplier: 1,
+			playerSpeedMultiplier: 1,
+			cooldownScaleMultiplier: 1,
+			enemySpeedMultiplier: 1,
+			bountyChanceBonus: 0,
+			bonusPowerup: false
+		};
+		this.bountyDrops = [];
 		this.centerpieceStatue = null;
 		this.depthSortedActors = [];
 		this.isPlayerDead = false;
@@ -389,6 +424,14 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			yoyo: true,
 			repeat: -1
 		});
+
+		this.comboHudText = this.add.text(panelX + 18, panelY + panelHeight + 8, '', {
+			font: 'bold 18px Arial',
+			fill: '#ffd978',
+			stroke: '#000000',
+			strokeThickness: 4
+		});
+		this.comboHudText.setAlpha(0);
 
 		// ===== INITIALIZE WAVE SYSTEM =====
 		// Start wave 1 after HUD text exists (avoids stale text refs from previous scene instances)
@@ -632,6 +675,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.scoreText,
 			this.waveLabelText,
 			this.waveText,
+			this.comboHudText,
 			this.statusPanel,
 			this.playerHealthLabel,
 			this.playerHealthIcon,
@@ -741,15 +785,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	}
 
 	getDamageMultiplier(now = this.time.now) {
-		return now < this.buffState.damageUntil ? this.buffConfig.damageMultiplier : 1;
+		const buffMultiplier = now < this.buffState.damageUntil ? this.buffConfig.damageMultiplier : 1;
+		return buffMultiplier * (this.waveMutator?.playerDamageMultiplier || 1);
 	}
 
 	getCooldownScale(now = this.time.now) {
-		return now < this.buffState.cooldownUntil ? this.buffConfig.cooldownScale : 1;
+		const buffScale = now < this.buffState.cooldownUntil ? this.buffConfig.cooldownScale : 1;
+		return buffScale * (this.waveMutator?.cooldownScaleMultiplier || 1);
 	}
 
 	getSpeedMultiplier(now = this.time.now) {
-		return now < this.buffState.speedUntil ? this.buffConfig.speedMultiplier : 1;
+		const buffMultiplier = now < this.buffState.speedUntil ? this.buffConfig.speedMultiplier : 1;
+		return buffMultiplier * (this.waveMutator?.playerSpeedMultiplier || 1);
 	}
 
 	safeCameraShake(duration = 60, intensity = 0.01, minIntervalMs = this.cameraFxState.minIntervalMs) {
@@ -1213,11 +1260,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			} else if (enemyData.type === 'storm_mage') {
 				pointsAwarded = 90;
 			}
-			gameState.addScore(pointsAwarded);
-			gameState.addXP(pointsAwarded);
-
-			// Display floating points animation at enemy position
-			this.floatPoints(enemyData.enemy.x, enemyData.enemy.y, pointsAwarded);
+			this.registerEnemyKillRewards(enemyData, pointsAwarded);
 
 			// Track wave kills
 			if (this.waveState.waveInProgress) {
@@ -1230,6 +1273,61 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 			// Check if wave is complete
 			this.checkWaveCompletion();
+		}
+	}
+
+	registerEnemyKillRewards(enemyData, pointsAwarded) {
+		const now = this.time.now;
+		if (now > this.comboState.expiresAt) {
+			this.comboState.count = 0;
+			this.comboState.multiplier = 1;
+		}
+
+		this.comboState.count += 1;
+		this.comboState.expiresAt = now + this.comboState.windowMs;
+		this.comboState.multiplier = 1 + Math.min(1.5, (this.comboState.count - 1) * 0.12);
+
+		const comboBonus = Math.floor(pointsAwarded * (this.comboState.multiplier - 1));
+		const totalPoints = pointsAwarded + comboBonus;
+		gameState.addScore(totalPoints);
+		gameState.addXP(totalPoints);
+
+		this.floatPoints(enemyData.enemy.x, enemyData.enemy.y, totalPoints);
+		if (comboBonus > 0) {
+			const comboLabel = this.add.text(enemyData.enemy.x, enemyData.enemy.y - 26, `COMBO +${comboBonus}`, {
+				font: 'bold 16px Arial',
+				fill: '#ffe88c',
+				stroke: '#000000',
+				strokeThickness: 3
+			});
+			comboLabel.setOrigin(0.5, 0.5);
+			if (this.uiCamera) this.uiCamera.ignore(comboLabel);
+			this.tweens.add({
+				targets: comboLabel,
+				y: comboLabel.y - 28,
+				alpha: 0,
+				duration: 700,
+				ease: 'Quad.easeOut',
+				onComplete: () => comboLabel.destroy()
+			});
+		}
+
+		if (this.comboHudText) {
+			this.comboHudText.setText(`COMBO x${this.comboState.multiplier.toFixed(2)}  (${this.comboState.count})`);
+			this.comboHudText.setAlpha(1);
+			this.tweens.add({
+				targets: this.comboHudText,
+				scale: { from: 1, to: 1.15 },
+				duration: 140,
+				yoyo: true,
+				ease: 'Back.easeOut'
+			});
+		}
+
+		const dropChance = 0.18 + (this.waveMutator?.bountyChanceBonus || 0);
+		if (Math.random() < dropChance) {
+			const bountyValue = Math.max(12, Math.round(pointsAwarded * Phaser.Math.FloatBetween(0.4, 0.7)));
+			this.spawnBountyDrop(enemyData.enemy.x, enemyData.enemy.y, bountyValue);
 		}
 	}
 
@@ -3714,6 +3812,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.waveState.currentWave = waveNumber;
 		this.waveState.enemiesKilledThisWave = 0;
 		this.waveState.waveInProgress = true;
+		this.waveMutator = this.rollWaveMutator(waveNumber);
 
 		// Calculate base number of enemies with exponential growth
 		const baseCount = this.waveDifficulty.baseEnemies;
@@ -3792,8 +3891,155 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (enemyCounts.devil > 0) composition.push(`${enemyCounts.devil} Devils`);
 		
 		this.showWaveNotification(
-			`Wave ${waveNumber} Started!\n${composition.join(' | ')}`
+			`Wave ${waveNumber} Started!\n${composition.join(' | ')}\nMutator: ${this.waveMutator.name} - ${this.waveMutator.description}`
 		);
+
+		if (this.waveMutator.bonusPowerup && this.powerups.length < this.powerupConfig.maxPowerups) {
+			this.spawnRandomPowerup();
+		}
+	}
+
+	rollWaveMutator(waveNumber) {
+		if (waveNumber <= 1) {
+			return {
+				name: 'Standard',
+				description: 'No modifier',
+				playerDamageMultiplier: 1,
+				playerSpeedMultiplier: 1,
+				cooldownScaleMultiplier: 1,
+				enemySpeedMultiplier: 1,
+				bountyChanceBonus: 0,
+				bonusPowerup: false
+			};
+		}
+
+		const mutators = [
+			{
+				name: 'Inferno Rush',
+				description: 'Faster enemies, harder-hitting hero',
+				playerDamageMultiplier: 1.15,
+				playerSpeedMultiplier: 1.08,
+				cooldownScaleMultiplier: 1,
+				enemySpeedMultiplier: 1.22,
+				bountyChanceBonus: 0.06,
+				bonusPowerup: false
+			},
+			{
+				name: 'Arcane Overclock',
+				description: 'Ability cooldowns reduced, power amplified',
+				playerDamageMultiplier: 1.22,
+				playerSpeedMultiplier: 1.04,
+				cooldownScaleMultiplier: 0.86,
+				enemySpeedMultiplier: 1.08,
+				bountyChanceBonus: 0.08,
+				bonusPowerup: false
+			},
+			{
+				name: 'Treasure Storm',
+				description: 'Bonus bounties and free powerup drops',
+				playerDamageMultiplier: 1,
+				playerSpeedMultiplier: 1.1,
+				cooldownScaleMultiplier: 1,
+				enemySpeedMultiplier: 0.96,
+				bountyChanceBonus: 0.28,
+				bonusPowerup: true
+			}
+		];
+
+		return Phaser.Utils.Array.GetRandom(mutators);
+	}
+
+	spawnBountyDrop(x, y, value) {
+		const core = this.add.circle(x, y, 8, 0xffcf4a, 0.95);
+		core.setStrokeStyle(2, 0xfff1a3, 0.9);
+		const glow = this.add.circle(x, y, 16, 0xffaa33, 0.25);
+		if (this.uiCamera) {
+			this.uiCamera.ignore(core);
+			this.uiCamera.ignore(glow);
+		}
+
+		this.tweens.add({
+			targets: [core, glow],
+			scale: { from: 0.9, to: 1.15 },
+			alpha: { from: 0.45, to: 0.95 },
+			duration: 420,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+
+		this.bountyDrops.push({
+			x,
+			y,
+			value,
+			core,
+			glow,
+			expiresAt: this.time.now + 9000
+		});
+	}
+
+	updateBountyDrops(time, deltaScale) {
+		if (!this.bountyDrops || this.bountyDrops.length === 0) return;
+
+		for (let i = this.bountyDrops.length - 1; i >= 0; i--) {
+			const drop = this.bountyDrops[i];
+			if (!drop || !drop.core || !drop.core.scene) {
+				if (drop?.glow && drop.glow.scene) drop.glow.destroy();
+				this.bountyDrops.splice(i, 1);
+				continue;
+			}
+
+			const dx = this.playerData.x - drop.x;
+			const dy = this.playerData.y - drop.y;
+			const dist = Math.hypot(dx, dy);
+
+			if (dist < 180 && dist > 0) {
+				const pull = Math.min(7 * deltaScale, 52 / dist);
+				drop.x += dx * pull;
+				drop.y += dy * pull;
+				drop.core.x = drop.x;
+				drop.core.y = drop.y;
+				drop.glow.x = drop.x;
+				drop.glow.y = drop.y;
+			}
+
+			if (dist < 24) {
+				gameState.addScore(drop.value);
+				gameState.addXP(Math.ceil(drop.value * 0.7));
+				this.floatPoints(drop.x, drop.y - 4, drop.value);
+				drop.core.destroy();
+				drop.glow.destroy();
+				this.bountyDrops.splice(i, 1);
+				continue;
+			}
+
+			if (time > drop.expiresAt) {
+				this.tweens.add({
+					targets: [drop.core, drop.glow],
+					alpha: 0,
+					duration: 220,
+					onComplete: () => {
+						if (drop.core && drop.core.scene) drop.core.destroy();
+						if (drop.glow && drop.glow.scene) drop.glow.destroy();
+					}
+				});
+				this.bountyDrops.splice(i, 1);
+			}
+		}
+	}
+
+	updateComboState(time) {
+		if (!this.comboHudText) return;
+		if (this.comboState.count > 0 && time > this.comboState.expiresAt) {
+			this.comboState.count = 0;
+			this.comboState.multiplier = 1;
+			this.tweens.add({
+				targets: this.comboHudText,
+				alpha: 0,
+				duration: 240,
+				ease: 'Sine.inOut'
+			});
+		}
 	}
 
 	/**
@@ -4716,7 +4962,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 		}
 
-		if (activeBuffs.length > 0) {
+		const mutatorActive = this.waveMutator && this.waveMutator.name !== 'Standard';
+
+		if (activeBuffs.length > 0 || mutatorActive) {
 			let strongestPercent = 0;
 			const effectParts = [];
 			for (let i = 0; i < activeBuffs.length; i++) {
@@ -4725,6 +4973,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				const percent = Math.max(0, Math.min(1, buff.remaining / maxDuration));
 				strongestPercent = Math.max(strongestPercent, percent);
 				effectParts.push(`${buff.icon} ${buff.name} ${Math.ceil(buff.remaining / 1000)}s`);
+			}
+			if (mutatorActive) {
+				strongestPercent = Math.max(strongestPercent, 0.45);
+				effectParts.push(`✦ ${this.waveMutator.name}`);
 			}
 
 			this.effectsFg.width = barWidth * strongestPercent;
@@ -4920,6 +5172,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.checkLavaDamage(time);
 
 		this.updatePowerups(time);
+		this.updateBountyDrops(time, deltaScale);
+		this.updateComboState(time);
 
 		// Update powerup UI
 		this.updateBuffUI(time);
@@ -4995,7 +5249,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.vy += (dy / dist) * steerStrength;
 
 			// Clamp speed
-			const maxSpeed = 1.6 * sizeScale;
+			const enemySpeedMult = this.waveMutator?.enemySpeedMultiplier || 1;
+			const maxSpeed = 1.6 * sizeScale * enemySpeedMult;
 			const speed = Math.hypot(enemyData.vx, enemyData.vy) || 1;
 			if (speed > maxSpeed) {
 				enemyData.vx = (enemyData.vx / speed) * maxSpeed;
@@ -5295,6 +5550,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.enemyProjectiles = [];
 		this.projectiles = [];
 		this.powerups = [];
+		this.bountyDrops = [];
 		this.arenaObjects = [];
 		this.obstacles = [];
 		this.lavaPools = [];
