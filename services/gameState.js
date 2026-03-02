@@ -21,10 +21,53 @@ class GameState {
     this._listeners = {};
   }
 
+  mergeSkillTreeState(targetTree, savedTree) {
+    if (!targetTree || !savedTree || typeof targetTree !== 'object' || typeof savedTree !== 'object') {
+      return;
+    }
+
+    Object.keys(savedTree).forEach((key) => {
+      if (!targetTree[key]) {
+        return;
+      }
+
+      const targetNode = targetTree[key];
+      const savedNode = savedTree[key];
+
+      targetNode.unlocked = Boolean(savedNode.unlocked);
+      if (Number.isFinite(savedNode.level)) {
+        targetNode.level = savedNode.level;
+      }
+
+      if (targetNode.children && savedNode.children) {
+        this.mergeSkillTreeState(targetNode.children, savedNode.children);
+      }
+    });
+  }
+
+  normalizeRole(role) {
+    if (!role || typeof role !== 'string') return null;
+    const trimmed = role.trim();
+    if (!trimmed) return null;
+
+    const upper = trimmed.toUpperCase();
+    if (upper === 'WARRIOR' || upper === 'MALE') return 'Male';
+    if (upper === 'ARCHER') return 'archer';
+    if (upper === 'BRUTE') return 'brute';
+    if (upper === 'GUNNER') return 'gunner';
+
+    return trimmed;
+  }
+
   /**
    * Update selected role (called from characterSelection scene)
    */
   setSelectedRole(role) {
+    role = this.normalizeRole(role);
+    if (!role) {
+      return;
+    }
+
     this.selectedRole = role;
     if (!this.characters[role]) {
       this.characters[role] = {
@@ -53,6 +96,7 @@ class GameState {
    * @param {string} role - Character role key
    */
   restoreLevelingProgressForRole(role) {
+    role = this.normalizeRole(role);
     if (!role || !this.characters[role]) {
       return false;
     }
@@ -84,7 +128,7 @@ class GameState {
     }
 
     if (savedData.skillTree && typeof savedData.skillTree === 'object') {
-      leveling.skillTree = savedData.skillTree;
+      this.mergeSkillTreeState(leveling.skillTree, savedData.skillTree);
     }
 
     return true;
@@ -121,6 +165,7 @@ class GameState {
    * @param {string} name - Player-chosen name
    */
   savePreferredName(role, name) {
+    role = this.normalizeRole(role);
     if (!role || typeof role !== 'string') return;
     if (!name || typeof name !== 'string') return;
 
@@ -138,8 +183,12 @@ class GameState {
    * @returns {string}
    */
   getPreferredName(role, fallback = 'WARRIOR') {
+    role = this.normalizeRole(role);
     try {
-      const saved = localStorage.getItem(`preferredName_${role}`);
+      let saved = localStorage.getItem(`preferredName_${role}`);
+      if (!saved && role === 'Male') {
+        saved = localStorage.getItem('preferredName_WARRIOR');
+      }
       if (saved && typeof saved === 'string' && saved.trim()) {
         return saved.trim();
       }
@@ -275,6 +324,7 @@ class GameState {
    * Save skill tree for specific role
    */
   saveSkillTreeForRole(role) {
+    role = this.normalizeRole(role);
     try {
       if (this.characters[role]) {
         const leveling = this.characters[role].leveling;
@@ -300,8 +350,16 @@ class GameState {
    * Load skill tree for specific role
    */
   loadSkillTreeForRole(role) {
+    role = this.normalizeRole(role);
     try {
-      const saved = localStorage.getItem(`skillTree_${role}`);
+      let saved = localStorage.getItem(`skillTree_${role}`);
+      if (!saved && role === 'Male') {
+        const legacy = localStorage.getItem('skillTree_WARRIOR');
+        if (legacy) {
+          localStorage.setItem('skillTree_Male', legacy);
+          saved = legacy;
+        }
+      }
       if (saved) {
         return JSON.parse(saved);
       }
@@ -315,6 +373,7 @@ class GameState {
    * Get skill tree progress for role
    */
   getSkillTreeProgress(role) {
+    role = this.normalizeRole(role);
     if (!this.characters[role]) {
       return null;
     }
@@ -366,6 +425,7 @@ class GameState {
       return null;
     }
 
+    role = this.normalizeRole(role);
     if (!role) {
       return null;
     }

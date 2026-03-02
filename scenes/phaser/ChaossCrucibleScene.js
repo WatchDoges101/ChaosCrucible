@@ -174,6 +174,36 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.isPlayerDead = false;
 		this.isDeathSequencePlaying = false;
 		this.deathUi = null;
+		this.deathPosition = null;
+		this.playerShadow = null;
+		this.playerGlow = null;
+		this.levelFxState = {
+			lastLevel: 1
+		};
+		this.vignetteOverlay = null;
+		this.playerLightOverlay = null;
+		this.crucibleEventState = {
+			nextEventWave: 4,
+			lastEventType: null,
+			forgeTimer: null,
+			isDraftChoosing: false,
+			draftUiElements: []
+		};
+		this.arenaHazardState = {
+			nextSweepAt: Number.POSITIVE_INFINITY,
+			activeSweep: false,
+			nextLaserDamageTime: 0,
+			activeEvents: []
+		};
+		this.fogState = {
+			layers: [],
+			currentAlphaScale: 1
+		};
+		this.elementalSurgeOverlay = null;
+		this.miniBossState = {
+			nextWave: 5,
+			lastVariant: null
+		};
 	}
 
 	create() {
@@ -210,6 +240,34 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.isPlayerDead = false;
 		this.isDeathSequencePlaying = false;
 		this.deathUi = null;
+		this.deathPosition = null;
+		this.playerShadow = null;
+		this.playerGlow = null;
+		this.levelFxState.lastLevel = gameState.character?.leveling?.level || 1;
+		this.vignetteOverlay = null;
+		this.playerLightOverlay = null;
+		this.crucibleEventState = {
+			nextEventWave: 3 + Math.floor(Math.random() * 3),
+			lastEventType: null,
+			forgeTimer: null,
+			isDraftChoosing: false,
+			draftUiElements: []
+		};
+		this.arenaHazardState = {
+			nextSweepAt: Number.POSITIVE_INFINITY,
+			activeSweep: false,
+			nextLaserDamageTime: 0,
+			activeEvents: []
+		};
+		this.fogState = {
+			layers: [],
+			currentAlphaScale: 1
+		};
+		this.elementalSurgeOverlay = null;
+		this.miniBossState = {
+			nextWave: 5 + Math.floor(Math.random() * 3),
+			lastVariant: null
+		};
 
 		const centerX = this.ARENA_WIDTH / 2;
 		const centerY = this.ARENA_HEIGHT / 2;
@@ -231,6 +289,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== PLACE PLAYER IN CENTER =====
 		this.player = createAnimatedCharacterWithViews(this, character.role, centerX, playerSpawnY, character.colors);
+		this.playerShadow = this.add.ellipse(centerX, playerSpawnY + 20, 44, 16, 0x000000, 0.33).setDepth(98);
+		this.playerGlow = this.add.circle(centerX, playerSpawnY, 28, 0x8fd6ff, 0.09).setDepth(99);
 		this.playerData = {
 			x: centerX,
 			y: playerSpawnY,
@@ -241,7 +301,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.roleConfig = this.getRoleConfig(character.role);
 		this.abilityEffectsHandler = new AbilityEffectsHandler(this);
-		this.abilityEffectsHandler.setLeveling(gameState.characters?.[character.role]?.leveling || null);
+		const normalizedRole = gameState.normalizeRole?.(character.role) || character.role;
+		this.abilityEffectsHandler.setLeveling(gameState.characters?.[normalizedRole]?.leveling || null);
 
 		// Track facing for front/back sprite switching
 		this.playerFacing = 'down';
@@ -335,6 +396,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.cameras.main.setZoom(2.5); // Zoom in for focused view
 		this.cameras.main.setLerp(0.1, 0.1); // Smooth camera movement
 		this.cameras.main.startFollow(this.player);
+		this.createLightingOverlays(displayWidth, displayHeight);
 
 		// UI camera - fixed overlay for HUD elements
 		this.uiCamera = this.cameras.add(0, 0, displayWidth, displayHeight);
@@ -344,6 +406,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Hide all world objects from UI camera
 		this.arenaObjects.forEach(obj => this.uiCamera.ignore(obj));
 		this.uiCamera.ignore(this.player);
+		if (this.playerShadow) this.uiCamera.ignore(this.playerShadow);
+		if (this.playerGlow) this.uiCamera.ignore(this.playerGlow);
 		if (this.player.getChildren) {
 			this.player.getChildren().forEach(child => this.uiCamera.ignore(child));
 		}
@@ -464,14 +528,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			0.55
 		).setStrokeStyle(3, 0x39445f, 0.8);
 
-		const createStatusBar = ({ y, iconText, labelText, fillColor }) => {
-			const label = this.add.text(statusX, y - 17, labelText, {
-				font: 'bold 21px Arial',
-				fill: '#d7e5ff',
-				stroke: '#000000',
-				strokeThickness: 4
-			}).setOrigin(0, 0.5);
-
+		const createStatusBar = ({ y, iconText, fillColor }) => {
 			const icon = this.add.text(statusX + 16, y, iconText, {
 				font: 'bold 30px Arial',
 				fill: '#ffffff',
@@ -489,57 +546,47 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const fg = this.add.rectangle(statusBarLeft, y, statusBarWidth, statusBarHeight - (4 * statusHudScale), fillColor, 0.92);
 			fg.setOrigin(0, 0.5);
 
-			const text = this.add.text(statusBarLeft + statusBarWidth / 2, y, '', {
-				font: 'bold 21px Arial',
-				fill: '#ffffff',
-				stroke: '#000000',
-				strokeThickness: 4
-			}).setOrigin(0.5, 0.5);
-
-			return { label, icon, bg, fgGlow, fg, text };
+			return { icon, bg, fgGlow, fg };
 		};
 
 		const effectsBar = createStatusBar({
 			y: effectsBarY,
 			iconText: '✦',
-			labelText: 'EFFECTS',
 			fillColor: 0xd5a738
 		});
 
 		const shieldBar = createStatusBar({
 			y: shieldBarY,
 			iconText: '⬡',
-			labelText: 'SHIELD',
 			fillColor: 0x66bbff
 		});
 
 		const healthBar = createStatusBar({
 			y: healthBarY,
 			iconText: '♥',
-			labelText: 'HEALTH',
 			fillColor: 0xff4d66
 		});
 
-		this.effectsLabel = effectsBar.label;
+		this.effectsLabel = null;
 		this.effectsIcon = effectsBar.icon;
 		this.effectsBg = effectsBar.bg;
 		this.effectsFgGlow = effectsBar.fgGlow;
 		this.effectsFg = effectsBar.fg;
-		this.effectsText = effectsBar.text;
+		this.effectsText = null;
 
-		this.shieldLabel = shieldBar.label;
+		this.shieldLabel = null;
 		this.shieldIcon = shieldBar.icon;
 		this.shieldBg = shieldBar.bg;
 		this.shieldFgGlow = shieldBar.fgGlow;
 		this.shieldFg = shieldBar.fg;
-		this.shieldText = shieldBar.text;
+		this.shieldText = null;
 
-		this.playerHealthLabel = healthBar.label;
+		this.playerHealthLabel = null;
 		this.playerHealthIcon = healthBar.icon;
 		this.playerHealthBg = healthBar.bg;
 		this.playerHealthFgGlow = healthBar.fgGlow;
 		this.playerHealthFg = healthBar.fg;
-		this.playerHealthText = healthBar.text;
+		this.playerHealthText = null;
 
 		this.statusBarWidth = statusBarWidth;
 		this.activeBuffPanels = [];
@@ -677,24 +724,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.waveText,
 			this.comboHudText,
 			this.statusPanel,
-			this.playerHealthLabel,
 			this.playerHealthIcon,
 			this.playerHealthBg,
 			this.playerHealthFgGlow,
 			this.playerHealthFg,
-			this.playerHealthText,
-			this.shieldLabel,
 			this.shieldFgGlow,
 			this.shieldBg,
 			this.shieldFg,
 			this.shieldIcon,
-			this.shieldText,
-			this.effectsLabel,
 			this.effectsIcon,
 			this.effectsBg,
 			this.effectsFgGlow,
 			this.effectsFg,
-			this.effectsText,
 			this.minimap.background,
 			this.minimap.frameGlow,
 			this.minimap.border,
@@ -731,7 +772,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			Male: {
 				basicCooldown: 300,
 				abilityCooldown: 1500,
-				meleeRange: 70,
+				meleeRange: 88,
 				basicDamage: 12,
 				abilityDamage: 20,
 				abilityRadius: 110
@@ -748,7 +789,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			brute: {
 				basicCooldown: 700,
 				abilityCooldown: 2500,
-				meleeRange: 60,
+				meleeRange: 96,
 				basicDamage: 18,
 				abilityDamage: 28,
 				abilityRadius: 140
@@ -811,6 +852,124 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.cameras.main.shake(duration, clampedIntensity);
 	}
 
+	createLightingOverlays(displayWidth, displayHeight) {
+		this.vignetteOverlay = this.add.rectangle(displayWidth / 2, displayHeight / 2, displayWidth, displayHeight, 0x000000, 0.24);
+		this.vignetteOverlay.setDepth(1900);
+
+		this.playerLightOverlay = this.add.circle(displayWidth / 2, displayHeight / 2, 96, 0xffaa44, 0.11);
+		this.playerLightOverlay.setDepth(1901);
+
+		if (this.cameras.main) {
+			this.cameras.main.ignore([this.vignetteOverlay, this.playerLightOverlay]);
+		}
+
+		this.tweens.add({
+			targets: this.playerLightOverlay,
+			alpha: { from: 0.08, to: 0.16 },
+			scale: { from: 0.9, to: 1.1 },
+			duration: 900,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+	}
+
+	updateLightingOverlays() {
+		if (!this.playerLightOverlay || !this.cameras?.main) return;
+		const worldView = this.cameras.main.worldView;
+		this.playerLightOverlay.x = (this.playerData.x - worldView.x);
+		this.playerLightOverlay.y = (this.playerData.y - worldView.y);
+	}
+
+	playWaveWhoosh() {
+		try {
+			const ctx = new (window.AudioContext || window.webkitAudioContext)();
+			const oscillator = ctx.createOscillator();
+			const gain = ctx.createGain();
+			const filter = ctx.createBiquadFilter();
+
+			oscillator.type = 'sawtooth';
+			oscillator.frequency.setValueAtTime(160, ctx.currentTime);
+			oscillator.frequency.exponentialRampToValueAtTime(52, ctx.currentTime + 0.28);
+
+			filter.type = 'lowpass';
+			filter.frequency.setValueAtTime(1500, ctx.currentTime);
+			filter.frequency.exponentialRampToValueAtTime(520, ctx.currentTime + 0.28);
+
+			gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+			gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.02);
+			gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
+
+			oscillator.connect(filter);
+			filter.connect(gain);
+			gain.connect(ctx.destination);
+			oscillator.start();
+			oscillator.stop(ctx.currentTime + 0.3);
+		} catch (_err) {
+			// Audio optional; ignore failures.
+		}
+	}
+
+	spawnCombatBurst(x, y, color = 0xffaa33, count = 10) {
+		for (let i = 0; i < count; i++) {
+			const angle = (i / count) * Math.PI * 2;
+			const spark = this.add.circle(x, y, Phaser.Math.Between(2, 4), color, 0.92);
+			if (this.uiCamera) this.uiCamera.ignore(spark);
+			this.tweens.add({
+				targets: spark,
+				x: x + Math.cos(angle) * Phaser.Math.Between(18, 42),
+				y: y + Math.sin(angle) * Phaser.Math.Between(18, 42),
+				alpha: 0,
+				scale: 0.3,
+				duration: Phaser.Math.Between(220, 360),
+				onComplete: () => spark.destroy()
+			});
+		}
+	}
+
+	createEnemyShadow(x, y, sizeScale = 1) {
+		const shadow = this.add.ellipse(x, y + 18 * sizeScale, 30 * sizeScale, 12 * sizeScale, 0x000000, 0.28).setDepth(97);
+		if (this.uiCamera) this.uiCamera.ignore(shadow);
+		return shadow;
+	}
+
+	showLevelUpFx(level) {
+		const gameConfig = this.sys.game.config;
+		const centerX = gameConfig.width / 2;
+		const centerY = gameConfig.height * 0.34;
+
+		const text = this.add.text(centerX, centerY, `LEVEL ${level}!`, {
+			font: 'bold 64px Arial',
+			fill: '#ffe88c',
+			stroke: '#000000',
+			strokeThickness: 8
+		}).setOrigin(0.5).setAlpha(0);
+		if (this.cameras.main) this.cameras.main.ignore(text);
+
+		if (this.infoPanelGlow) {
+			this.tweens.add({
+				targets: [this.infoPanelGlow, this.infoPanel],
+				scaleX: 1.03,
+				scaleY: 1.03,
+				duration: 150,
+				yoyo: true,
+				repeat: 2,
+				ease: 'Sine.inOut'
+			});
+		}
+
+		this.tweens.add({
+			targets: text,
+			alpha: 1,
+			scale: { from: 0.6, to: 1.08 },
+			duration: 260,
+			ease: 'Back.easeOut',
+			yoyo: true,
+			hold: 400,
+			onComplete: () => text.destroy()
+		});
+	}
+
 	queueBasicAttack(aim) {
 		const now = this.time.now;
 		if (now < this.attackState.nextBasicTime) return;
@@ -867,6 +1026,15 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const damageMultiplier = this.getDamageMultiplier(now);
 		const role = gameState.character.role;
 		this.abilityEffectsHandler?.onAbilityCast(role, this.playerData.x, this.playerData.y);
+		this.spawnCombatBurst(this.playerData.x, this.playerData.y, 0xffdd88, 12);
+		this.cameras.main.flash(90, 255, 220, 130, false);
+		this.tweens.add({
+			targets: this.cameras.main,
+			zoom: { from: this.cameras.main.zoom, to: this.cameras.main.zoom * 1.035 },
+			duration: 80,
+			yoyo: true,
+			ease: 'Sine.inOut'
+		});
 
 		switch (role) {
 			case 'archer':
@@ -921,7 +1089,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const dx = enemyData.enemy.x - this.playerData.x;
 			const dy = enemyData.enemy.y - this.playerData.y;
 			const dist = Math.hypot(dx, dy);
-			if (dist > range || !dist) return;
+			const enemyBuffer = Math.max(10, this.getEnemyRadius(enemyData.sizeScale) * 0.65);
+			const effectiveRange = range + enemyBuffer;
+			if (dist > effectiveRange || !dist) return;
 			const dot = (dx / dist) * aim.x + (dy / dist) * aim.y;
 			if (dot < hitThreshold) return;
 			this.damageEnemy(enemyData, damage, { x: aim.x * 0.8, y: aim.y * 0.8 });
@@ -937,8 +1107,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const glow = this.add.circle(this.playerData.x, this.playerData.y, radius * 0.8, 0xffcc55, 0.4);
 		if (this.uiCamera) this.uiCamera.ignore(glow);
 		
-		// Controlled screen shake on shockwave (prevents visual glitching)
-		this.safeCameraShake(100, 0.02, 120);
+		// Keep feedback but reduce shake jitter for melee classes
+		this.safeCameraShake(70, 0.006, 180);
 		
 		this.tweens.add({
 			targets: ring,
@@ -1042,54 +1212,63 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	createSlashEffect(aim, range) {
 		const baseAngle = Math.atan2(aim.y, aim.x);
-		
-		// Primary slash arc (white)
+
+		// Draw slash in world-space every frame so it stays centered on the moving player.
 		const arc = this.add.graphics();
-		arc.lineStyle(3, 0xffffff, 0.8);
-		arc.beginPath();
-		arc.arc(this.playerData.x, this.playerData.y, range, baseAngle - 0.6, baseAngle + 0.6);
-		arc.strokePath();
-		if (this.uiCamera) this.uiCamera.ignore(arc);
-		
-		// Secondary flash arcs (golden)
 		const arcFlash = this.add.graphics();
-		arcFlash.lineStyle(2, 0xffcc55, 0.5);
-		arcFlash.beginPath();
-		arcFlash.arc(this.playerData.x, this.playerData.y, range * 0.85, baseAngle - 0.55, baseAngle + 0.55);
-		arcFlash.strokePath();
-		if (this.uiCamera) this.uiCamera.ignore(arcFlash);
-		
-		// Mini sparkles at arc edges
+		const sparks = [];
 		for (let i = 0; i < 3; i++) {
-			const angle = baseAngle - 0.6 + (i * 0.6);
-			const sparkX = this.playerData.x + Math.cos(angle) * range;
-			const sparkY = this.playerData.y + Math.sin(angle) * range;
-			const spark = this.add.circle(sparkX, sparkY, 2, 0xffff88, 0.9);
+			const spark = this.add.circle(this.playerData.x, this.playerData.y, 2, 0xffff88, 0.9);
+			sparks.push(spark);
 			if (this.uiCamera) this.uiCamera.ignore(spark);
-			this.tweens.add({
-				targets: spark,
-				alpha: 0,
-				scale: 0.5,
-				duration: 200,
-				onComplete: () => spark.destroy()
-			});
 		}
-		
-		// Controlled screen shake on slash
-		this.safeCameraShake(50, 0.012, 80);
-		
-		this.tweens.add({
-			targets: arc,
-			alpha: 0,
-			duration: 140,
-			onComplete: () => arc.destroy()
-		});
-		
-		this.tweens.add({
-			targets: arcFlash,
-			alpha: 0,
-			duration: 200,
-			onComplete: () => arcFlash.destroy()
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(arc);
+			this.uiCamera.ignore(arcFlash);
+		}
+
+		this.tweens.addCounter({
+			from: 0,
+			to: 1,
+			duration: 180,
+			ease: 'Sine.out',
+			onUpdate: (tween) => {
+				if (!arc.scene || !arcFlash.scene) return;
+				const progress = tween.getValue();
+				const cx = this.playerData.x;
+				const cy = this.playerData.y;
+				const mainRadius = range * (0.72 + progress * 0.28);
+				const flashRadius = mainRadius * 0.85;
+				const alphaMain = 0.85 * (1 - progress);
+				const alphaFlash = 0.58 * (1 - progress);
+
+				arc.clear();
+				arc.lineStyle(3, 0xffffff, alphaMain);
+				arc.beginPath();
+				arc.arc(cx, cy, mainRadius, baseAngle - 0.6, baseAngle + 0.6);
+				arc.strokePath();
+
+				arcFlash.clear();
+				arcFlash.lineStyle(2, 0xffcc55, alphaFlash);
+				arcFlash.beginPath();
+				arcFlash.arc(cx, cy, flashRadius, baseAngle - 0.55, baseAngle + 0.55);
+				arcFlash.strokePath();
+
+				sparks.forEach((spark, i) => {
+					if (!spark?.scene) return;
+					const angle = baseAngle - 0.6 + (i * 0.6);
+					spark.x = cx + Math.cos(angle) * mainRadius;
+					spark.y = cy + Math.sin(angle) * mainRadius;
+					spark.alpha = 0.9 * (1 - progress);
+					spark.scale = 1 - progress * 0.45;
+				});
+			},
+			onComplete: () => {
+				arc.destroy();
+				arcFlash.destroy();
+				sparks.forEach(spark => spark.destroy());
+			}
 		});
 	}
 
@@ -1123,6 +1302,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 		
 		if (this.uiCamera) this.uiCamera.ignore(sprite);
+		if (sprite.setDepth) sprite.setDepth(30);
 		this.projectiles.push({
 			sprite,
 			x,
@@ -1246,6 +1426,10 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.vy += knockback.y;
 		}
 
+		if (damage >= 18) {
+			this.safeCameraShake(70, 0.015, 65);
+		}
+
 		if (enemyData.enemy.hp <= 0) {
 			// Award points based on enemy type
 			let pointsAwarded = 25; // Slime default
@@ -1259,7 +1443,20 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				pointsAwarded = 80;
 			} else if (enemyData.type === 'storm_mage') {
 				pointsAwarded = 90;
+			} else if (enemyData.type === 'anomaly_rift') {
+				if (enemyData.miniBossVariant === 'ironbound') {
+					pointsAwarded = 360;
+				} else if (enemyData.miniBossVariant === 'crucible_knight') {
+					pointsAwarded = 340;
+				} else {
+					pointsAwarded = 320;
+				}
 			}
+
+			if (enemyData.type === 'bomber_beetle') {
+				this.triggerBomberExplosion(enemyData.enemy.x, enemyData.enemy.y, enemyData.sizeScale);
+			}
+			this.spawnCombatBurst(enemyData.enemy.x, enemyData.enemy.y, 0xffb066, 16);
 			this.registerEnemyKillRewards(enemyData, pointsAwarded);
 
 			// Track wave kills
@@ -1268,6 +1465,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			}
 
 			if (enemyData.healthBar) enemyData.healthBar.destroy();
+			if (enemyData.shadow) enemyData.shadow.destroy();
 			enemyData.enemy.destroy();
 			this.enemies = this.enemies.filter(entry => entry !== enemyData);
 
@@ -1333,7 +1531,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	flashEnemy(enemy) {
 		if (enemy.setTint) {
-			enemy.setTint(0xff6666);
+			enemy.setTint(0xffffff);
 			this.time.delayedCall(80, () => {
 				if (enemy.clearTint) enemy.clearTint();
 			});
@@ -1341,12 +1539,27 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		}
 		if (enemy.getChildren) {
 			enemy.getChildren().forEach(child => {
-				if (child.setTint) child.setTint(0xff6666);
+				if (child.setTint) child.setTint(0xffffff);
 			});
 			this.time.delayedCall(80, () => {
 				enemy.getChildren().forEach(child => {
 					if (child.clearTint) child.clearTint();
 				});
+			});
+		}
+	}
+
+	applyEnemyTint(enemy, tintColor) {
+		if (!enemy) return;
+		if (enemy.setTint) {
+			enemy.setTint(tintColor);
+			return;
+		}
+		if (enemy.getChildren) {
+			enemy.getChildren().forEach(child => {
+				if (child.setTint) {
+					child.setTint(tintColor);
+				}
 			});
 		}
 	}
@@ -1389,6 +1602,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		
 		gameState.character.hp = Math.max(0, gameState.character.hp - damage);
 		this.flashPlayer();
+		if (damage >= 10) {
+			this.safeCameraShake(90, 0.02, 70);
+		}
 		
 		// Show floating damage number
 		this.floatDamage(this.playerData.x, this.playerData.y - 20, damage);
@@ -1402,10 +1618,17 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (this.isDeathSequencePlaying || this.isPlayerDead || !this.player) return;
 
 		this.isDeathSequencePlaying = true;
+		this.deathPosition = null;
 
 		if (this.handlePauseEsc) {
 			detachPauseKey(this, this.handlePauseEsc);
 			this.handlePauseEsc = null;
+		}
+
+		this.clearCrucibleEventUi();
+		if (this.crucibleEventState?.forgeTimer) {
+			this.crucibleEventState.forgeTimer.destroy();
+			this.crucibleEventState.forgeTimer = null;
 		}
 
 		if (this.waveState.nextWaveTimer) {
@@ -1413,10 +1636,30 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.waveState.nextWaveTimer = null;
 		}
 
+		if (this.arenaHazardState?.activeEvents?.length) {
+			this.arenaHazardState.activeEvents.forEach(eventRef => {
+				if (eventRef && eventRef.destroy) eventRef.destroy();
+			});
+			this.arenaHazardState.activeEvents = [];
+		}
+		if (this.elementalSurgeOverlay?.scene) {
+			this.elementalSurgeOverlay.destroy();
+			this.elementalSurgeOverlay = null;
+		}
+		this.arenaHazardState.activeSweep = false;
+
 		this.waveState.waveInProgress = false;
 		this.playerDamageState.nextDamageTime = Number.MAX_SAFE_INTEGER;
 		this.playerData.vx = 0;
 		this.playerData.vy = 0;
+		this.clearCrucibleEventUi();
+		if (this.crucibleEventState?.forgeTimer) {
+			this.crucibleEventState.forgeTimer.destroy();
+			this.crucibleEventState.forgeTimer = null;
+		}
+		if (this.crucibleEventState) {
+			this.crucibleEventState.isDraftChoosing = false;
+		}
 
 		for (let i = this.projectiles.length - 1; i >= 0; i--) {
 			if (this.projectiles[i].sprite) this.projectiles[i].sprite.destroy();
@@ -1434,14 +1677,23 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.paused = true;
 		});
 
-		const deathX = this.player.x;
-		const deathY = this.player.y;
+		const deathX = this.playerData?.x ?? this.player.x;
+		const deathY = this.playerData?.y ?? this.player.y;
 
 		this.playerData.x = deathX;
 		this.playerData.y = deathY;
+		this.playerData.vx = 0;
+		this.playerData.vy = 0;
+		this.player.setPosition(deathX, deathY);
+		this.deathPosition = { x: deathX, y: deathY };
 
-		this.spawnDeathBloodSquirts(deathX, deathY + 4);
-		this.scheduleDeathBleedPulses(deathX, deathY + 6);
+		this.tweens.killTweensOf(this.player);
+		if (this.player.getChildren) {
+			this.player.getChildren().forEach(child => this.tweens.killTweensOf(child));
+		}
+
+		this.spawnDeathBloodSquirts(deathX, deathY);
+		this.scheduleDeathBleedPulses(deathX, deathY);
 		this.safeCameraShake(260, 0.02, 0);
 
 		const playerChildren = this.player.getChildren ? this.player.getChildren() : [this.player];
@@ -1454,12 +1706,16 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.tweens.add({
 			targets: this.player,
 			angle: this.player.scaleX >= 0 ? 85 : -85,
-			y: deathY + 8,
 			scaleX: this.player.scaleX * 0.96,
 			scaleY: startingScaleY * 0.84,
 			alpha: 0.5,
 			duration: 760,
-			ease: 'Cubic.easeOut'
+			ease: 'Cubic.easeOut',
+			onUpdate: () => {
+				if (this.player && this.deathPosition) {
+					this.player.setPosition(this.deathPosition.x, this.deathPosition.y);
+				}
+			}
 		});
 
 		this.tweens.add({
@@ -1469,7 +1725,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			delay: 760,
 			ease: 'Sine.easeInOut',
 			yoyo: true,
-			repeat: 1
+			repeat: 1,
+			onUpdate: () => {
+				if (this.player && this.deathPosition) {
+					this.player.setPosition(this.deathPosition.x, this.deathPosition.y);
+				}
+			}
 		});
 
 		this.time.delayedCall(950, () => {
@@ -1724,13 +1985,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 	createArenaEnvironment(centerX, centerY) {
 		// Grey stone background
-		const arenaBg = this.add.rectangle(centerX, centerY, this.ARENA_WIDTH, this.ARENA_HEIGHT, 0x2a2a2a).setOrigin(0.5);
+		const arenaBg = this.add.rectangle(centerX, centerY, this.ARENA_WIDTH, this.ARENA_HEIGHT, 0x161616).setOrigin(0.5);
 
 		// ===== CREATE ARENA FLOOR TEXTURE =====
 		const floorGraphics = this.make.graphics({ x: 0, y: 0, add: false });
 
 		// Solid stone floor
-		floorGraphics.fillStyle(0x3a3a3a, 1);
+		floorGraphics.fillStyle(0x262626, 1);
 		floorGraphics.fillRectShape(new Phaser.Geom.Rectangle(
 			this.ARENA_PADDING,
 			this.ARENA_PADDING,
@@ -1743,13 +2004,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const sx = this.ARENA_PADDING + 50 + Math.random() * (this.ARENA_WIDTH - 2 * this.ARENA_PADDING - 100);
 			const sy = this.ARENA_PADDING + 50 + Math.random() * (this.ARENA_HEIGHT - 2 * this.ARENA_PADDING - 100);
 			const sr = 2 + Math.random() * 4;
-			const shade = Math.random() > 0.5 ? 0x555555 : 0x2b2b2b;
+			const shade = Math.random() > 0.5 ? 0x3e3e3e : 0x1f1f1f;
 			floorGraphics.fillStyle(shade, 0.7);
 			floorGraphics.fillCircle(sx, sy, sr);
 		}
 
 		// Add cracks and wear marks
-		floorGraphics.lineStyle(1.5, 0x202020, 0.8);
+		floorGraphics.lineStyle(1.5, 0x141414, 0.9);
 		for (let i = 0; i < 30; i++) {
 			const startX = this.ARENA_PADDING + 100 + Math.random() * (this.ARENA_WIDTH - 2 * this.ARENA_PADDING - 200);
 			const startY = this.ARENA_PADDING + 100 + Math.random() * (this.ARENA_HEIGHT - 2 * this.ARENA_PADDING - 200);
@@ -1858,6 +2119,13 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		borderGraphics.lineStyle(2, 0x331100, 0.8);
 		borderGraphics.strokeRectShape(new Phaser.Geom.Rectangle(borderX + 2, borderY + 2, borderW - 4, borderH - 4));
 
+		// Darken non-walkable outer ring for readability
+		borderGraphics.fillStyle(0x000000, 0.35);
+		borderGraphics.fillRectShape(new Phaser.Geom.Rectangle(0, 0, this.ARENA_WIDTH, borderY));
+		borderGraphics.fillRectShape(new Phaser.Geom.Rectangle(0, borderY + borderH, this.ARENA_WIDTH, this.ARENA_HEIGHT - (borderY + borderH)));
+		borderGraphics.fillRectShape(new Phaser.Geom.Rectangle(0, borderY, borderX, borderH));
+		borderGraphics.fillRectShape(new Phaser.Geom.Rectangle(borderX + borderW, borderY, this.ARENA_WIDTH - (borderX + borderW), borderH));
+
 		// Spikes along border
 		const spikeSize = 50;
 		const spikeColor = 0xCC0000;
@@ -1920,6 +2188,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// ===== LASER AND FOG AMBIENCE =====
 		this.createLaserEffects();
+		this.createLaserGridSystem();
+		this.createForgeAmbientParticles();
+		this.createFogWalls();
 		this.createFogLayers();
 		this.createArenaLighting();
 	}
@@ -2319,6 +2590,179 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.arenaObjects.push(laserGroup);
 	}
 
+	createForgeAmbientParticles() {
+		if (!this.textures.exists('forgeSparkParticle')) {
+			const sparkGfx = this.make.graphics({ x: 0, y: 0, add: false });
+			sparkGfx.fillStyle(0xffffff, 1);
+			sparkGfx.fillCircle(4, 4, 3);
+			sparkGfx.generateTexture('forgeSparkParticle', 8, 8);
+			sparkGfx.destroy();
+		}
+
+		if (!this.textures.exists('forgeEmberParticle')) {
+			const emberGfx = this.make.graphics({ x: 0, y: 0, add: false });
+			emberGfx.fillStyle(0xffffff, 1);
+			emberGfx.fillCircle(5, 5, 4);
+			emberGfx.generateTexture('forgeEmberParticle', 10, 10);
+			emberGfx.destroy();
+		}
+
+		const centerX = this.ARENA_WIDTH / 2;
+		const centerY = this.ARENA_HEIGHT / 2;
+
+		const sparks = this.add.particles(centerX, centerY + 180, 'forgeSparkParticle', {
+			x: { min: -260, max: 260 },
+			y: { min: -70, max: 70 },
+			speedX: { min: -20, max: 20 },
+			speedY: { min: -140, max: -40 },
+			scale: { start: 0.45, end: 0 },
+			alpha: { start: 0.55, end: 0 },
+			tint: [0xffaa44, 0xffdd77, 0xff8844],
+			blendMode: 'ADD',
+			frequency: 38,
+			lifespan: { min: 700, max: 1300 }
+		});
+		sparks.setDepth(3);
+
+		const embers = this.add.particles(centerX, centerY + 190, 'forgeEmberParticle', {
+			x: { min: -340, max: 340 },
+			y: { min: -85, max: 85 },
+			speedX: { min: -18, max: 18 },
+			speedY: { min: -70, max: -18 },
+			scale: { start: 0.38, end: 0 },
+			alpha: { start: 0.28, end: 0 },
+			tint: [0x992200, 0xbb4411, 0x774422],
+			frequency: 55,
+			lifespan: { min: 1500, max: 2800 }
+		});
+		embers.setDepth(2.5);
+
+		this.arenaObjects.push(sparks, embers);
+	}
+
+	createFogWalls() {
+		const fogWallGroup = this.add.container(0, 0);
+		fogWallGroup.setDepth(2);
+
+		const padding = this.ARENA_PADDING + 160;
+		const horizontalLength = this.ARENA_WIDTH - (padding * 2);
+		const verticalLength = this.ARENA_HEIGHT - (padding * 2);
+
+		const walls = [
+			{ x: this.ARENA_WIDTH / 2, y: this.ARENA_PADDING + 190, w: horizontalLength, h: 56 },
+			{ x: this.ARENA_WIDTH / 2, y: this.ARENA_HEIGHT - this.ARENA_PADDING - 190, w: horizontalLength, h: 56 },
+			{ x: this.ARENA_PADDING + 190, y: this.ARENA_HEIGHT / 2, w: 56, h: verticalLength },
+			{ x: this.ARENA_WIDTH - this.ARENA_PADDING - 190, y: this.ARENA_HEIGHT / 2, w: 56, h: verticalLength }
+		];
+
+		walls.forEach((wall, idx) => {
+			const fog = this.add.rectangle(wall.x, wall.y, wall.w, wall.h, 0xc9d5e8, 0.11);
+			fog.setBlendMode('SCREEN');
+			const edge = this.add.rectangle(wall.x, wall.y, wall.w, wall.h, 0xe9f3ff, 0.05);
+			edge.setStrokeStyle(1, 0xd9e7ff, 0.2);
+
+			this.tweens.add({
+				targets: [fog, edge],
+				alpha: { from: 0.05, to: 0.16 },
+				duration: 2200 + idx * 220,
+				yoyo: true,
+				repeat: -1,
+				ease: 'Sine.inOut'
+			});
+
+			fogWallGroup.add([fog, edge]);
+			this.fogState.layers.push({
+				fog,
+				baseAlpha: fog.alpha,
+				driftSeed: Math.random() * Math.PI * 2
+			});
+		});
+
+		this.arenaObjects.push(fogWallGroup);
+	}
+
+	createLaserGridSystem() {
+		const gridPadding = this.ARENA_PADDING + 160;
+		const cols = 4;
+		const rows = 4;
+		const lines = [];
+
+		for (let i = 0; i < cols; i++) {
+			const x = gridPadding + (i / (cols - 1)) * (this.ARENA_WIDTH - 2 * gridPadding);
+			lines.push({ x1: x, y1: gridPadding, x2: x, y2: this.ARENA_HEIGHT - gridPadding });
+		}
+		for (let i = 0; i < rows; i++) {
+			const y = gridPadding + (i / (rows - 1)) * (this.ARENA_HEIGHT - 2 * gridPadding);
+			lines.push({ x1: gridPadding, y1: y, x2: this.ARENA_WIDTH - gridPadding, y2: y });
+		}
+
+		this.arenaHazardState.gridLines = lines;
+		const gridEvent = this.time.addEvent({
+			delay: 6200,
+			loop: true,
+			callback: () => {
+				if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) return;
+				if (this.crucibleEventState?.isDraftChoosing) return;
+				this.spawnLaserGridPulse();
+			}
+		});
+		this.arenaHazardState.activeEvents.push(gridEvent);
+	}
+
+	spawnLaserGridPulse() {
+		const lines = this.arenaHazardState.gridLines || [];
+		if (lines.length === 0) return;
+
+		const selected = Phaser.Utils.Array.Shuffle([...lines]).slice(0, 2);
+		selected.forEach((line, idx) => {
+			const timer = this.time.delayedCall(idx * 180, () => {
+				const warning = this.add.graphics();
+				warning.lineStyle(6, 0x7bd4ff, 0.55);
+				warning.lineBetween(line.x1, line.y1, line.x2, line.y2);
+				warning.setDepth(22);
+				if (this.uiCamera) this.uiCamera.ignore(warning);
+
+				this.tweens.add({
+					targets: warning,
+					alpha: { from: 0.2, to: 0.9 },
+					duration: 110,
+					yoyo: true,
+					repeat: 5,
+					ease: 'Sine.inOut'
+				});
+
+				const fireTimer = this.time.delayedCall(650, () => {
+					if (warning?.scene) warning.destroy();
+
+					const beam = this.add.graphics();
+					beam.lineStyle(16, 0x2aa8ff, 0.24);
+					beam.lineBetween(line.x1, line.y1, line.x2, line.y2);
+					beam.lineStyle(5, 0xe9f7ff, 0.88);
+					beam.lineBetween(line.x1, line.y1, line.x2, line.y2);
+					beam.setDepth(23);
+					if (this.uiCamera) this.uiCamera.ignore(beam);
+
+					const dist = this.distancePointToSegment(this.playerData.x, this.playerData.y, line.x1, line.y1, line.x2, line.y2);
+					if (dist <= 22) {
+						this.applyPlayerDamage(8 + Math.floor(this.waveState.currentWave / 6));
+					}
+
+					this.tweens.add({
+						targets: beam,
+						alpha: { from: 0.9, to: 0 },
+						duration: 480,
+						ease: 'Sine.out',
+						onComplete: () => beam.destroy()
+					});
+				});
+
+				this.arenaHazardState.activeEvents.push(fireTimer);
+			});
+
+			this.arenaHazardState.activeEvents.push(timer);
+		});
+	}
+
 	createArenaLighting() {
 		const lightGroup = this.add.container(0, 0);
 		lightGroup.setDepth(2);
@@ -2361,6 +2805,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 	createFogLayers() {
 		const fogGroup = this.add.container(0, 0);
 		fogGroup.setDepth(1);
+		if (!Array.isArray(this.fogState.layers)) {
+			this.fogState.layers = [];
+		}
 
 		const padding = this.ARENA_PADDING + 100;
 		const minX = padding;
@@ -2395,9 +2842,205 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			});
 
 			fogGroup.add(fog);
+			this.fogState.layers.push({
+				fog,
+				baseAlpha: fog.alpha,
+				driftSeed: Math.random() * Math.PI * 2
+			});
 		}
 
 		this.arenaObjects.push(fogGroup);
+	}
+
+	scheduleNextHazardSweep(waveNumber, immediate = false) {
+		if (waveNumber < 8) {
+			this.arenaHazardState.nextSweepAt = Number.POSITIVE_INFINITY;
+			return;
+		}
+
+		const reduction = Math.min(1800, (waveNumber - 8) * 120);
+		const minDelay = Math.max(2500, 6200 - reduction);
+		const maxDelay = Math.max(minDelay + 400, 9200 - reduction);
+		const delay = immediate ? Phaser.Math.Between(700, 1500) : Phaser.Math.Between(minDelay, maxDelay);
+		this.arenaHazardState.nextSweepAt = this.time.now + delay;
+	}
+
+	tryTriggerHazardSweep(time) {
+		if (!this.waveState.waveInProgress) return;
+		if (this.isPlayerDead || this.isDeathSequencePlaying) return;
+		if (this.crucibleEventState?.isDraftChoosing) return;
+		if (this.arenaHazardState.activeSweep) return;
+		if (time < (this.arenaHazardState.nextSweepAt || Number.POSITIVE_INFINITY)) return;
+
+		this.startHazardLaserSweep(this.waveState.currentWave);
+	}
+
+	startHazardLaserSweep(waveNumber) {
+		if (this.arenaHazardState.activeSweep) return;
+		this.arenaHazardState.activeSweep = true;
+
+		const laneCount = 1 + (waveNumber >= 10 ? 1 : 0) + (waveNumber >= 15 ? 1 : 0);
+		const padding = this.ARENA_PADDING + 70;
+		const minX = padding;
+		const maxX = this.ARENA_WIDTH - padding;
+		const minY = padding;
+		const maxY = this.ARENA_HEIGHT - padding;
+
+		this.showWaveNotification('HAZARD EVENT\nLaser Sweep');
+
+		for (let i = 0; i < laneCount; i++) {
+			const orientationRoll = Math.random();
+			let x1;
+			let y1;
+			let x2;
+			let y2;
+
+			if (orientationRoll < 0.34) {
+				x1 = Phaser.Math.Between(minX, maxX);
+				x2 = x1;
+				y1 = minY;
+				y2 = maxY;
+			} else if (orientationRoll < 0.68) {
+				y1 = Phaser.Math.Between(minY, maxY);
+				y2 = y1;
+				x1 = minX;
+				x2 = maxX;
+			} else {
+				const startFromTop = Math.random() > 0.5;
+				x1 = startFromTop ? Phaser.Math.Between(minX, maxX) : minX;
+				y1 = startFromTop ? minY : Phaser.Math.Between(minY, maxY);
+				x2 = startFromTop ? Phaser.Math.Between(minX, maxX) : maxX;
+				y2 = startFromTop ? maxY : Phaser.Math.Between(minY, maxY);
+			}
+
+			this.spawnHazardLaserLane(x1, y1, x2, y2, waveNumber, i * 260);
+		}
+
+		const sweepEnd = this.time.delayedCall(1700 + laneCount * 220, () => {
+			this.arenaHazardState.activeSweep = false;
+			this.scheduleNextHazardSweep(waveNumber, false);
+		});
+		this.arenaHazardState.activeEvents.push(sweepEnd);
+	}
+
+	spawnHazardLaserLane(x1, y1, x2, y2, waveNumber, delayMs = 0) {
+		const chargeDuration = 700;
+		const fireDuration = 650;
+		const laneRadius = 16 + Math.min(10, Math.floor(waveNumber * 0.45));
+		const damagePerTick = 5 + Math.floor(waveNumber / 4);
+
+		const laneTimer = this.time.delayedCall(delayMs, () => {
+			if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) return;
+
+			const warning = this.add.graphics();
+			warning.lineStyle(8, 0xffb347, 0.6);
+			warning.lineBetween(x1, y1, x2, y2);
+			warning.setDepth(24);
+			if (this.uiCamera) this.uiCamera.ignore(warning);
+
+			this.tweens.add({
+				targets: warning,
+				alpha: { from: 0.35, to: 0.95 },
+				duration: 130,
+				yoyo: true,
+				repeat: 4,
+				ease: 'Sine.inOut'
+			});
+
+			const fireTimer = this.time.delayedCall(chargeDuration, () => {
+				if (warning && warning.scene) warning.destroy();
+				if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) return;
+
+				const beam = this.add.graphics();
+				beam.lineStyle(18, 0xff5a1a, 0.28);
+				beam.lineBetween(x1, y1, x2, y2);
+				beam.lineStyle(7, 0xfff2a8, 0.95);
+				beam.lineBetween(x1, y1, x2, y2);
+				beam.setDepth(25);
+				if (this.uiCamera) this.uiCamera.ignore(beam);
+
+				const damageTicks = this.time.addEvent({
+					delay: 110,
+					repeat: Math.floor(fireDuration / 110),
+					callback: () => {
+						if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) return;
+						const dist = this.distancePointToSegment(this.playerData.x, this.playerData.y, x1, y1, x2, y2);
+						if (dist <= laneRadius && this.time.now >= this.arenaHazardState.nextLaserDamageTime) {
+							this.arenaHazardState.nextLaserDamageTime = this.time.now + 180;
+							this.applyPlayerDamage(damagePerTick);
+							this.spawnEnemyTelegraph(this.playerData.x, this.playerData.y, 34, 0xff7733, 120);
+						}
+					}
+				});
+				this.arenaHazardState.activeEvents.push(damageTicks);
+
+				this.tweens.add({
+					targets: beam,
+					alpha: { from: 0.95, to: 0 },
+					duration: fireDuration,
+					ease: 'Sine.out',
+					onComplete: () => beam.destroy()
+				});
+			});
+			this.arenaHazardState.activeEvents.push(fireTimer);
+		});
+
+		this.arenaHazardState.activeEvents.push(laneTimer);
+	}
+
+	distancePointToSegment(px, py, x1, y1, x2, y2) {
+		const vx = x2 - x1;
+		const vy = y2 - y1;
+		const lenSq = vx * vx + vy * vy;
+		if (lenSq <= 0.0001) return Math.hypot(px - x1, py - y1);
+
+		const t = Phaser.Math.Clamp(((px - x1) * vx + (py - y1) * vy) / lenSq, 0, 1);
+		const projX = x1 + vx * t;
+		const projY = y1 + vy * t;
+		return Math.hypot(px - projX, py - projY);
+	}
+
+	updateReactiveArenaFx(time, deltaScale) {
+		if (!this.fogState?.layers?.length) return;
+
+		const character = gameState.character;
+		const hpRatioRaw = character?.maxHp ? character.hp / character.maxHp : 1;
+		const hpRatio = Phaser.Math.Clamp(hpRatioRaw, 0, 1);
+		const hasRiftBoss = this.enemies.some(enemyData => enemyData.type === 'anomaly_rift');
+
+		let targetScale = 1;
+		if (this.waveState.currentWave >= 8) targetScale += 0.16;
+		if (this.arenaHazardState?.activeSweep) targetScale += 0.2;
+		if (hpRatio < 0.4) targetScale += 0.28;
+		if (hasRiftBoss) targetScale += 0.32;
+
+		const lerpFactor = Math.min(1, 0.035 * (deltaScale || 1));
+		this.fogState.currentAlphaScale = Phaser.Math.Linear(
+			this.fogState.currentAlphaScale,
+			targetScale,
+			lerpFactor
+		);
+
+		this.fogState.layers.forEach(layerData => {
+			if (!layerData?.fog || !layerData.fog.scene) return;
+			const wavePulse = 0.9 + (Math.sin(time * 0.0014 + layerData.driftSeed) * 0.12);
+			layerData.fog.alpha = Phaser.Math.Clamp(
+				layerData.baseAlpha * this.fogState.currentAlphaScale * wavePulse,
+				0.04,
+				0.28
+			);
+		});
+	}
+
+	isWorldPointVisible(x, y, margin = 80) {
+		const worldView = this.cameras?.main?.worldView;
+		if (!worldView) return true;
+		return (
+			x >= worldView.x - margin &&
+			x <= worldView.right + margin &&
+			y >= worldView.y - margin &&
+			y <= worldView.bottom + margin
+		);
 	}
 
 	/**
@@ -3813,6 +4456,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.waveState.enemiesKilledThisWave = 0;
 		this.waveState.waveInProgress = true;
 		this.waveMutator = this.rollWaveMutator(waveNumber);
+		this.triggerElementalSurge(this.waveMutator?.name);
 
 		// Calculate base number of enemies with exponential growth
 		const baseCount = this.waveDifficulty.baseEnemies;
@@ -3824,40 +4468,87 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const randomFactor = 1 + (Math.random() * variation * 2 - variation);
 		const totalEnemies = Math.max(3, Math.floor(baseEnemies * randomFactor));
 
-		// Calculate elite enemy chance (increases with waves)
-		const eliteChance = Math.min(0.7, waveNumber * this.waveDifficulty.eliteChancePerWave);
-		
-		// Distribute enemies randomly based on difficulty
-		let enemyCounts = { slime: 0, devil: 0, skeleton: 0 };
-		
-		for (let i = 0; i < totalEnemies; i++) {
-			const roll = Math.random();
-			
-			if (roll < eliteChance * 0.3) {
-				// Devil (rarest, most dangerous)
-				enemyCounts.devil++;
-			} else if (roll < eliteChance * 0.7) {
-				// Skeleton (medium)
-				enemyCounts.skeleton++;
-			} else {
-				// Slime (common)
-				enemyCounts.slime++;
-			}
+		const enemyCounts = {
+			slime: 0,
+			skeleton: 0,
+			devil: 0,
+			frost_wraith: 0,
+			bomber_beetle: 0,
+			storm_mage: 0
+		};
+
+		let typeWeights;
+		if (waveNumber <= 3) {
+			typeWeights = [
+				{ type: 'slime', weight: 0.8 },
+				{ type: 'skeleton', weight: 0.2 }
+			];
+		} else if (waveNumber <= 7) {
+			typeWeights = [
+				{ type: 'slime', weight: 0.52 },
+				{ type: 'skeleton', weight: 0.26 },
+				{ type: 'devil', weight: 0.14 },
+				{ type: 'bomber_beetle', weight: 0.08 }
+			];
+		} else if (waveNumber <= 10) {
+			typeWeights = [
+				{ type: 'slime', weight: 0.34 },
+				{ type: 'skeleton', weight: 0.2 },
+				{ type: 'devil', weight: 0.17 },
+				{ type: 'bomber_beetle', weight: 0.14 },
+				{ type: 'storm_mage', weight: 0.1 },
+				{ type: 'frost_wraith', weight: 0.05 }
+			];
+		} else {
+			typeWeights = [
+				{ type: 'slime', weight: 0.24 },
+				{ type: 'skeleton', weight: 0.18 },
+				{ type: 'devil', weight: 0.18 },
+				{ type: 'bomber_beetle', weight: 0.15 },
+				{ type: 'storm_mage', weight: 0.15 },
+				{ type: 'frost_wraith', weight: 0.1 }
+			];
 		}
 
-		// Ensure at least some variety in higher waves
-		if (waveNumber >= 3 && enemyCounts.devil === 0) {
-			enemyCounts.devil = Math.floor(Math.random() * 2) + 1;
-			enemyCounts.slime = Math.max(0, enemyCounts.slime - enemyCounts.devil);
+		const pickEnemyType = () => {
+			const roll = Math.random();
+			let cursor = 0;
+			for (const option of typeWeights) {
+				cursor += option.weight;
+				if (roll <= cursor) return option.type;
+			}
+			return typeWeights[typeWeights.length - 1].type;
+		};
+
+		for (let i = 0; i < totalEnemies; i++) {
+			const chosenType = pickEnemyType();
+			enemyCounts[chosenType] += 1;
 		}
+
 		if (waveNumber >= 2 && enemyCounts.skeleton === 0) {
-			enemyCounts.skeleton = Math.floor(Math.random() * 2) + 1;
-			enemyCounts.slime = Math.max(0, enemyCounts.slime - enemyCounts.skeleton);
+			enemyCounts.skeleton += 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - 1);
+		}
+		if (waveNumber >= 4 && enemyCounts.devil === 0) {
+			enemyCounts.devil += 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - 1);
+		}
+		if (waveNumber >= 5 && enemyCounts.bomber_beetle === 0) {
+			enemyCounts.bomber_beetle += 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - 1);
+		}
+		if (waveNumber >= 8 && enemyCounts.storm_mage === 0) {
+			enemyCounts.storm_mage += 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - 1);
+		}
+		if (waveNumber >= 9 && enemyCounts.frost_wraith === 0) {
+			enemyCounts.frost_wraith += 1;
+			enemyCounts.slime = Math.max(0, enemyCounts.slime - 1);
 		}
 
 		// Calculate total enemies for this wave
 		this.waveState.totalEnemiesThisWave = 
-			enemyCounts.slime + enemyCounts.devil + enemyCounts.skeleton;
+			enemyCounts.slime + enemyCounts.devil + enemyCounts.skeleton + enemyCounts.bomber_beetle + enemyCounts.storm_mage + enemyCounts.frost_wraith;
 
 		// Spawn enemies
 		for (let i = 0; i < enemyCounts.slime; i++) {
@@ -3889,6 +4580,14 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (enemyCounts.slime > 0) composition.push(`${enemyCounts.slime} Slimes`);
 		if (enemyCounts.skeleton > 0) composition.push(`${enemyCounts.skeleton} Skeletons`);
 		if (enemyCounts.devil > 0) composition.push(`${enemyCounts.devil} Devils`);
+		if (enemyCounts.bomber_beetle > 0) composition.push(`${enemyCounts.bomber_beetle} Exploders`);
+		if (enemyCounts.storm_mage > 0) composition.push(`${enemyCounts.storm_mage} Storm Mages`);
+		if (enemyCounts.frost_wraith > 0) composition.push(`${enemyCounts.frost_wraith} Frost Wraiths`);
+
+		if (waveNumber >= this.miniBossState.nextWave) {
+			const bossName = this.spawnMiniBossWave(waveNumber);
+			if (bossName) composition.push(`Mini-Boss: ${bossName}`);
+		}
 		
 		this.showWaveNotification(
 			`Wave ${waveNumber} Started!\n${composition.join(' | ')}\nMutator: ${this.waveMutator.name} - ${this.waveMutator.description}`
@@ -3897,6 +4596,352 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (this.waveMutator.bonusPowerup && this.powerups.length < this.powerupConfig.maxPowerups) {
 			this.spawnRandomPowerup();
 		}
+
+		this.scheduleNextHazardSweep(waveNumber, waveNumber >= 8);
+
+		if (waveNumber >= this.crucibleEventState.nextEventWave) {
+			this.triggerCrucibleEvent(waveNumber);
+			this.scheduleNextCrucibleEventWave(waveNumber);
+		}
+	}
+
+	scheduleNextMiniBossWave(currentWave) {
+		this.miniBossState.nextWave = currentWave + Phaser.Math.Between(5, 7);
+	}
+
+	spawnMiniBossWave(waveNumber) {
+		const variants = ['ironbound', 'ember_witch', 'crucible_knight'];
+		const filtered = variants.filter(v => v !== this.miniBossState.lastVariant);
+		const variant = Phaser.Utils.Array.GetRandom(filtered.length ? filtered : variants);
+		this.miniBossState.lastVariant = variant;
+		this.scheduleNextMiniBossWave(waveNumber);
+
+		const name = this.getMiniBossName(variant);
+		this.showWaveNotification(`MINI-BOSS WAVE\n${name}`);
+		this.spawnAnomalyRiftMiniboss(waveNumber, variant);
+		return name;
+	}
+
+	getMiniBossName(variant) {
+		if (variant === 'ironbound') return 'The Ironbound';
+		if (variant === 'crucible_knight') return 'The Crucible Knight';
+		return 'The Ember Witch';
+	}
+
+	scheduleNextCrucibleEventWave(currentWave) {
+		this.crucibleEventState.nextEventWave = currentWave + Phaser.Math.Between(3, 5);
+	}
+
+	triggerCrucibleEvent(waveNumber) {
+		const eventTypes = ['forge_overload', 'anomaly_rift', 'weapon_draft'];
+		const filtered = eventTypes.filter(type => type !== this.crucibleEventState.lastEventType);
+		const eventType = Phaser.Utils.Array.GetRandom(filtered.length > 0 ? filtered : eventTypes);
+		this.crucibleEventState.lastEventType = eventType;
+
+		if (eventType === 'forge_overload') {
+			this.showWaveNotification('CRUCIBLE EVENT\nForge Overload!');
+			this.startForgeOverloadEvent(waveNumber);
+		} else if (eventType === 'anomaly_rift') {
+			this.showWaveNotification('CRUCIBLE EVENT\nAnomaly Rift!');
+			this.spawnAnomalyRiftMiniboss(waveNumber);
+		} else {
+			this.showWaveNotification('CRUCIBLE EVENT\nWeapon Draft!');
+			this.showWeaponDraftEvent();
+		}
+	}
+
+	startForgeOverloadEvent(waveNumber) {
+		if (this.crucibleEventState.forgeTimer) {
+			this.crucibleEventState.forgeTimer.destroy();
+		}
+
+		const eruptions = 7 + Math.min(6, Math.floor(waveNumber / 4));
+		let casts = 0;
+
+		this.crucibleEventState.forgeTimer = this.time.addEvent({
+			delay: 850,
+			repeat: eruptions - 1,
+			callback: () => {
+				if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) return;
+
+				let x;
+				let y;
+				if (casts % 2 === 0) {
+					const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+					const radius = Phaser.Math.Between(170, 330);
+					x = this.playerData.x + Math.cos(angle) * radius;
+					y = this.playerData.y + Math.sin(angle) * radius;
+				} else {
+					x = this.ARENA_WIDTH * (0.25 + ((casts % 4) * 0.18)) + Phaser.Math.Between(-60, 60);
+					y = this.ARENA_HEIGHT * (0.28 + ((casts % 3) * 0.18)) + Phaser.Math.Between(-60, 60);
+				}
+
+				x = Phaser.Math.Clamp(x, this.ARENA_PADDING + 80, this.ARENA_WIDTH - this.ARENA_PADDING - 80);
+				y = Phaser.Math.Clamp(y, this.ARENA_PADDING + 80, this.ARENA_HEIGHT - this.ARENA_PADDING - 80);
+				this.spawnForgeEruption(x, y, Phaser.Math.Between(90, 130), waveNumber);
+				casts += 1;
+			}
+		});
+	}
+
+	spawnForgeEruption(x, y, radius, waveNumber) {
+		const telegraph = this.add.circle(x, y, radius * 0.65, 0xff6600, 0.18).setDepth(20);
+		telegraph.setStrokeStyle(4, 0xffbb66, 0.9);
+		if (this.uiCamera) this.uiCamera.ignore(telegraph);
+
+		this.tweens.add({
+			targets: telegraph,
+			scale: { from: 0.7, to: 1.15 },
+			alpha: { from: 0.18, to: 0.45 },
+			duration: 620,
+			ease: 'Sine.inOut'
+		});
+
+		this.time.delayedCall(620, () => {
+			if (!this.scene.isActive() || this.isPlayerDead || this.isDeathSequencePlaying) {
+				telegraph.destroy();
+				return;
+			}
+
+			const blast = this.add.circle(x, y, radius * 0.5, 0xff3300, 0.55).setDepth(21);
+			if (this.uiCamera) this.uiCamera.ignore(blast);
+
+			for (let i = 0; i < 18; i++) {
+				const angle = (i / 18) * Math.PI * 2;
+				const spark = this.add.circle(x, y, 4, 0xffc266, 0.9).setDepth(22);
+				if (this.uiCamera) this.uiCamera.ignore(spark);
+				this.tweens.add({
+					targets: spark,
+					x: x + Math.cos(angle) * radius,
+					y: y + Math.sin(angle) * radius,
+					alpha: 0,
+					scale: 0.3,
+					duration: 320,
+					ease: 'Quad.easeOut',
+					onComplete: () => spark.destroy()
+				});
+			}
+
+			this.tweens.add({
+				targets: blast,
+				scale: 2,
+				alpha: 0,
+				duration: 360,
+				ease: 'Sine.easeOut',
+				onComplete: () => blast.destroy()
+			});
+
+			if (telegraph && telegraph.scene) telegraph.destroy();
+
+			const playerDist = Math.hypot(this.playerData.x - x, this.playerData.y - y);
+			if (playerDist <= radius) {
+				this.applyPlayerDamage(12 + Math.min(8, Math.floor(waveNumber / 4)));
+			}
+
+			for (let i = this.enemies.length - 1; i >= 0; i--) {
+				const enemyData = this.enemies[i];
+				if (!enemyData?.enemy) continue;
+				const dist = Math.hypot(enemyData.enemy.x - x, enemyData.enemy.y - y);
+				if (dist <= radius) {
+					this.damageEnemy(enemyData, 24 + Math.floor(waveNumber * 1.5), null);
+				}
+			}
+		});
+	}
+
+	spawnAnomalyRiftMiniboss(waveNumber, variant = 'ember_witch') {
+		const padding = this.ARENA_PADDING + 280;
+		const x = padding + Math.random() * (this.ARENA_WIDTH - 2 * padding);
+		const y = padding + Math.random() * (this.ARENA_HEIGHT - 2 * padding);
+
+		let spriteType = 'anomaly_rift';
+		let tint = null;
+		let sizeScale = 1.9;
+		let hpBase = 420;
+
+		if (variant === 'ironbound') {
+			spriteType = 'ironbound_colossus';
+			sizeScale = 2.2;
+			hpBase = 520;
+		} else if (variant === 'crucible_knight') {
+			spriteType = 'crucible_knight';
+			sizeScale = 2.0;
+			hpBase = 470;
+		} else if (variant === 'ember_witch') {
+			spriteType = 'ember_witch';
+		}
+
+		const enemy = generateEnemySprite(this, x, y, spriteType);
+		enemy.setScale(sizeScale);
+		if (tint !== null) {
+			this.applyEnemyTint(enemy, tint);
+		}
+
+		const hp = hpBase + waveNumber * 35;
+		enemy.hp = hp;
+		enemy.maxHp = hp;
+
+		const aura = this.add.circle(0, 0, 42, 0xa15cff, 0.18);
+		aura.setStrokeStyle(3, 0xe6ccff, 0.7);
+		enemy.add(aura);
+		enemy.riftAura = aura;
+		this.tweens.add({
+			targets: aura,
+			scale: { from: 0.85, to: 1.2 },
+			alpha: { from: 0.12, to: 0.36 },
+			duration: 700,
+			yoyo: true,
+			repeat: -1,
+			ease: 'Sine.inOut'
+		});
+
+		const healthBar = this.add.rectangle(x, y - 40 * sizeScale, 62 * sizeScale, 7, 0xb57dff, 0.9);
+		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale * 1.2);
+
+		if (this.uiCamera) {
+			this.uiCamera.ignore(enemy);
+			this.uiCamera.ignore(healthBar);
+			if (enemy.getChildren) {
+				enemy.getChildren().forEach(child => this.uiCamera.ignore(child));
+			}
+		}
+
+		this.enemies.push({
+			enemy,
+			shadow,
+			healthBar,
+			sizeScale,
+			vx: Phaser.Math.FloatBetween(-0.45, 0.45),
+			vy: Phaser.Math.FloatBetween(-0.45, 0.45),
+			type: 'anomaly_rift',
+			miniBossVariant: variant,
+			nextPulseTime: this.time.now + 1500,
+			nextTeleportTime: this.time.now + 2200,
+			nextDashTime: this.time.now + 1400,
+			nextSlamTime: this.time.now + 2000,
+			dashUntil: null,
+			dashDirX: 0,
+			dashDirY: 0,
+			nextParryTime: this.time.now + 2500,
+			parryUntil: null,
+			nextComboTime: this.time.now + 1800
+		});
+
+		if (this.waveState.waveInProgress) {
+			this.waveState.totalEnemiesThisWave += 1;
+		}
+	}
+
+	showWeaponDraftEvent() {
+		if (this.crucibleEventState.isDraftChoosing) return;
+
+		const { width, height } = this.scale;
+		this.crucibleEventState.isDraftChoosing = true;
+		this.clearCrucibleEventUi();
+
+		const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x050012, 0.72).setDepth(8600);
+		const title = this.add.text(width / 2, height * 0.23, 'WEAPON DRAFT', {
+			font: 'bold 56px Arial',
+			fill: '#e4d2ff',
+			stroke: '#1f093a',
+			strokeThickness: 8
+		}).setOrigin(0.5).setDepth(8601);
+
+		const subtitle = this.add.text(width / 2, height * 0.3, 'Choose 1 temporary ability', {
+			font: 'bold 24px Arial',
+			fill: '#c8b2ff',
+			stroke: '#0b0218',
+			strokeThickness: 4
+		}).setOrigin(0.5).setDepth(8601);
+
+		const choices = [
+			{ key: 'fury', name: 'Fury Circuit', desc: '+35% damage for 20s', color: 0xffaa33, apply: () => this.buffState.damageUntil = this.time.now + 20000 },
+			{ key: 'warp', name: 'Chrono Trigger', desc: '-30% ability cooldown for 20s', color: 0x66ccff, apply: () => this.buffState.cooldownUntil = this.time.now + 20000 },
+			{ key: 'speed', name: 'Overdrive Surge', desc: '+25% movement speed for 20s', color: 0xd5ff66, apply: () => this.buffState.speedUntil = this.time.now + 20000 }
+		];
+
+		const cardWidth = 310;
+		const cardHeight = 190;
+		const gap = 28;
+		const totalWidth = (cardWidth * 3) + (gap * 2);
+		const startX = width / 2 - totalWidth / 2 + cardWidth / 2;
+
+		const pickChoice = (choice) => {
+			choice.apply();
+			this.crucibleEventState.isDraftChoosing = false;
+			this.clearCrucibleEventUi();
+			this.showWaveNotification(`Weapon Draft: ${choice.name}`);
+		};
+
+		const draftElements = [overlay, title, subtitle];
+
+		choices.forEach((choice, index) => {
+			const cx = startX + index * (cardWidth + gap);
+			const cy = height * 0.53;
+
+			const card = this.add.rectangle(cx, cy, cardWidth, cardHeight, 0x130726, 0.94)
+				.setStrokeStyle(3, choice.color, 0.95)
+				.setDepth(8601)
+				.setInteractive({ useHandCursor: true });
+
+			const name = this.add.text(cx, cy - 48, choice.name, {
+				font: 'bold 30px Arial',
+				fill: '#ffffff',
+				stroke: '#000000',
+				strokeThickness: 5
+			}).setOrigin(0.5).setDepth(8602);
+
+			const desc = this.add.text(cx, cy + 8, choice.desc, {
+				font: 'bold 19px Arial',
+				fill: '#ddd1ff',
+				stroke: '#000000',
+				strokeThickness: 4,
+				align: 'center',
+				wordWrap: { width: cardWidth - 24 }
+			}).setOrigin(0.5).setDepth(8602);
+
+			card.on('pointerover', () => {
+				card.setFillStyle(0x21103f, 0.98);
+				this.tweens.add({
+					targets: [card, name, desc],
+					scaleX: 1.05,
+					scaleY: 1.05,
+					duration: 120,
+					ease: 'Sine.out'
+				});
+			});
+
+			card.on('pointerout', () => {
+				card.setFillStyle(0x130726, 0.94);
+				this.tweens.add({
+					targets: [card, name, desc],
+					scaleX: 1,
+					scaleY: 1,
+					duration: 120,
+					ease: 'Sine.out'
+				});
+			});
+
+			card.on('pointerdown', () => pickChoice(choice));
+
+			draftElements.push(card, name, desc);
+		});
+
+		draftElements.forEach(element => {
+			if (this.cameras.main) this.cameras.main.ignore(element);
+		});
+
+		this.crucibleEventState.draftUiElements = draftElements;
+	}
+
+	clearCrucibleEventUi() {
+		if (!this.crucibleEventState?.draftUiElements) return;
+		this.crucibleEventState.draftUiElements.forEach(element => {
+			if (element && element.scene) element.destroy();
+		});
+		this.crucibleEventState.draftUiElements = [];
+		this.crucibleEventState.isDraftChoosing = false;
 	}
 
 	rollWaveMutator(waveNumber) {
@@ -3947,6 +4992,39 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		];
 
 		return Phaser.Utils.Array.GetRandom(mutators);
+	}
+
+	triggerElementalSurge(mutatorName = '') {
+		const gameConfig = this.sys.game.config;
+		const width = gameConfig.width;
+		const height = gameConfig.height;
+
+		const palette = {
+			'Inferno Rush': 0xff3a1a,
+			'Arcane Overclock': 0x4da8ff,
+			'Treasure Storm': 0x8ce88c,
+			'Standard': 0xffffff
+		};
+		const tint = palette[mutatorName] || 0xffffff;
+
+		if (this.elementalSurgeOverlay?.scene) {
+			this.elementalSurgeOverlay.destroy();
+		}
+
+		this.elementalSurgeOverlay = this.add.rectangle(width / 2, height / 2, width, height, tint, 0);
+		this.elementalSurgeOverlay.setDepth(1895);
+		if (this.cameras.main) this.cameras.main.ignore(this.elementalSurgeOverlay);
+
+		this.tweens.add({
+			targets: this.elementalSurgeOverlay,
+			alpha: { from: 0.22, to: 0 },
+			duration: 650,
+			ease: 'Sine.out',
+			onComplete: () => {
+				if (this.elementalSurgeOverlay?.scene) this.elementalSurgeOverlay.destroy();
+				this.elementalSurgeOverlay = null;
+			}
+		});
 	}
 
 	spawnBountyDrop(x, y, value) {
@@ -4083,6 +5161,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		});
 		notification.setOrigin(0.5);
 		notification.setAlpha(0);
+		this.cameras.main.flash(120, 255, 210, 120, false);
+		this.playWaveWhoosh();
+		this.spawnCombatBurst(this.playerData.x, this.playerData.y, 0xffd27a, 10);
 
 		// Animate in and out
 		this.tweens.add({
@@ -4221,6 +5302,9 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			} else if (enemyData.type === 'storm_mage') {
 				color = 0xAFA4FF;
 				radius = 2.9;
+			} else if (enemyData.type === 'anomaly_rift') {
+				color = 0xD093FF;
+				radius = 3.4;
 			}
 
 			const dot = this.add.circle(enemyMapX, enemyMapY, radius, color, 0.95);
@@ -4297,11 +5381,22 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				} else if (enemyData.type === 'skeleton') {
 					color = 0xCCCCCC;
 					symbol = '▸';
+				} else if (enemyData.type === 'anomaly_rift') {
+					if (enemyData.miniBossVariant === 'ironbound') {
+						color = 0x8f95aa;
+					} else if (enemyData.miniBossVariant === 'crucible_knight') {
+						color = 0xd49a3f;
+					} else if (enemyData.miniBossVariant === 'ember_witch') {
+						color = 0xff5a36;
+					} else {
+						color = 0xD093FF;
+					}
+					symbol = '◆';
 				}
 
 				// Create arrow indicator
 				const arrow = this.add.text(indicatorX, indicatorY, symbol, {
-					font: 'bold 20px Arial',
+					font: enemyData.type === 'anomaly_rift' ? 'bold 24px Arial' : 'bold 20px Arial',
 					fill: '#' + color.toString(16).padStart(6, '0'),
 					stroke: '#000000',
 					strokeThickness: 3
@@ -4338,15 +5433,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		enemy.setScale(sizeScale);
 
 		// Red tint for slime
-		if (enemy.setTint) {
-			enemy.setTint(0xff4444);
-		} else if (enemy.getChildren) {
-			enemy.getChildren().forEach(child => {
-				if (child.setTint) {
-					child.setTint(0xff4444);
-				}
-			});
-		}
+		this.applyEnemyTint(enemy, 0xff4444);
 
 		// Enemy health
 		enemy.hp = 30 * sizeScale;
@@ -4355,6 +5442,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		// Enemy health bar
 		const healthBar = this.add.rectangle(x, y - 30 * sizeScale, 40 * sizeScale, 6, 0xff0000, 0.8);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		// Simple movement state
 		const angle = Math.random() * Math.PI * 2;
@@ -4373,6 +5461,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4391,7 +5480,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const enemy = generateEnemySprite(this, x, y, 'frost_wraith');
 		const sizeScale = Phaser.Math.FloatBetween(1.0, 1.3);
 		enemy.setScale(sizeScale);
-		enemy.setTint(0x66ccff);
+		this.applyEnemyTint(enemy, 0x66ccff);
 		enemy.hp = 65 * sizeScale;
 		enemy.maxHp = 65 * sizeScale;
 
@@ -4406,6 +5495,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const healthBar = this.add.rectangle(x, y - 32 * sizeScale, 42 * sizeScale, 6, 0x66ccff, 0.8);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		const angle = Math.random() * Math.PI * 2;
 		const baseSpeed = Phaser.Math.FloatBetween(1.2, 1.6) * sizeScale;
@@ -4422,6 +5512,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4442,7 +5533,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const enemy = generateEnemySprite(this, x, y, 'bomber_beetle');
 		const sizeScale = Phaser.Math.FloatBetween(1.2, 1.5);
 		enemy.setScale(sizeScale);
-		enemy.setTint(0xffaa00);
+		this.applyEnemyTint(enemy, 0xffaa00);
 		enemy.hp = 95 * sizeScale;
 		enemy.maxHp = 95 * sizeScale;
 
@@ -4464,6 +5555,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const healthBar = this.add.rectangle(x, y - 34 * sizeScale, 44 * sizeScale, 6, 0xffaa00, 0.8);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		const angle = Math.random() * Math.PI * 2;
 		const baseSpeed = Phaser.Math.FloatBetween(0.7, 1.1) * sizeScale;
@@ -4480,6 +5572,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4500,7 +5593,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const enemy = generateEnemySprite(this, x, y, 'storm_mage');
 		const sizeScale = Phaser.Math.FloatBetween(1.1, 1.4);
 		enemy.setScale(sizeScale);
-		enemy.setTint(0x8888ff);
+		this.applyEnemyTint(enemy, 0x8888ff);
 		enemy.hp = 72 * sizeScale;
 		enemy.maxHp = 72 * sizeScale;
 
@@ -4522,6 +5615,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const healthBar = this.add.rectangle(x, y - 36 * sizeScale, 46 * sizeScale, 6, 0x8888ff, 0.8);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		const angle = Math.random() * Math.PI * 2;
 		const baseSpeed = Phaser.Math.FloatBetween(0.9, 1.3) * sizeScale;
@@ -4538,6 +5632,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4567,6 +5662,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const healthBar = this.add.rectangle(x, y - 34 * sizeScale, 50 * sizeScale, 7, 0xff5500, 0.9);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		const angle = Math.random() * Math.PI * 2;
 		const baseSpeed = Phaser.Math.FloatBetween(0.9, 1.4) * sizeScale;
@@ -4585,6 +5681,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4659,6 +5756,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const healthBar = this.add.rectangle(x, y - 32 * sizeScale, 45 * sizeScale, 6, 0xcccccc, 0.85);
 		healthBar.setOrigin(0.5);
+		const shadow = this.createEnemyShadow(x, y, sizeScale);
 
 		const angle = Math.random() * Math.PI * 2;
 		const baseSpeed = Phaser.Math.FloatBetween(0.4, 0.8) * sizeScale;
@@ -4677,6 +5775,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		this.enemies.push({
 			enemy,
+			shadow,
 			healthBar,
 			sizeScale,
 			vx,
@@ -4919,15 +6018,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			: 0;
 		this.shieldFg.width = barWidth * shieldPercent;
 		this.shieldFgGlow.width = barWidth * shieldPercent;
-		this.shieldText.setText(`Shield ${Math.round(this.playerShield.value)} / ${this.playerShield.max}`);
 		if (shieldPercent > 0) {
 			this.shieldIcon.setFill('#8fd6ff');
-			this.shieldText.setFill('#d7f0ff');
 			this.shieldFg.setFillStyle(0x66bbff, 0.92);
 			this.shieldFgGlow.setFillStyle(0x66bbff, 0.24);
 		} else {
 			this.shieldIcon.setFill('#7a869f');
-			this.shieldText.setFill('#8a95ac');
 			this.shieldFg.setFillStyle(0x3f4e70, 0.9);
 			this.shieldFgGlow.setFillStyle(0x3f4e70, 0.2);
 		}
@@ -4982,16 +6078,12 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			this.effectsFg.width = barWidth * strongestPercent;
 			this.effectsFgGlow.width = barWidth * strongestPercent;
 			this.effectsIcon.setFill('#ffd978');
-			this.effectsText.setFill('#fff2cf');
 			this.effectsFg.setFillStyle(0xd6a33a, 0.92);
 			this.effectsFgGlow.setFillStyle(0xd6a33a, 0.24);
-			this.effectsText.setText(effectParts.join('  |  '));
 		} else {
 			this.effectsFg.width = 0;
 			this.effectsFgGlow.width = 0;
 			this.effectsIcon.setFill('#78839c');
-			this.effectsText.setFill('#8a95ac');
-			this.effectsText.setText('No Active Effects');
 		}
 	}
 
@@ -5000,6 +6092,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		const depthScale = 0.01;
 		const playerDepth = 100 + this.playerData.y * depthScale;
+		if (this.playerShadow) this.playerShadow.setDepth(playerDepth - 2);
+		if (this.playerGlow) this.playerGlow.setDepth(playerDepth - 1);
 		this.player.setDepth(playerDepth);
 
 		if (this.centerpieceStatue) {
@@ -5041,6 +6135,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			for (const enemyData of this.enemies) {
 				if (!enemyData.enemy) continue;
 				const enemyDepth = 100 + enemyData.enemy.y * depthScale;
+				if (enemyData.shadow) enemyData.shadow.setDepth(enemyDepth - 2);
 				enemyData.enemy.setDepth(enemyDepth);
 				if (enemyData.healthBar) enemyData.healthBar.setDepth(enemyDepth + 1);
 			}
@@ -5166,7 +6261,24 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.playerData.y = adjustedPos.y;
 
 		this.player.setPosition(this.playerData.x, this.playerData.y);
+		if (this.playerShadow) {
+			this.playerShadow.x = this.playerData.x;
+			this.playerShadow.y = this.playerData.y + 20;
+		}
+		if (this.playerGlow) {
+			this.playerGlow.x = this.playerData.x;
+			this.playerGlow.y = this.playerData.y;
+		}
 		this.updateDepthSorting();
+		this.updateLightingOverlays();
+		this.tryTriggerHazardSweep(time);
+		this.updateReactiveArenaFx(time, deltaScale);
+
+		const currentLevel = gameState.character?.leveling?.level || 1;
+		if (currentLevel > this.levelFxState.lastLevel) {
+			this.showLevelUpFx(currentLevel);
+			this.levelFxState.lastLevel = currentLevel;
+		}
 
 		// Check if player is standing in lava
 		this.checkLavaDamage(time);
@@ -5177,6 +6289,21 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 
 		// Update powerup UI
 		this.updateBuffUI(time);
+
+		if (this.crucibleEventState.isDraftChoosing) {
+			this.updateInfoPanelText();
+
+			if (this.playerHealthFg) {
+				const character = gameState.character;
+				const hpPercentRaw = character.maxHp ? character.hp / character.maxHp : 0;
+				const hpPercent = Phaser.Math.Clamp(hpPercentRaw, 0, 1);
+				this.playerHealthFg.width = (this.statusBarWidth || 450) * hpPercent;
+			}
+
+			this.updateMinimap();
+			this.updateEnemyIndicators();
+			return;
+		}
 
 		// Check structure proximity and handle entry/exit
 		if (this.isInsideStructure) {
@@ -5261,6 +6388,8 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 				this.handleDevilAbilities(enemyData);
 			} else if (enemyData.type === 'skeleton') {
 				this.handleSkeletonAbilities(enemyData);
+			} else if (enemyData.type === 'anomaly_rift') {
+				this.handleAnomalyRiftAbilities(enemyData);
 			}
 
 			enemy.x += enemyData.vx;
@@ -5296,10 +6425,20 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			} else if (enemyData.type === 'skeleton') {
 				barOffset = 32;
 				barWidth = 45;
+			} else if (enemyData.type === 'bomber_beetle') {
+				barOffset = 34;
+				barWidth = 44;
+			} else if (enemyData.type === 'anomaly_rift') {
+				barOffset = 40;
+				barWidth = 62;
 			}
 			healthBar.x = enemy.x;
 			healthBar.y = enemy.y - barOffset * sizeScale;
 			healthBar.width = (enemy.hp / enemy.maxHp) * barWidth * sizeScale;
+			if (enemyData.shadow) {
+				enemyData.shadow.x = enemy.x;
+				enemyData.shadow.y = enemy.y + 18 * sizeScale;
+			}
 		});
 
 		this.updateInfoPanelText();
@@ -5310,7 +6449,6 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			const hpPercentRaw = character.maxHp ? character.hp / character.maxHp : 0;
 			const hpPercent = Phaser.Math.Clamp(hpPercentRaw, 0, 1);
 			this.playerHealthFg.width = (this.statusBarWidth || 450) * hpPercent;
-			this.playerHealthText.setText(`${Math.round(character.hp)} / ${character.maxHp}`);
 		}
 
 		// Update minimap
@@ -5326,6 +6464,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const dx = this.player.x - enemy.x;
 		const dy = this.player.y - enemy.y;
 		const dist = Math.hypot(dx, dy) || 1;
+		const isVisible = this.isWorldPointVisible(enemy.x, enemy.y, 120);
 
 		if (enemyData.dashUntil && now < enemyData.dashUntil) {
 			const dashSpeed = 3.6 * sizeScale;
@@ -5335,15 +6474,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 			enemyData.dashUntil = null;
 		}
 
-		if (dist < 300 && dist > 120 && now >= enemyData.nextDashTime) {
+		if (isVisible && dist < 300 && dist > 120 && now >= enemyData.nextDashTime) {
+			this.spawnEnemyTelegraph(enemy.x, enemy.y, 68 * sizeScale, 0xff6a33, 220);
 			enemyData.dashDirX = dx / dist;
 			enemyData.dashDirY = dy / dist;
 			enemyData.dashUntil = now + 260;
 			enemyData.nextDashTime = now + Phaser.Math.Between(2800, 4200);
+			this.spawnCombatBurst(enemy.x, enemy.y, 0xff9955, 8);
 			this.spawnHellfireRing(enemy.x, enemy.y, sizeScale, 0x7a1b12);
 		}
 
-		if (dist < 180 && now >= enemyData.nextFireTime) {
+		if (isVisible && dist < 180 && now >= enemyData.nextFireTime) {
+			this.spawnEnemyTelegraph(enemy.x, enemy.y, 48 * sizeScale, 0xff2a00, 180);
 			this.spawnHellfireRing(enemy.x, enemy.y, sizeScale, 0xff4d1a);
 			this.applyPlayerDamage(6);
 			enemyData.nextFireTime = now + Phaser.Math.Between(2600, 3800);
@@ -5368,17 +6510,271 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		this.damagePlayer(amount);
 	}
 
+	handleAnomalyRiftAbilities(enemyData) {
+		const { enemy, sizeScale } = enemyData;
+		const now = this.time.now;
+		const dx = this.player.x - enemy.x;
+		const dy = this.player.y - enemy.y;
+		const dist = Math.hypot(dx, dy) || 1;
+		const isVisible = this.isWorldPointVisible(enemy.x, enemy.y, 140);
+		const variant = enemyData.miniBossVariant || 'ember_witch';
+
+		if (variant === 'ironbound') {
+			if (enemyData.dashUntil && now < enemyData.dashUntil) {
+				const dashSpeed = 4.2 * sizeScale;
+				enemyData.vx += enemyData.dashDirX * dashSpeed;
+				enemyData.vy += enemyData.dashDirY * dashSpeed;
+			} else if (enemyData.dashUntil && now >= enemyData.dashUntil) {
+				enemyData.dashUntil = null;
+			}
+
+			if (isVisible && dist > 120 && dist < 360 && now >= enemyData.nextDashTime) {
+				this.spawnEnemyTelegraph(enemy.x, enemy.y, 74 * sizeScale, 0xff7a45, 240);
+				enemyData.dashDirX = dx / dist;
+				enemyData.dashDirY = dy / dist;
+				enemyData.dashUntil = now + 320;
+				enemyData.nextDashTime = now + Phaser.Math.Between(2800, 3800);
+			}
+
+			if (isVisible && dist < 240 && now >= enemyData.nextSlamTime) {
+				this.spawnEnemyTelegraph(enemy.x, enemy.y, 90 * sizeScale, 0xff4d1a, 260);
+				this.time.delayedCall(260, () => {
+					if (!enemy?.scene || this.isPlayerDead || this.isDeathSequencePlaying) return;
+					const slamDist = Math.hypot(this.playerData.x - enemy.x, this.playerData.y - enemy.y);
+					if (slamDist < 180 * sizeScale) this.applyPlayerDamage(16 + Math.floor(sizeScale * 2));
+					this.spawnCombatBurst(enemy.x, enemy.y, 0xff8855, 14);
+				});
+				enemyData.nextSlamTime = now + Phaser.Math.Between(3000, 4200);
+			}
+			return;
+		}
+
+		if (variant === 'crucible_knight') {
+			if (enemyData.parryUntil && now < enemyData.parryUntil) {
+				if (enemy.setAlpha) enemy.setAlpha(0.75);
+			} else if (enemyData.parryUntil && now >= enemyData.parryUntil) {
+				enemyData.parryUntil = null;
+				if (enemy.setAlpha) enemy.setAlpha(1);
+			}
+
+			if (isVisible && now >= enemyData.nextParryTime) {
+				enemyData.parryUntil = now + 700;
+				enemyData.nextParryTime = now + Phaser.Math.Between(3200, 4600);
+				this.spawnEnemyTelegraph(enemy.x, enemy.y, 60 * sizeScale, 0xffc266, 240);
+			}
+
+			if (isVisible && dist < 420 && now >= enemyData.nextComboTime) {
+				const strikeAngles = [0, 0.35, -0.35];
+				strikeAngles.forEach((offset, idx) => {
+					this.time.delayedCall(idx * 120, () => {
+						if (!enemy?.scene || this.isPlayerDead || this.isDeathSequencePlaying) return;
+						const baseAngle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x) + offset;
+						enemyData.vx += Math.cos(baseAngle) * 4.5;
+						enemyData.vy += Math.sin(baseAngle) * 4.5;
+						this.spawnEnemyTelegraph(enemy.x, enemy.y, 44 * sizeScale, 0xffaa55, 140);
+						if (Math.hypot(this.playerData.x - enemy.x, this.playerData.y - enemy.y) < 120) {
+							this.applyPlayerDamage(14);
+						}
+					});
+				});
+				enemyData.nextComboTime = now + Phaser.Math.Between(2500, 3600);
+			}
+			return;
+		}
+
+		if (isVisible && now >= enemyData.nextTeleportTime) {
+			const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+			const orbitDist = Phaser.Math.Between(120, 220);
+			const tx = Phaser.Math.Clamp(
+				this.player.x + Math.cos(angle) * orbitDist,
+				this.ARENA_PADDING + 50,
+				this.ARENA_WIDTH - this.ARENA_PADDING - 50
+			);
+			const ty = Phaser.Math.Clamp(
+				this.player.y + Math.sin(angle) * orbitDist,
+				this.ARENA_PADDING + 50,
+				this.ARENA_HEIGHT - this.ARENA_PADDING - 50
+			);
+
+			enemy.x = tx;
+			enemy.y = ty;
+			enemyData.nextTeleportTime = now + Phaser.Math.Between(2600, 4200);
+
+			const blink = this.add.circle(tx, ty, 16, 0xb57dff, 0.55);
+			if (this.uiCamera) this.uiCamera.ignore(blink);
+			this.tweens.add({
+				targets: blink,
+				scale: 2.6,
+				alpha: 0,
+				duration: 260,
+				onComplete: () => blink.destroy()
+			});
+		}
+
+		const phaseSpeed = enemy.hp <= enemy.maxHp * 0.5 ? 0.72 : 1;
+		if (isVisible && dist < 520 && now >= enemyData.nextPulseTime) {
+			this.spawnEnemyTelegraph(enemy.x, enemy.y, 62 * sizeScale, 0xb57dff, 260);
+
+			this.time.delayedCall(220, () => {
+				if (!enemy?.scene || this.isPlayerDead || this.isDeathSequencePlaying) return;
+
+				const bolts = 10;
+				for (let i = 0; i < bolts; i++) {
+					const angle = (i / bolts) * Math.PI * 2;
+					const dirX = Math.cos(angle);
+					const dirY = Math.sin(angle);
+					this.spawnRiftBolt(enemy.x, enemy.y, dirX, dirY, 4 + sizeScale * 0.5, 10 + sizeScale * 2);
+				}
+
+				const pulse = this.add.circle(enemy.x, enemy.y, 24, 0xb57dff, 0.24);
+				if (this.uiCamera) this.uiCamera.ignore(pulse);
+				this.tweens.add({
+					targets: pulse,
+					scale: 2.8,
+					alpha: 0,
+					duration: 360,
+					onComplete: () => pulse.destroy()
+				});
+			});
+
+			enemyData.nextPulseTime = now + Math.floor(Phaser.Math.Between(1700, 2600) * phaseSpeed);
+		}
+	}
+
+	spawnRiftBolt(x, y, dirX, dirY, speed, damage) {
+		const bolt = this.add.circle(x, y, 5.5, 0xd8b3ff, 0.95);
+		bolt.setStrokeStyle(2, 0xffffff, 0.85);
+		bolt.setBlendMode('ADD');
+		bolt.setDepth(30);
+		if (this.uiCamera) this.uiCamera.ignore(bolt);
+
+		this.enemyProjectiles.push({
+			sprite: bolt,
+			x,
+			y,
+			vx: dirX * speed,
+			vy: dirY * speed,
+			damage,
+			radius: 7,
+			rangeRemaining: 520
+		});
+	}
+
+	triggerBomberExplosion(x, y, sizeScale = 1) {
+		const blastRadius = 90 * sizeScale;
+		const damage = 14 * sizeScale;
+
+		const core = this.add.circle(x, y, 12, 0xff8c1a, 0.8);
+		const ring = this.add.circle(x, y, blastRadius * 0.3, 0xffd166, 0.35);
+		if (this.uiCamera) {
+			this.uiCamera.ignore(core);
+			this.uiCamera.ignore(ring);
+		}
+
+		for (let i = 0; i < 10; i++) {
+			const angle = (i / 10) * Math.PI * 2;
+			const spark = this.add.circle(x, y, 3, 0xffe3a1, 0.9);
+			if (this.uiCamera) this.uiCamera.ignore(spark);
+			this.tweens.add({
+				targets: spark,
+				x: x + Math.cos(angle) * blastRadius,
+				y: y + Math.sin(angle) * blastRadius,
+				alpha: 0,
+				scale: 0.3,
+				duration: 260,
+				ease: 'Quad.easeOut',
+				onComplete: () => spark.destroy()
+			});
+		}
+
+		this.tweens.add({
+			targets: core,
+			scale: 2.4,
+			alpha: 0,
+			duration: 260,
+			ease: 'Quad.easeOut',
+			onComplete: () => core.destroy()
+		});
+
+		this.tweens.add({
+			targets: ring,
+			scale: 2,
+			alpha: 0,
+			duration: 300,
+			ease: 'Sine.easeOut',
+			onComplete: () => ring.destroy()
+		});
+
+		const dx = this.playerData.x - x;
+		const dy = this.playerData.y - y;
+		const dist = Math.hypot(dx, dy) || 1;
+		if (dist <= blastRadius) {
+			this.applyPlayerDamage(damage);
+			const knockback = (blastRadius - dist) / blastRadius;
+			this.playerData.vx += (dx / dist) * 5 * knockback;
+			this.playerData.vy += (dy / dist) * 5 * knockback;
+		}
+	}
+
 	handleSkeletonAbilities(enemyData) {
 		const { enemy, sizeScale } = enemyData;
 		const now = this.time.now;
 		const dx = this.player.x - enemy.x;
 		const dy = this.player.y - enemy.y;
 		const dist = Math.hypot(dx, dy) || 1;
+		const isVisible = this.isWorldPointVisible(enemy.x, enemy.y, 120);
 
-		if (dist < 380 && dist > 120 && now >= enemyData.nextArrowTime) {
+		if (isVisible && dist < 380 && dist > 120 && now >= enemyData.nextArrowTime) {
+			this.spawnEnemyTelegraph(enemy.x, enemy.y, 42 * sizeScale, 0xff9933, 160);
 			this.shootFlamingArrow(enemy.x, enemy.y, dx / dist, dy / dist, sizeScale);
+			this.spawnCombatBurst(enemy.x, enemy.y, 0xffbb55, 6);
 			enemyData.nextArrowTime = now + Phaser.Math.Between(1800, 3200);
 		}
+	}
+
+	spawnEnemyTelegraph(x, y, radius, color = 0xff6600, duration = 220) {
+		this.createRuneTelegraph(x, y, radius, color, duration);
+	}
+
+	createRuneTelegraph(x, y, radius, color = 0xff6600, duration = 240) {
+		const rune = this.add.graphics();
+		rune.setDepth(21);
+		if (this.uiCamera) this.uiCamera.ignore(rune);
+
+		const drawAtScale = (scale = 1, alpha = 1, rotation = 0) => {
+			rune.clear();
+			rune.lineStyle(3, color, 0.85 * alpha);
+			rune.strokeCircle(x, y, radius * scale);
+			rune.lineStyle(1.5, 0xffffff, 0.42 * alpha);
+			rune.strokeCircle(x, y, radius * 0.72 * scale);
+
+			for (let i = 0; i < 8; i++) {
+				const angle = rotation + (i / 8) * Math.PI * 2;
+				const inner = radius * 0.58 * scale;
+				const outer = radius * 0.94 * scale;
+				rune.lineStyle(2, color, 0.7 * alpha);
+				rune.lineBetween(
+					x + Math.cos(angle) * inner,
+					y + Math.sin(angle) * inner,
+					x + Math.cos(angle) * outer,
+					y + Math.sin(angle) * outer
+				);
+			}
+		};
+
+		this.tweens.addCounter({
+			from: 0,
+			to: 1,
+			duration,
+			ease: 'Sine.out',
+			onUpdate: (tween) => {
+				const p = tween.getValue();
+				drawAtScale(0.68 + p * 0.42, 1 - p, p * Math.PI);
+			},
+			onComplete: () => rune.destroy()
+		});
+
+		return rune;
 	}
 
 	shootFlamingArrow(x, y, dirX, dirY, sizeScale) {
@@ -5390,6 +6786,7 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		const flame = this.add.circle(0, 0, 3, 0xff4400, 0.7);
 		const arrowContainer = this.add.container(x, y, [arrow, flame]);
 		arrowContainer.setRotation(Math.atan2(dirY, dirX));
+		arrowContainer.setDepth(30);
 
 		if (this.uiCamera) {
 			this.uiCamera.ignore(arrowContainer);
@@ -5528,6 +6925,18 @@ export class ChaossCrucibleScene extends Phaser.Scene {
 		if (this.waveState.nextWaveTimer) {
 			this.waveState.nextWaveTimer.destroy();
 			this.waveState.nextWaveTimer = null;
+		}
+
+		if (this.arenaHazardState?.activeEvents?.length) {
+			this.arenaHazardState.activeEvents.forEach(eventRef => {
+				if (eventRef && eventRef.destroy) eventRef.destroy();
+			});
+			this.arenaHazardState.activeEvents = [];
+		}
+
+		if (this.elementalSurgeOverlay?.scene) {
+			this.elementalSurgeOverlay.destroy();
+			this.elementalSurgeOverlay = null;
 		}
 		
 		// Clear minimap elements

@@ -365,6 +365,14 @@ export function generateEnemySprite(scene, x = 0, y = 0, type = 'slime') {
     drawBomberBeetleEnemy(scene, container);
   } else if (type === 'storm_mage') {
     drawStormMageEnemy(scene, container);
+  } else if (type === 'anomaly_rift') {
+    drawAnomalyRiftEnemy(scene, container);
+  } else if (type === 'ironbound_colossus') {
+    drawIronboundColossusEnemy(scene, container);
+  } else if (type === 'crucible_knight') {
+    drawCrucibleKnightEnemy(scene, container);
+  } else if (type === 'ember_witch') {
+    drawEmberWitchEnemy(scene, container);
   } else {
     drawSlimeEnemy(scene, container);
   }
@@ -775,6 +783,180 @@ function drawStormMageEnemy(scene, container) {
   staff.lineStyle(2, 0xba68c8, 1);
   staff.lineBetween(0, -22, -4, -28);
   staff.lineBetween(0, -22, 4, -26);
+  staff.x = 18;
+  staff.y = 8;
+  container.add(staff);
+  container.staff = staff;
+}
+
+function drawAnomalyRiftEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0x9a5cff, 0.16);
+  aura.fillCircle(0, 0, 30);
+  aura.fillStyle(0xd6b7ff, 0.08);
+  aura.fillCircle(0, 0, 40);
+  container.add(aura);
+  container.aura = aura;
+
+  const voidRing = scene.add.graphics();
+  voidRing.lineStyle(3, 0xd7b8ff, 0.9);
+  voidRing.strokeCircle(0, 0, 18);
+  voidRing.lineStyle(2, 0x8a54e2, 0.75);
+  voidRing.strokeCircle(0, 0, 24);
+  container.add(voidRing);
+
+  const core = scene.add.graphics();
+  core.fillStyle(0x51208f, 1);
+  core.fillEllipse(0, 0, 26, 30);
+  core.fillStyle(0x7f36d8, 0.95);
+  core.fillEllipse(0, -2, 18, 22);
+  core.fillStyle(0xf0dcff, 0.95);
+  core.fillCircle(0, -2, 4);
+  container.add(core);
+
+  const shards = scene.add.graphics();
+  shards.fillStyle(0xe3cbff, 0.9);
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(-20, -6, -14, -14, -12, -4));
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(18, -10, 24, -4, 14, -2));
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(-18, 10, -12, 14, -10, 6));
+  shards.fillTriangleShape(new Phaser.Geom.Triangle(12, 12, 18, 16, 14, 8));
+  container.add(shards);
+  container.shards = shards;
+}
+
+function drawIronboundColossusEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0x94a0b0, 0.15);
+  aura.fillCircle(0, 2, 32);
+  container.add(aura);
+  container.aura = aura;
+
+  const body = scene.add.graphics();
+  body.fillStyle(0x596575, 1);
+  body.fillRoundedRect(-18, -16, 36, 44, 8);
+  body.fillStyle(0x7e8897, 1);
+  body.fillRoundedRect(-13, -10, 26, 24, 6);
+  body.fillStyle(0xcfd7df, 0.85);
+  body.fillRect(-10, 2, 20, 2);
+  body.fillRect(-8, 8, 16, 2);
+  body.lineStyle(2, 0x3c4450, 0.9);
+  body.strokeRoundedRect(-18, -16, 36, 44, 8);
+  container.add(body);
+
+  const helm = scene.add.graphics();
+  helm.fillStyle(0x525e6d, 1);
+  helm.fillRoundedRect(-14, -30, 28, 18, 5);
+  helm.fillStyle(0xadb8c4, 1);
+  helm.fillCircle(-5, -22, 2.5);
+  helm.fillCircle(5, -22, 2.5);
+  helm.fillStyle(0x2b3139, 1);
+  helm.fillRect(-6, -18, 12, 3);
+  container.add(helm);
+
+  const weapon = scene.add.graphics();
+  weapon.lineStyle(4, 0x3c2b20, 1);
+  weapon.lineBetween(0, 0, 0, -22);
+  weapon.fillStyle(0x9ea7b1, 1);
+  weapon.fillRoundedRect(-8, -32, 16, 10, 2);
+  weapon.fillStyle(0x6f7781, 1);
+  weapon.fillRect(-6, -30, 12, 3);
+  weapon.x = 20;
+  weapon.y = 8;
+  container.add(weapon);
+  container.weapon = weapon;
+}
+
+function drawCrucibleKnightEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0xffb062, 0.14);
+  aura.fillCircle(0, 2, 30);
+  container.add(aura);
+  container.aura = aura;
+
+  const body = scene.add.graphics();
+  body.fillStyle(0x6f3116, 1);
+  body.fillRoundedRect(-15, -14, 30, 40, 7);
+  body.fillStyle(0xc46f2f, 0.95);
+  body.fillRoundedRect(-10, -8, 20, 24, 5);
+  body.fillStyle(0x2f1810, 0.85);
+  body.fillRect(-2, -8, 4, 24);
+  container.add(body);
+
+  const helm = scene.add.graphics();
+  helm.fillStyle(0x7d3a1f, 1);
+  helm.fillRoundedRect(-12, -28, 24, 16, 4);
+  helm.fillStyle(0xffd39a, 1);
+  helm.fillCircle(-4, -20, 2);
+  helm.fillCircle(4, -20, 2);
+  helm.fillStyle(0xd78239, 1);
+  helm.fillTriangleShape(new Phaser.Geom.Triangle(0, -32, -3, -26, 3, -26));
+  container.add(helm);
+
+  const shield = scene.add.graphics();
+  shield.fillStyle(0x8f4422, 1);
+  shield.fillRoundedRect(-8, -10, 16, 22, 5);
+  shield.lineStyle(2, 0xffbe79, 0.9);
+  shield.strokeRoundedRect(-8, -10, 16, 22, 5);
+  shield.x = -22;
+  shield.y = 6;
+  container.add(shield);
+
+  const blade = scene.add.graphics();
+  blade.lineStyle(2.5, 0xd8d8d8, 1);
+  blade.lineBetween(0, 0, 0, -18);
+  blade.fillStyle(0x8a4e29, 1);
+  blade.fillRect(-3, 0, 6, 3);
+  blade.x = 20;
+  blade.y = 10;
+  container.add(blade);
+  container.weapon = blade;
+}
+
+function drawEmberWitchEnemy(scene, container) {
+  const aura = scene.add.graphics();
+  aura.fillStyle(0xff6630, 0.18);
+  aura.fillCircle(0, 0, 30);
+  aura.fillStyle(0xffb36b, 0.08);
+  aura.fillCircle(0, 0, 40);
+  container.add(aura);
+  container.aura = aura;
+
+  const robe = scene.add.graphics();
+  robe.fillStyle(0x5d1f14, 1);
+  robe.fillEllipse(0, 8, 34, 34);
+  robe.fillStyle(0x8a2f1b, 1);
+  robe.fillRect(-14, -5, 28, 14);
+  robe.fillStyle(0xff8f52, 0.55);
+  robe.fillCircle(-8, 0, 2.5);
+  robe.fillCircle(0, 3, 2.5);
+  robe.fillCircle(8, 0, 2.5);
+  container.add(robe);
+
+  const head = scene.add.graphics();
+  head.fillStyle(0x6a2516, 1);
+  head.fillEllipse(0, -12, 18, 20);
+  head.fillStyle(0xffc57a, 1);
+  head.fillCircle(-4, -12, 2.5);
+  head.fillCircle(4, -12, 2.5);
+  head.fillStyle(0x2d0f0b, 1);
+  head.fillCircle(-4, -12, 1.2);
+  head.fillCircle(4, -12, 1.2);
+  container.add(head);
+
+  const hat = scene.add.graphics();
+  hat.fillStyle(0x42160d, 1);
+  hat.fillTriangleShape(new Phaser.Geom.Triangle(-10, -20, 10, -20, 0, -35));
+  hat.fillStyle(0xd04c25, 1);
+  hat.fillRect(-10, -22, 20, 3);
+  container.add(hat);
+
+  const staff = scene.add.graphics();
+  staff.lineStyle(3, 0x5a311e, 1);
+  staff.lineBetween(0, 0, 0, -20);
+  staff.fillStyle(0xff6f35, 0.95);
+  staff.fillCircle(0, -22, 5);
+  staff.fillStyle(0xffcf8a, 0.8);
+  staff.fillCircle(0, -22, 2.5);
   staff.x = 18;
   staff.y = 8;
   container.add(staff);

@@ -9,6 +9,11 @@ export class EnemyWikiScene extends Phaser.Scene {
   constructor() {
     super({ key: 'EnemyWikiScene', active: false });
     this.escBackHandler = null;
+    this.wheelHandler = null;
+    this.pointerMoveHandler = null;
+    this.upScrollHandler = null;
+    this.downScrollHandler = null;
+    this.scrollState = null;
   }
 
   create() {
@@ -26,8 +31,49 @@ export class EnemyWikiScene extends Phaser.Scene {
       strokeThickness: 8
     }).setOrigin(0.5);
 
+    this.add.text(centerX, 122, 'Scroll: Mouse Wheel / Arrow Keys', {
+      font: 'bold 20px Arial',
+      fill: '#ffcc99',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
     this.createBackButton(90, 50);
-    this.createEnemyList(centerX, centerY + 40);
+    this.createEnemyList(centerX, centerY + 36);
+
+    this.wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
+      if (!this.scrollState) {
+        return;
+      }
+      if (!Phaser.Geom.Rectangle.Contains(this.scrollState.viewportBounds, pointer.x, pointer.y)) {
+        return;
+      }
+      this.scrollBy(-deltaY * 0.45);
+    };
+    this.input.on('wheel', this.wheelHandler);
+
+    this.pointerMoveHandler = (pointer) => {
+      if (!this.scrollState || !pointer.isDown) {
+        return;
+      }
+      if (!Phaser.Geom.Rectangle.Contains(this.scrollState.viewportBounds, pointer.x, pointer.y) && !this.scrollState.isDragging) {
+        return;
+      }
+      this.scrollState.isDragging = true;
+      this.scrollBy(pointer.velocity.y * 0.8);
+    };
+    this.input.on('pointermove', this.pointerMoveHandler);
+
+    this.input.on('pointerup', () => {
+      if (this.scrollState) {
+        this.scrollState.isDragging = false;
+      }
+    });
+
+    this.upScrollHandler = () => this.scrollBy(55);
+    this.downScrollHandler = () => this.scrollBy(-55);
+    this.input.keyboard.on('keydown-UP', this.upScrollHandler);
+    this.input.keyboard.on('keydown-DOWN', this.downScrollHandler);
 
     this.escBackHandler = () => {
       this.scene.start('WikiScene');
@@ -74,71 +120,149 @@ export class EnemyWikiScene extends Phaser.Scene {
       {
         name: 'Slime',
         type: 'slime',
+        animationType: 'slime',
         stats: { hp: 40, damage: 8, speed: 60 },
-        abilities: ['Split Bounce', 'Sticky Slow']
+        abilities: ['Split Bounce', 'Sticky Slow'],
+        notes: 'Basic swarm unit that pressures early waves in numbers.'
       },
       {
         name: 'Devil',
         type: 'devil',
+        animationType: 'devil',
         stats: { hp: 85, damage: 18, speed: 70 },
-        abilities: ['Hellfire Burst', 'Winged Dash']
+        abilities: ['Hellfire Burst', 'Winged Dash'],
+        notes: 'Casts fire lanes and quick gap-closing dashes when close.'
       },
       {
         name: 'Skeleton',
         type: 'skeleton',
+        animationType: 'skeleton',
         stats: { hp: 55, damage: 12, speed: 65 },
-        abilities: ['Bone Throw', 'Shielded Guard']
+        abilities: ['Bone Throw', 'Shielded Guard'],
+        notes: 'Ranged poke enemy with steady pressure and survivability.'
+      },
+      {
+        name: 'Frost Wraith',
+        type: 'frost_wraith',
+        animationType: 'frost_wraith',
+        stats: { hp: 70, damage: 15, speed: 80 },
+        abilities: ['Freeze', 'Icy Dash'],
+        notes: 'Mobile control enemy that punishes overextension.'
+      },
+      {
+        name: 'Exploder Beetle',
+        type: 'bomber_beetle',
+        animationType: 'bomber_beetle',
+        stats: { hp: 60, damage: 10, speed: 50 },
+        abilities: ['Death Explosion', 'Volatile Charge'],
+        notes: 'Forces spacing and movement discipline in melee range.'
+      },
+      {
+        name: 'Storm Mage',
+        type: 'storm_mage',
+        animationType: 'storm_mage',
+        stats: { hp: 90, damage: 20, speed: 60 },
+        abilities: ['Lightning Strike', 'Teleport'],
+        notes: 'Burst caster that blinks to maintain dangerous angles.'
+      },
+      {
+        name: 'Anomaly Rift (Mini-Boss)',
+        type: 'anomaly_rift',
+        spriteType: 'anomaly_rift',
+        animationType: 'anomaly_rift',
+        stats: { hp: 'Elite Scaling', damage: 'High', speed: 62 },
+        abilities: ['Rift Bolt', 'Anomaly Pulse', 'Rune Telegraph'],
+        notes: 'Appears every 5-7 waves with variant-specific movesets.'
+      },
+      {
+        name: 'Ironbound Colossus (Variant)',
+        type: 'anomaly_rift',
+        spriteType: 'ironbound_colossus',
+        animationType: 'ironbound',
+        stats: { hp: 'Very High', damage: 'Heavy', speed: 56 },
+        abilities: ['Charging Slam', 'Ground Shockwave'],
+        notes: 'Slowest variant, strongest frontal pressure and slam threat.'
+      },
+      {
+        name: 'Crucible Knight (Variant)',
+        type: 'anomaly_rift',
+        spriteType: 'crucible_knight',
+        animationType: 'crucible_knight',
+        stats: { hp: 'High', damage: 'High', speed: 68 },
+        abilities: ['Parry Window', 'Combo Dash Strikes'],
+        notes: 'Balanced duelist with burst chains after parry timings.'
+      },
+      {
+        name: 'Ember Witch (Variant)',
+        type: 'anomaly_rift',
+        spriteType: 'ember_witch',
+        animationType: 'ember_witch',
+        stats: { hp: 'High', damage: 'Ranged Burst', speed: 72 },
+        abilities: ['Teleport Weave', 'Phase-2 Cast Speed Boost'],
+        notes: 'Most mobile variant, accelerates cast tempo below 50% HP.'
       }
-        ,
-        {
-          name: 'Frost Wraith',
-          type: 'frost_wraith',
-          stats: { hp: 70, damage: 15, speed: 80 },
-          abilities: ['Freeze', 'Icy Dash']
-        },
-        {
-          name: 'Bomber Beetle',
-          type: 'bomber_beetle',
-          stats: { hp: 60, damage: 10, speed: 50 },
-          abilities: ['Explosive Bomb', 'Quick Escape']
-        },
-        {
-          name: 'Storm Mage',
-          type: 'storm_mage',
-          stats: { hp: 90, damage: 20, speed: 60 },
-          abilities: ['Lightning Strike', 'Teleport']
-        }
     ];
 
     const itemWidth = Math.min(760, this.scale.width - 80);
-    const itemHeight = 130;
-    const gap = 20;
-    const totalHeight = enemies.length * itemHeight + (enemies.length - 1) * gap;
-    const startY = -totalHeight / 2 + itemHeight / 2;
+    const itemHeight = 158;
+    const gap = 16;
+    const contentPadding = 18;
+    const viewportHeight = Math.min(560, this.scale.height - 205);
+    const viewportWidth = itemWidth + 20;
+    const viewportTop = centerY - viewportHeight / 2;
 
-    const listContainer = this.add.container(centerX, centerY);
+    const viewportFrame = this.add.rectangle(centerX, centerY, viewportWidth, viewportHeight, 0x2b0a0a, 0.26)
+      .setOrigin(0.5)
+      .setStrokeStyle(2, 0xff8844, 0.7);
+
+    const viewportBounds = new Phaser.Geom.Rectangle(
+      centerX - viewportWidth / 2,
+      viewportTop,
+      viewportWidth,
+      viewportHeight
+    );
+
+    const contentContainer = this.add.container(0, 0);
+
+    const listMaskGfx = this.make.graphics({ x: 0, y: 0, add: false });
+    listMaskGfx.fillStyle(0xffffff, 1);
+    listMaskGfx.fillRect(viewportBounds.x, viewportBounds.y, viewportBounds.width, viewportBounds.height);
+    contentContainer.setMask(listMaskGfx.createGeometryMask());
+
+    const totalContentHeight = enemies.length * itemHeight + (enemies.length - 1) * gap + contentPadding * 2;
+    const maxScrollDistance = Math.max(0, totalContentHeight - viewportHeight);
+
+    this.scrollState = {
+      container: contentContainer,
+      viewportBounds,
+      minY: -maxScrollDistance,
+      maxY: 0,
+      isDragging: false
+    };
+
+    const startY = viewportTop + contentPadding + itemHeight / 2;
 
     enemies.forEach((enemy, index) => {
       const itemY = startY + index * (itemHeight + gap);
-      const itemContainer = this.add.container(0, itemY);
+      const itemContainer = this.add.container(centerX, itemY);
 
       const panel = this.add.rectangle(0, 0, itemWidth, itemHeight, 0x2b0a0a, 0.86)
         .setStrokeStyle(2, 0xff8844, 0.75);
 
-      const sprite = generateEnemySprite(this, 0, 0, enemy.type);
-      sprite.setScale(1.3);
+      const sprite = this.createWikiEnemySprite(enemy);
+      sprite.setScale(enemy.type === 'anomaly_rift' ? 1.25 : 1.3);
       sprite.x = -itemWidth / 2 + 70;
-      this.addEnemyAnimations(sprite, enemy.type, index);
+      this.addEnemyAnimations(sprite, enemy.animationType || enemy.type, index);
 
-      const nameText = this.add.text(-itemWidth / 2 + 140, -38, enemy.name, {
+      const nameText = this.add.text(-itemWidth / 2 + 140, -50, enemy.name, {
         font: 'bold 26px Arial',
         fill: '#ffffff'
       });
 
       const statsText = this.add.text(
         -itemWidth / 2 + 140,
-        -8,
-        `HP: ${enemy.stats.hp}  DMG: ${enemy.stats.damage}  SPD: ${enemy.stats.speed}`,
+        -20,
+        `HP: ${this.formatStatValue(enemy.stats.hp)}  DMG: ${this.formatStatValue(enemy.stats.damage)}  SPD: ${this.formatStatValue(enemy.stats.speed)}`,
         {
           font: '17px Arial',
           fill: '#ffdda0'
@@ -147,7 +271,7 @@ export class EnemyWikiScene extends Phaser.Scene {
 
       const abilitiesText = this.add.text(
         -itemWidth / 2 + 140,
-        22,
+        10,
         `Abilities: ${enemy.abilities.join(', ')}`,
         {
           font: '16px Arial',
@@ -156,9 +280,94 @@ export class EnemyWikiScene extends Phaser.Scene {
         }
       );
 
-      itemContainer.add([panel, sprite, nameText, statsText, abilitiesText]);
-      listContainer.add(itemContainer);
+      const notesText = this.add.text(
+        -itemWidth / 2 + 140,
+        54,
+        `Notes: ${enemy.notes}`,
+        {
+          font: '15px Arial',
+          fill: '#ffc89d',
+          wordWrap: { width: itemWidth - 190 }
+        }
+      );
+
+      itemContainer.add([panel, sprite, nameText, statsText, abilitiesText, notesText]);
+      contentContainer.add(itemContainer);
     });
+
+    if (maxScrollDistance > 0) {
+      const trackHeight = viewportHeight - 14;
+      const track = this.add.rectangle(
+        viewportBounds.right - 7,
+        centerY,
+        8,
+        trackHeight,
+        0x000000,
+        0.35
+      ).setOrigin(0.5);
+
+      const thumbHeight = Math.max(60, (viewportHeight / totalContentHeight) * trackHeight);
+      const thumbY = viewportBounds.y + thumbHeight / 2 + 7;
+      const thumb = this.add.rectangle(viewportBounds.right - 7, thumbY, 8, thumbHeight, 0xffaa66, 0.75)
+        .setOrigin(0.5);
+
+      this.scrollState.track = track;
+      this.scrollState.thumb = thumb;
+      this.scrollState.trackHeight = trackHeight;
+      this.scrollState.thumbHeight = thumbHeight;
+    }
+
+    this.setScrollPosition(0);
+  }
+
+  createWikiEnemySprite(enemy) {
+    const sprite = generateEnemySprite(this, 0, 0, enemy.spriteType || enemy.type);
+    if (enemy.tint) {
+      this.tintContainerRecursive(sprite, enemy.tint);
+    }
+    return sprite;
+  }
+
+  tintContainerRecursive(target, tint) {
+    if (!target) {
+      return;
+    }
+
+    if (typeof target.setTint === 'function') {
+      target.setTint(tint);
+    }
+
+    if (target.list && Array.isArray(target.list)) {
+      target.list.forEach(child => this.tintContainerRecursive(child, tint));
+    }
+  }
+
+  formatStatValue(value) {
+    return typeof value === 'number' ? Math.round(value) : value;
+  }
+
+  scrollBy(delta) {
+    if (!this.scrollState) {
+      return;
+    }
+    this.setScrollPosition(this.scrollState.container.y + delta);
+  }
+
+  setScrollPosition(newY) {
+    if (!this.scrollState) {
+      return;
+    }
+
+    const clampedY = Phaser.Math.Clamp(newY, this.scrollState.minY, this.scrollState.maxY);
+    this.scrollState.container.y = clampedY;
+
+    if (this.scrollState.thumb) {
+      const totalRange = Math.abs(this.scrollState.minY - this.scrollState.maxY);
+      const progress = totalRange > 0 ? Math.abs(clampedY) / totalRange : 0;
+      const thumbMinY = this.scrollState.viewportBounds.y + this.scrollState.thumbHeight / 2 + 7;
+      const thumbMaxY = thumbMinY + (this.scrollState.trackHeight - this.scrollState.thumbHeight);
+      this.scrollState.thumb.y = Phaser.Math.Linear(thumbMinY, thumbMaxY, progress);
+    }
   }
 
   addEnemyAnimations(sprite, type, index) {
@@ -472,6 +681,46 @@ export class EnemyWikiScene extends Phaser.Scene {
         }
         break;
 
+      case 'anomaly_rift':
+      case 'ironbound':
+      case 'crucible_knight':
+      case 'ember_witch':
+        this.tweens.add({
+          targets: sprite,
+          y: sprite.y - 8,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay
+        });
+
+        this.tweens.add({
+          targets: sprite,
+          scaleX: sprite.scaleX * 1.08,
+          scaleY: sprite.scaleY * 1.08,
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: baseDelay + 150
+        });
+
+        if (sprite.aura) {
+          this.tweens.add({
+            targets: sprite.aura,
+            alpha: 0.2,
+            scaleX: 1.35,
+            scaleY: 1.35,
+            duration: 1100,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: baseDelay
+          });
+        }
+        break;
+
       default:
         this.tweens.add({
           targets: sprite,
@@ -491,6 +740,28 @@ export class EnemyWikiScene extends Phaser.Scene {
       this.input.keyboard.off('keydown-ESC', this.escBackHandler);
       this.escBackHandler = null;
     }
+
+    if (this.upScrollHandler) {
+      this.input.keyboard.off('keydown-UP', this.upScrollHandler);
+      this.upScrollHandler = null;
+    }
+
+    if (this.downScrollHandler) {
+      this.input.keyboard.off('keydown-DOWN', this.downScrollHandler);
+      this.downScrollHandler = null;
+    }
+
+    if (this.wheelHandler) {
+      this.input.off('wheel', this.wheelHandler);
+      this.wheelHandler = null;
+    }
+
+    if (this.pointerMoveHandler) {
+      this.input.off('pointermove', this.pointerMoveHandler);
+      this.pointerMoveHandler = null;
+    }
+
+    this.scrollState = null;
 
     // Clean up all scene resources
     cleanupScene(this);

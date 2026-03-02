@@ -99,6 +99,20 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - **Coming soon cinematic polish**: Added layered inferno background, dense embers/flames, energy rings, periodic fire bursts, and stronger animated title treatment.
 - **Main menu flame overhaul**: Replaced older flame tongues with layered particle fire, wall flames, embers, and title-focused heat aura effects.
 
+## March 2026 Arena, Skill Tree & Enemy Roster Expansion
+
+- **Mini-boss wave cadence**: Added mini-boss encounters on a 5-7 wave interval with rotating variant selection logic.
+- **Unique elite variants**: Added Ironbound Colossus, Crucible Knight, and Ember Witch behavior branches with distinct combat signatures.
+- **Combat readability pass**: Added/updated visibility telegraphs, improved off-screen indicators, and variant-aware minimap markers.
+- **Skill tree overhaul**: Replaced legacy trees with a full 4-class, 3-branch progression design and expanded node inventory.
+- **Skill tree persistence compatibility**: Save-load now merges legacy unlock state into new default trees so expanded branches remain intact.
+- **Skill tree UI redesign**: Added role-aware branch selector buttons, centered HUD/button layout, responsive vertical spacing, and improved description wrapping.
+- **Skill node presentation update**: Node circles display token costs, root node uses a marker dot, and branch headers/descriptions are layout-anchored for readability.
+- **Ability-to-class linkage expansion**: New role-wide skill-effect routing now drives unlock celebrations, combat pulses, and projectile trail effects by class tree.
+- **Enemy wiki expansion**: Enemy wiki now includes full roster + mini-boss variants in one scrollable page with wheel/drag/arrow-key navigation.
+- **Custom enemy sprite set**: Added dedicated procedural sprites for anomaly_rift, ironbound_colossus, crucible_knight, and ember_witch.
+- **Wiki/combat sprite parity**: New elite sprites are wired both in Enemy Wiki and live arena mini-boss spawns for consistent visual identity.
+
 ## Code Quality & Architecture (February 2026 Audit)
 
 A comprehensive code audit was conducted to improve code organization and maintainability. See [AUDIT.md](AUDIT.md) for the full report.

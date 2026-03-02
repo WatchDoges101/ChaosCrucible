@@ -14,6 +14,7 @@ export class OptionsScene extends Phaser.Scene {
     this.returnSceneData = {};
     this.activeSlider = null;
     this.escBackHandler = null;
+    this.qualityValueText = null;
   }
 
   init(data) {
@@ -27,52 +28,54 @@ export class OptionsScene extends Phaser.Scene {
     }
   }
 
+  navigateBack() {
+    gameState.saveSettings();
+    this.scene.start(this.returnScene, this.returnSceneData);
+  }
+
   /**
    * Create a properly functioning slider with thumb
    */
   createSlider(startX, startY, width, height, currentValue, onChange) {
     const sliderStart = startX;
-    const sliderEnd = startX + width;
-    const sliderTrack = 12;
-    const thumbSize = 20;
+    const sliderTrack = 14;
+    const thumbSize = 24;
 
     // Background track
-    const track = this.add.rectangle(startX + width / 2, startY, width, sliderTrack, 0x444444, 1)
+    const track = this.add.rectangle(startX + width / 2, startY, width, sliderTrack, 0x2a1a12, 0.95)
       .setOrigin(0.5)
-      .setStrokeStyle(2, 0xffffff);
+      .setStrokeStyle(2, 0xffb066, 0.9);
 
     // Fill bar
-    const fillWidth = Math.max(0, Math.min(1, currentValue)) * width;
+    const clampedInitial = Math.max(0, Math.min(1, currentValue));
+    const fillWidth = clampedInitial * width;
     const fill = this.add.rectangle(
       startX,
       startY,
       fillWidth,
       sliderTrack,
-      0xff6b00,
-      1
+      0xff7a1a,
+      0.95
     ).setOrigin(0, 0.5);
 
     // Thumb/handle
     const thumb = this.add.rectangle(
-      startX + Math.max(0, Math.min(1, currentValue)) * width,
+      startX + clampedInitial * width,
       startY,
       thumbSize,
       thumbSize + 8,
-      0xffaa44,
+      0xffc266,
       1
     ).setOrigin(0.5)
-      .setStrokeStyle(2, 0xffffff)
+      .setStrokeStyle(2, 0x1a0d05, 0.95)
       .setInteractive({ useHandCursor: true });
 
-    const updateSlader = (value) => {
+    const updateSlider = (value) => {
       const clampedValue = Math.max(0, Math.min(1, value));
       const newX = startX + clampedValue * width;
       const newFillWidth = clampedValue * width;
 
-      // Scale the fill bar based on the percentage
-      if (fillWidth > 0) {
-        fill.scaleX = newFillWidth / fillWidth;
-      }
+      fill.width = newFillWidth;
       thumb.setX(newX);
 
       if (onChange) {
@@ -83,16 +86,149 @@ export class OptionsScene extends Phaser.Scene {
     // Track click for direct position change
     track.setInteractive({ useHandCursor: true });
     track.on('pointerdown', (pointer) => {
-      updateSlader((pointer.x - sliderStart) / width);
+      updateSlider((pointer.x - sliderStart) / width);
     });
 
     // Thumb drag
     this.input.setDraggable(thumb);
     thumb.on('drag', (pointer) => {
-      updateSlader((pointer.x - sliderStart) / width);
+      updateSlider((pointer.x - sliderStart) / width);
     });
 
-    return { track, fill, thumb, updateSlader };
+    thumb.on('pointerover', () => {
+      thumb.setFillStyle(0xffd48a, 1);
+      this.tweens.add({
+        targets: thumb,
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 120,
+        ease: 'Sine.out'
+      });
+    });
+
+    thumb.on('pointerout', () => {
+      thumb.setFillStyle(0xffc266, 1);
+      this.tweens.add({
+        targets: thumb,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 120,
+        ease: 'Sine.out'
+      });
+    });
+
+    return { track, fill, thumb, updateSlider };
+  }
+
+  createVolcanicBackdrop(width, height, centerX, centerY) {
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x130707, 1).setOrigin(0.5);
+    bg.setDepth(-1000);
+
+    const lowerGlow = this.add.ellipse(centerX, height * 0.9, width * 1.15, height * 0.4, 0x7a1900, 0.28).setDepth(-995);
+    const innerGlow = this.add.ellipse(centerX, height * 0.93, width * 0.8, height * 0.23, 0xff5a00, 0.18).setDepth(-994);
+
+    const createTexture = (key, color, size, radius) => {
+      if (this.textures.exists(key)) return;
+      const g = this.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(color, 1);
+      g.fillCircle(size / 2, size / 2, radius);
+      g.generateTexture(key, size, size);
+      g.destroy();
+    };
+
+    createTexture('optionsEmber', 0xffc97a, 8, 3);
+    createTexture('optionsFlame', 0xff7a2a, 14, 7);
+
+    const floorFlames = this.add.particles(centerX, height + 12, 'optionsFlame', {
+      x: { min: -width * 0.55, max: width * 0.55 },
+      speedY: { min: -260, max: -110 },
+      speedX: { min: -55, max: 55 },
+      scale: { start: 1.15, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: { min: 900, max: 1700 },
+      frequency: 18,
+      blendMode: 'ADD'
+    }).setDepth(-990);
+
+    const embers = this.add.particles(centerX, height + 6, 'optionsEmber', {
+      x: { min: -width * 0.55, max: width * 0.55 },
+      speedY: { min: -210, max: -60 },
+      speedX: { min: -65, max: 65 },
+      scale: { start: 0.9, end: 0 },
+      alpha: { start: 0.72, end: 0 },
+      lifespan: { min: 1200, max: 2200 },
+      frequency: 22,
+      blendMode: 'ADD'
+    }).setDepth(-989);
+
+    this.tweens.add({
+      targets: [lowerGlow, innerGlow, floorFlames, embers],
+      alpha: { from: 0.7, to: 1 },
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  createOptionPanel(centerX, centerY) {
+    const panel = this.add.rectangle(centerX, centerY + 35, 920, 430, 0x120b08, 0.86)
+      .setStrokeStyle(3, 0xffa766, 0.86);
+    const panelGlow = this.add.rectangle(centerX, centerY + 35, 934, 444, 0x3a1408, 0.26);
+    panelGlow.setDepth(panel.depth - 1);
+
+    this.tweens.add({
+      targets: [panel, panelGlow],
+      alpha: { from: 0.7, to: 1 },
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
+  createBackButton(x, y) {
+    const text = this.add.text(x, y, 'BACK', {
+      font: 'bold 24px Arial',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 4
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    text.on('pointerover', () => {
+      this.tweens.add({
+        targets: text,
+        scaleX: 1.08,
+        scaleY: 1.08,
+        duration: 140,
+        ease: 'Power2'
+      });
+    });
+
+    text.on('pointerout', () => {
+      this.tweens.add({
+        targets: text,
+        scaleX: 1,
+        scaleY: 1,
+        duration: 140,
+        ease: 'Power2'
+      });
+    });
+
+    text.on('pointerdown', () => this.navigateBack());
+  }
+
+  updateQualityButtons() {
+    this.qualityButtons.forEach((buttonRef) => {
+      const isSelected = buttonRef.quality === gameState.settings.graphicsQuality;
+      buttonRef.btn.setFillStyle(isSelected ? 0xff7a1a : 0x332018, isSelected ? 0.95 : 0.92);
+      buttonRef.btn.setStrokeStyle(2.5, isSelected ? 0xffd49a : 0x8f5a3b, 0.9);
+      buttonRef.label.setFill(isSelected ? '#fff2d8' : '#d8c4b0');
+    });
+
+    if (this.qualityValueText) {
+      this.qualityValueText.setText(gameState.settings.graphicsQuality.toUpperCase());
+    }
   }
 
   create() {
@@ -100,117 +236,129 @@ export class OptionsScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    // Background
-    this.add.rectangle(centerX, centerY, width, height, 0x0a0a0a, 1).setOrigin(0.5);
+    this.createVolcanicBackdrop(width, height, centerX, centerY);
+    this.createOptionPanel(centerX, centerY);
 
-    // Title
-    const titleText = this.add.text(centerX, 80, 'OPTIONS', {
-      font: '56px Impact',
+    this.add.text(centerX, 88, 'OPTIONS', {
+      font: 'bold 72px Impact',
       fill: '#ffffff',
-      stroke: '#550000',
-      strokeThickness: 6
+      stroke: '#4a1300',
+      strokeThickness: 10
     }).setOrigin(0.5);
 
+    this.add.text(centerX, 148, 'Tune your crucible experience', {
+      font: 'bold 22px Arial',
+      fill: '#ffcc99',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
+    this.createBackButton(95, 54);
+
     // Sound Volume Option
-    this.add.text(centerX - 400, 200, 'Sound Volume:', {
+    this.add.text(centerX - 360, 235, 'SOUND VOLUME', {
       font: 'bold 24px Arial',
-      fill: '#ffffff'
+      fill: '#f2ddc8',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0, 0.5);
 
     this.createSlider(
-      centerX - 100,
-      200,
-      250,
+      centerX - 30,
+      235,
+      320,
       30,
       gameState.settings.soundVolume,
       (value) => {
         gameState.settings.soundVolume = value;
+        gameState.saveSettings();
       }
     );
 
     // Music Volume Option
-    this.add.text(centerX - 400, 280, 'Music Volume:', {
+    this.add.text(centerX - 360, 320, 'MUSIC VOLUME', {
       font: 'bold 24px Arial',
-      fill: '#ffffff'
+      fill: '#f2ddc8',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0, 0.5);
 
     this.createSlider(
-      centerX - 100,
-      280,
-      250,
+      centerX - 30,
+      320,
+      320,
       30,
       gameState.settings.musicVolume,
       (value) => {
         gameState.settings.musicVolume = value;
+        gameState.saveSettings();
       }
     );
 
     // Graphics Quality Option
-    this.add.text(centerX - 400, 360, 'Graphics Quality:', {
+    this.add.text(centerX - 360, 405, 'GRAPHICS QUALITY', {
       font: 'bold 24px Arial',
-      fill: '#ffffff'
+      fill: '#f2ddc8',
+      stroke: '#000000',
+      strokeThickness: 3
     }).setOrigin(0, 0.5);
+
+    this.qualityValueText = this.add.text(centerX + 260, 405, '', {
+      font: 'bold 20px Arial',
+      fill: '#ffe0b3',
+      stroke: '#000000',
+      strokeThickness: 3
+    }).setOrigin(1, 0.5);
 
     const qualities = ['Low', 'Medium', 'High'];
     qualities.forEach((quality, idx) => {
-      const isSelected = gameState.settings.graphicsQuality === quality.toLowerCase();
-      const btn = this.add.rectangle(centerX - 50 + idx * 110, 360, 100, 40, isSelected ? 0xff6b00 : 0x444444, 1)
+      const btnX = centerX - 90 + idx * 130;
+      const btn = this.add.rectangle(btnX, 465, 118, 56, 0x332018, 0.92)
         .setOrigin(0.5)
-        .setStrokeStyle(2, 0xffffff)
+        .setStrokeStyle(2.5, 0x8f5a3b, 0.9)
         .setInteractive({ useHandCursor: true });
 
-      const label = this.add.text(centerX - 50 + idx * 110, 360, quality, {
-        font: 'bold 18px Arial',
-        fill: '#ffffff'
+      const label = this.add.text(btnX, 465, quality.toUpperCase(), {
+        font: 'bold 19px Arial',
+        fill: '#d8c4b0',
+        stroke: '#000000',
+        strokeThickness: 3
       }).setOrigin(0.5);
 
       // Store button reference
       this.qualityButtons.push({ btn, label, quality: quality.toLowerCase() });
 
-      btn.on('pointerdown', () => {
-        gameState.settings.graphicsQuality = quality.toLowerCase();
-        // Update all buttons properly
-        this.qualityButtons.forEach((buttonRef) => {
-          if (buttonRef.quality === gameState.settings.graphicsQuality) {
-            buttonRef.btn.setFillStyle(0xff6b00);
-          } else {
-            buttonRef.btn.setFillStyle(0x444444);
-          }
+      btn.on('pointerover', () => {
+        this.tweens.add({
+          targets: [btn, label],
+          scaleX: 1.06,
+          scaleY: 1.06,
+          duration: 120,
+          ease: 'Sine.out'
         });
       });
-    });
 
-    // Back Button
-    const backText = this.add.text(centerX, 500, 'Back to Menu', {
-      font: '20px Arial',
-      fill: '#ffffff'
-    }).setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+      btn.on('pointerout', () => {
+        this.tweens.add({
+          targets: [btn, label],
+          scaleX: 1,
+          scaleY: 1,
+          duration: 120,
+          ease: 'Sine.out'
+        });
+      });
 
-    backText.on('pointerover', () => {
-      this.tweens.add({
-        targets: backText,
-        scaleX: 1.1,
-        scaleY: 1.1,
-        duration: 200
+      btn.on('pointerdown', () => {
+        gameState.settings.graphicsQuality = quality.toLowerCase();
+        gameState.saveSettings();
+        this.updateQualityButtons();
       });
     });
 
-    backText.on('pointerout', () => {
-      this.tweens.add({
-        targets: backText,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 200
-      });
-    });
-
-    backText.on('pointerdown', () => {
-      this.scene.start(this.returnScene, this.returnSceneData);
-    });
+    this.updateQualityButtons();
 
     this.escBackHandler = () => {
-      this.scene.start(this.returnScene, this.returnSceneData);
+      this.navigateBack();
     };
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }

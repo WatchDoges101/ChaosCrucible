@@ -59,6 +59,9 @@ export class MenuScene extends Phaser.Scene {
     const bg = this.add.rectangle(centerX, centerY, width, height, 0x1a0000, 1).setOrigin(0.5);
     bg.setDepth(-1000); // Make sure it's behind everything
 
+    // Molten lava layer under menu content
+    this.createLavaAnimation(width, height);
+
     // Create flame particles for burning effect
     this.createFlameParticles(width, height);
 
@@ -155,6 +158,176 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
+  createLavaAnimation(width, height) {
+    const createTexture = (key, color, size, radius) => {
+      if (this.textures.exists(key)) return;
+      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
+      graphics.fillStyle(color, 1);
+      graphics.fillCircle(size / 2, size / 2, radius);
+      graphics.generateTexture(key, size, size);
+      graphics.destroy();
+    };
+
+    createTexture('menuLavaBubble', 0xffb347, 12, 6);
+    createTexture('menuLavaSpark', 0xffe2a8, 6, 3);
+    createTexture('menuLavaBurst', 0xff6a1a, 18, 9);
+
+    const lavaBackGlow = this.add.ellipse(width / 2, height * 0.92, width * 1.26, height * 0.5, 0x8f1100, 0.38).setDepth(-650);
+    const lavaCoreGlow = this.add.ellipse(width / 2, height * 0.95, width * 1.02, height * 0.35, 0xff4f00, 0.3).setDepth(-648);
+    const lavaHotBand = this.add.ellipse(width / 2, height * 0.9, width * 0.8, height * 0.16, 0xffa033, 0.22).setDepth(-647);
+    const lavaSurfaceDeep = this.add.graphics().setDepth(-646);
+    const lavaSurfaceTop = this.add.graphics().setDepth(-644);
+    const lavaSurfaceHighlight = this.add.graphics().setDepth(-643);
+
+    const drawLava = (phase) => {
+      const baseY = height * 0.875;
+      const step = 20;
+
+      lavaSurfaceDeep.clear();
+      lavaSurfaceDeep.fillStyle(0x6a0d00, 0.98);
+      lavaSurfaceDeep.beginPath();
+      lavaSurfaceDeep.moveTo(-40, height + 60);
+      lavaSurfaceDeep.lineTo(-40, baseY + 40);
+      for (let x = -40; x <= width + 40; x += step) {
+        const y = baseY +
+          Math.sin((x * 0.016) + phase * 1.25) * 18 +
+          Math.sin((x * 0.037) - phase * 1.8) * 10;
+        lavaSurfaceDeep.lineTo(x, y + 18);
+      }
+      lavaSurfaceDeep.lineTo(width + 40, height + 60);
+      lavaSurfaceDeep.closePath();
+      lavaSurfaceDeep.fillPath();
+
+      lavaSurfaceTop.clear();
+      lavaSurfaceTop.fillStyle(0xe23a00, 0.92);
+      lavaSurfaceTop.beginPath();
+      lavaSurfaceTop.moveTo(-40, height + 60);
+      lavaSurfaceTop.lineTo(-40, baseY + 30);
+      for (let x = -40; x <= width + 40; x += step) {
+        const y = baseY +
+          Math.sin((x * 0.021) + phase * 1.9) * 14 +
+          Math.sin((x * 0.058) - phase * 1.15) * 6;
+        lavaSurfaceTop.lineTo(x, y + 8);
+      }
+      lavaSurfaceTop.lineTo(width + 40, height + 60);
+      lavaSurfaceTop.closePath();
+      lavaSurfaceTop.fillPath();
+
+      lavaSurfaceHighlight.clear();
+      lavaSurfaceHighlight.lineStyle(4, 0xffc06a, 0.66);
+      for (let x = -20; x <= width + 20; x += 14) {
+        const y = baseY +
+          Math.sin((x * 0.022) + phase * 2.2) * 9 +
+          Math.sin((x * 0.06) - phase * 1.4) * 4;
+        if (x === -20) {
+          lavaSurfaceHighlight.moveTo(x, y + 4);
+        } else {
+          lavaSurfaceHighlight.lineTo(x, y + 4);
+        }
+      }
+      lavaSurfaceHighlight.strokePath();
+    };
+
+    drawLava(0);
+
+    this.tweens.addCounter({
+      from: 0,
+      to: Math.PI * 2,
+      duration: 2800,
+      repeat: -1,
+      ease: 'Linear',
+      onUpdate: (tween) => {
+        drawLava(tween.getValue());
+      }
+    });
+
+    this.tweens.add({
+      targets: [lavaBackGlow, lavaCoreGlow, lavaHotBand],
+      alpha: { from: 0.22, to: 0.5 },
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+
+    const bubbleEmitter = this.add.particles(width / 2, height + 14, 'menuLavaBubble', {
+      x: { min: -width * 0.52, max: width * 0.52 },
+      speedY: { min: -175, max: -75 },
+      speedX: { min: -50, max: 50 },
+      scale: { start: 1.05, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: { min: 550, max: 1200 },
+      frequency: 50,
+      blendMode: 'ADD'
+    }).setDepth(-642);
+
+    const sparkEmitter = this.add.particles(width / 2, height - 8, 'menuLavaSpark', {
+      x: { min: -width * 0.5, max: width * 0.5 },
+      speedY: { min: -300, max: -100 },
+      speedX: { min: -95, max: 95 },
+      scale: { start: 1.05, end: 0 },
+      alpha: { start: 0.75, end: 0 },
+      lifespan: { min: 800, max: 1500 },
+      frequency: 36,
+      blendMode: 'ADD'
+    }).setDepth(-641);
+
+    const burstEmitter = this.add.particles(width / 2, height + 18, 'menuLavaBurst', {
+      x: { min: -width * 0.46, max: width * 0.46 },
+      speedY: { min: -420, max: -180 },
+      speedX: { min: -125, max: 125 },
+      scale: { start: 1.35, end: 0 },
+      alpha: { start: 0.52, end: 0 },
+      lifespan: { min: 420, max: 900 },
+      frequency: 95,
+      blendMode: 'ADD'
+    }).setDepth(-640);
+
+    const ventEmitters = [0.2, 0.5, 0.8].map((ratio) => {
+      return this.add.particles(width * ratio, height + 16, 'menuLavaSpark', {
+        x: { min: -36, max: 36 },
+        speedY: { min: -360, max: -170 },
+        speedX: { min: -70, max: 70 },
+        scale: { start: 1.1, end: 0 },
+        alpha: { start: 0.72, end: 0 },
+        lifespan: { min: 420, max: 980 },
+        frequency: 24,
+        blendMode: 'ADD'
+      }).setDepth(-639);
+    });
+
+    for (let i = 0; i < 14; i++) {
+      const blob = this.add.ellipse(
+        Phaser.Math.Between(40, width - 40),
+        Phaser.Math.Between(Math.floor(height * 0.85), Math.floor(height * 0.96)),
+        Phaser.Math.Between(50, 120),
+        Phaser.Math.Between(10, 22),
+        i % 2 === 0 ? 0xff7a1a : 0xff4600,
+        Phaser.Math.FloatBetween(0.22, 0.38)
+      ).setDepth(-645);
+
+      this.tweens.add({
+        targets: blob,
+        x: blob.x + Phaser.Math.Between(-45, 45),
+        y: blob.y + Phaser.Math.Between(-9, 9),
+        alpha: { from: blob.alpha * 0.74, to: Math.min(0.5, blob.alpha + 0.12) },
+        duration: Phaser.Math.Between(1200, 2400),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut'
+      });
+    }
+
+    this.tweens.add({
+      targets: [bubbleEmitter, sparkEmitter, burstEmitter, ...ventEmitters],
+      alpha: { from: 0.8, to: 1 },
+      duration: 220,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut'
+    });
+  }
+
   createFlameParticles(width, height) {
     const createTexture = (key, color, size, radius) => {
       if (this.textures.exists(key)) return;
@@ -214,28 +387,6 @@ export class MenuScene extends Phaser.Scene {
       blendMode: 'ADD'
     }).setDepth(-594);
 
-    const leftWallFlames = this.add.particles(-5, height * 0.55, 'menuFlameMid', {
-      y: { min: -height * 0.33, max: height * 0.4 },
-      speedX: { min: 45, max: 120 },
-      speedY: { min: -150, max: 50 },
-      scale: { start: 1.1, end: 0 },
-      alpha: { start: 0.75, end: 0 },
-      lifespan: { min: 1100, max: 1700 },
-      frequency: 36,
-      blendMode: 'ADD'
-    }).setDepth(-585);
-
-    const rightWallFlames = this.add.particles(width + 5, height * 0.55, 'menuFlameMid', {
-      y: { min: -height * 0.33, max: height * 0.4 },
-      speedX: { min: -120, max: -45 },
-      speedY: { min: -150, max: 50 },
-      scale: { start: 1.1, end: 0 },
-      alpha: { start: 0.75, end: 0 },
-      lifespan: { min: 1100, max: 1700 },
-      frequency: 36,
-      blendMode: 'ADD'
-    }).setDepth(-585);
-
     const embers = this.add.particles(width / 2, height + 10, 'menuEmber', {
       x: { min: -width * 0.6, max: width * 0.6 },
       speedY: { min: -260, max: -60 },
@@ -248,7 +399,7 @@ export class MenuScene extends Phaser.Scene {
     }).setDepth(-580);
 
     this.tweens.add({
-      targets: [floorCore, floorMid, floorDeep, leftWallFlames, rightWallFlames, embers],
+      targets: [floorCore, floorMid, floorDeep, embers],
       alpha: { from: 0.86, to: 1 },
       duration: 240,
       yoyo: true,
