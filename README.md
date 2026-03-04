@@ -1,3 +1,5 @@
+<img width="1536" height="1024" alt="Designer" src="https://github.com/user-attachments/assets/ff290496-afe4-43e3-8a39-ff596efbde37" />
+
 # ChaosCrucible
 
 A fast-paced action game built with Phaser 3 where players battle waves of enemies in an arena environment.
