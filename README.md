@@ -98,6 +98,10 @@ Enemy count and elite frequency both scale up over time for increasing challenge
 - **Online flow redirect**: Main menu `ONLINE` now routes to the enhanced `ComingSoonScene` experience.
 - **Coming soon cinematic polish**: Added layered inferno background, dense embers/flames, energy rings, periodic fire bursts, and stronger animated title treatment.
 - **Main menu flame overhaul**: Replaced older flame tongues with layered particle fire, wall flames, embers, and title-focused heat aura effects.
+- **Menu background redesign**: Replaced procedural backgrounds with custom background image and removed all particle effects for a cleaner look.
+- **Wiki scene wandering sprites**: Added cute wandering character and enemy sprites at the bottom of wiki pages with proper walk animations, directional facing, and click-to-jump interactions.
+- **Character wanderer animations**: Character sprites feature full leg and arm walk cycles with normalized movement speeds to prevent sprinting.
+- **Enemy wanderer animations**: Type-specific body part animations (wings, tails, antennae, auras, crystals) perfectly match their scroll pane counterparts for visual consistency.
 
 ## March 2026 Arena, Skill Tree & Enemy Roster Expansion
 

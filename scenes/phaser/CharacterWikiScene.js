@@ -16,18 +16,28 @@ export class CharacterWikiScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    const bg = this.add.rectangle(centerX, centerY, width, height, 0x150606, 1).setOrigin(0.5);
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x120707, 1).setOrigin(0.5);
     bg.setDepth(-1000);
 
-    this.add.text(centerX, 80, 'CHARACTER WIKI', {
-      font: 'bold 56px Impact',
+    this.add.text(centerX, 90, 'CHARACTERS', {
+      font: 'bold 72px Impact',
       fill: '#ffffff',
       stroke: '#550000',
-      strokeThickness: 8
+      strokeThickness: 10
     }).setOrigin(0.5);
 
-    this.createBackButton(90, 50);
-    this.createCharacterList(centerX, centerY + 40);
+    this.add.text(centerX, 150, 'Playable classes, combat role, and abilities', {
+      font: 'bold 24px Arial',
+      fill: '#ffcc99'
+    }).setOrigin(0.5);
+
+    this.createButton(100, 55, 170, 60, {
+      label: 'BACK',
+      scene: 'WikiScene',
+      fontSize: 22
+    });
+    this.createCharacterList(centerX, centerY + 70);
+    this.createBottomWanderers();
 
     this.escBackHandler = () => {
       this.scene.start('WikiScene');
@@ -35,37 +45,139 @@ export class CharacterWikiScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
-  createBackButton(x, y) {
-    const text = this.add.text(x, y, 'BACK', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+  createButton(x, y, width, height, config) {
+    const BUTTON_COLOR = 0xDD6600;
+    const GLOW_COLOR = 0xFFAA55;
+    const CORNER_RADIUS = 20;
+    const fontSize = config.fontSize || 24;
 
-    text.on('pointerover', () => {
-      this.tweens.add({
-        targets: text,
-        scaleX: 1.08,
-        scaleY: 1.08,
-        duration: 150,
-        ease: 'Power2'
+    const buttonContainer = this.add.container(x, y);
+    buttonContainer.setDepth(1000);
+
+    const buttonGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    buttonGraphics.fillStyle(BUTTON_COLOR, 0.85);
+    buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(buttonGraphics);
+
+    const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    borderGraphics.lineStyle(3, 0xFFFFFF);
+    borderGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(borderGraphics);
+
+    const highlightGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    highlightGraphics.fillStyle(0xFFFFFF, 0.15);
+    highlightGraphics.fillRoundedRect(-width / 2, -height / 2 + 5, width, height * 0.18, CORNER_RADIUS / 2);
+    buttonContainer.add(highlightGraphics);
+
+    const text = this.add.text(0, 0, config.label.toUpperCase(), {
+      font: `bold ${fontSize}px Arial`,
+      fill: '#ffffff',
+      align: 'center',
+      wordWrap: { width: width - 20 }
+    }).setOrigin(0.5);
+    buttonContainer.add(text);
+
+    const hitBox = this.add.rectangle(x, y, width, height)
+      .setOrigin(0.5)
+      .setFillStyle(0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1001);
+
+    const particles = this.add.particles(GLOW_COLOR, {
+      speed: { min: -100, max: 100 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 600
+    }).setDepth(999);
+    particles.stop();
+
+    let scaleTween = null;
+    let idleTween = null;
+    let isHovering = false;
+
+    const startIdleAnimation = () => {
+      idleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        duration: 2000,
+        delay: Phaser.Math.Between(0, 1000),
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
       });
+    };
+
+    startIdleAnimation();
+
+    hitBox.on('pointerover', () => {
+      isHovering = true;
+      if (idleTween) {
+        idleTween.stop();
+        idleTween = null;
+      }
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 250,
+        ease: 'Back.easeOut'
+      });
+
+      for (let i = 0; i < 5; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 3, width / 3),
+          y + Phaser.Math.Between(-height / 3, height / 3)
+        );
+      }
     });
 
-    text.on('pointerout', () => {
-      this.tweens.add({
-        targets: text,
+    hitBox.on('pointerout', () => {
+      isHovering = false;
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
         scaleX: 1,
         scaleY: 1,
-        duration: 150,
-        ease: 'Power2'
+        duration: 300,
+        ease: 'Back.easeOut'
+      });
+
+      this.time.delayedCall(300, () => {
+        if (!isHovering) {
+          startIdleAnimation();
+        }
       });
     });
 
-    text.on('pointerdown', () => {
-      this.scene.start('WikiScene');
+    hitBox.on('pointerdown', () => {
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Sine.easeOut',
+        yoyo: true
+      });
+
+      for (let i = 0; i < 12; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 2, width / 2),
+          y + Phaser.Math.Between(-height / 2, height / 2)
+        );
+      }
+
+      if (config.scene) {
+        if (!this.scene.get(config.scene) && window.sceneClasses[config.scene]) {
+          this.scene.add(config.scene, window.sceneClasses[config.scene], false);
+        }
+        this.input.enabled = false;
+        this.scene.start(config.scene);
+      } else if (config.action) {
+        config.action();
+      }
     });
   }
 
@@ -105,11 +217,17 @@ export class CharacterWikiScene extends Phaser.Scene {
       }
     ];
 
-    const itemWidth = Math.min(760, this.scale.width - 80);
-    const itemHeight = 130;
-    const gap = 20;
+    const frameWidth = Math.min(940, this.scale.width - 80);
+    const frameHeight = Math.min(620, this.scale.height - 180);
+    const itemWidth = frameWidth - 30;
+    const itemHeight = 120;
+    const gap = 16;
     const totalHeight = characters.length * itemHeight + (characters.length - 1) * gap;
     const startY = -totalHeight / 2 + itemHeight / 2;
+
+    this.add.rectangle(centerX, centerY, frameWidth, frameHeight, 0x2b0a0a, 0.26)
+      .setOrigin(0.5)
+      .setStrokeStyle(2, 0xff8844, 0.7);
 
     const listContainer = this.add.container(centerX, centerY);
 
@@ -173,6 +291,139 @@ export class CharacterWikiScene extends Phaser.Scene {
       ease: 'Sine.inOut',
       delay: baseDelay + 100
     });
+  }
+
+  createBottomWanderers() {
+    const { width, height } = this.scale;
+    const laneY = height - 62;
+    const leftBound = 16;
+    const rightBound = width - 16;
+
+    const characters = [
+      { role: 'Male', scale: 2.8 },
+      { role: 'archer', scale: 2.8 },
+      { role: 'brute', scale: 2.8 },
+      { role: 'gunner', scale: 2.8 }
+    ];
+
+    const spacing = characters.length > 1
+      ? (rightBound - leftBound) / (characters.length - 1)
+      : 0;
+
+    characters.forEach((character, index) => {
+      const startX = leftBound + spacing * index;
+      const targetX = Phaser.Math.Between(leftBound, rightBound);
+      const travelDistance = Math.abs(targetX - startX);
+      const pixelsPerSecond = 70;
+      const moveDuration = Math.max(2600, (travelDistance / pixelsPerSecond) * 1000);
+      const mover = this.add.container(startX, laneY);
+      mover.setSize(130, 120);
+      mover.setDepth(30);
+
+      const wanderer = generateCharacterSprite(this, character.role, 0, 0, null, false, true);
+      wanderer.setScale(character.scale);
+      wanderer.baseScale = character.scale;
+      mover.prevX = startX;
+      mover.add(wanderer);
+      mover.setInteractive({ useHandCursor: true });
+
+      this.addWandererWalkAnimation(wanderer, index);
+
+      this.tweens.add({
+        targets: mover,
+        y: laneY - Phaser.Math.Between(4, 10),
+        duration: Phaser.Math.Between(900, 1400),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: index * 120
+      });
+
+      this.tweens.add({
+        targets: mover,
+        x: targetX,
+        duration: moveDuration,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: index * 140,
+        onUpdate: (_tween, target) => {
+          const dx = target.x - target.prevX;
+          if (Math.abs(dx) > 0.2) {
+            const facingScale = Math.abs(wanderer.baseScale || character.scale);
+            wanderer.scaleX = dx < 0 ? -facingScale : facingScale;
+          }
+          target.prevX = target.x;
+        }
+      });
+
+      mover.on('pointerdown', () => {
+        this.tweens.add({
+          targets: wanderer,
+          y: -22,
+          duration: 120,
+          yoyo: true,
+          ease: 'Quad.out'
+        });
+
+        this.tweens.add({
+          targets: wanderer,
+          scaleY: character.scale * 0.92,
+          scaleX: character.scale * 1.06,
+          duration: 100,
+          yoyo: true,
+          ease: 'Sine.inOut'
+        });
+      });
+    });
+  }
+
+  addWandererWalkAnimation(wanderer, index) {
+    const phaseDelay = index * 90;
+
+    if (wanderer.leftLeg && wanderer.rightLeg) {
+      this.tweens.add({
+        targets: wanderer.leftLeg,
+        angle: -22,
+        duration: 320,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: phaseDelay
+      });
+
+      this.tweens.add({
+        targets: wanderer.rightLeg,
+        angle: 22,
+        duration: 320,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: phaseDelay + 160
+      });
+    }
+
+    if (wanderer.leftArm && wanderer.rightArm) {
+      this.tweens.add({
+        targets: wanderer.leftArm,
+        angle: 12,
+        duration: 360,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: phaseDelay + 140
+      });
+
+      this.tweens.add({
+        targets: wanderer.rightArm,
+        angle: -12,
+        duration: 360,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: phaseDelay
+      });
+    }
   }
 
   shutdown() {

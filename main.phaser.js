@@ -12,6 +12,7 @@
 
 import Phaser from 'phaser';
 import { gameConfig, GAME_CONSTANTS } from './config/gameConfig.js';
+import { StartScreenScene } from './scenes/phaser/StartScreenScene.js';
 import { MenuScene } from './scenes/phaser/MenuScene.js';
 import { CharacterSelectionScene } from './scenes/phaser/CharacterSelectionScene.js';
 import { CharacterCustomizationScene } from './scenes/phaser/CharacterCustomizationScene.js';
@@ -29,14 +30,16 @@ import { audioManager } from './services/audioManager.js';
 import { generateCharacterSprite, generateEnemySprite, createAnimatedCharacter, createAnimatedCharacterWithViews } from './services/spriteGenerator.js';
 import PauseScene from './scenes/phaser/PauseScene.js';
 
-// Add ONLY MenuScene to config initially - others will be added dynamically when needed
-gameConfig.scene = [MenuScene, PauseScene];
+// Add StartScreenScene first (splash screen), then MenuScene and PauseScene
+gameConfig.scene = [StartScreenScene, MenuScene, PauseScene];
 
 // Create game
 const game = new Phaser.Game(gameConfig);
 
 // Store scene classes for lazy loading
 window.sceneClasses = {
+  'StartScreenScene': StartScreenScene,
+  'MenuScene': MenuScene,
   'CharacterSelectionScene': CharacterSelectionScene,
   'CharacterCustomizationScene': CharacterCustomizationScene,
   'ChaossCrucibleScene': ChaossCrucibleScene,

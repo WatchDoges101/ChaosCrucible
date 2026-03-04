@@ -236,9 +236,6 @@ export class OptionsScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    this.createVolcanicBackdrop(width, height, centerX, centerY);
-    this.createOptionPanel(centerX, centerY);
-
     this.add.text(centerX, 88, 'OPTIONS', {
       font: 'bold 72px Impact',
       fill: '#ffffff',

@@ -15,12 +15,12 @@ import { stopAllTweens, stopAllTimers, removeAllInputListeners, cleanupScene } f
 export class MenuScene extends Phaser.Scene {
   constructor() {
     console.log('[CONSTRUCTOR] MenuScene being instantiated');
-    super({ key: 'MenuScene', active: true });
+    super({ key: 'MenuScene', active: false });
   }
 
   preload() {
-    // Load any assets needed for menu
-    // this.load.image('menuBg', './assets/gameBackground.jpg');
+    // Load background image
+    this.load.image('background1', './asset/background1.png');
   }
 
   create() {
@@ -55,15 +55,13 @@ export class MenuScene extends Phaser.Scene {
       }
     });
 
-    // Background (dark color) - must be FIRST and FULLY OPAQUE to cover everything
-    const bg = this.add.rectangle(centerX, centerY, width, height, 0x1a0000, 1).setOrigin(0.5);
-    bg.setDepth(-1000); // Make sure it's behind everything
-
-    // Molten lava layer under menu content
-    this.createLavaAnimation(width, height);
-
-    // Create flame particles for burning effect
-    this.createFlameParticles(width, height);
+    // Background image - must be FIRST to cover everything
+    const bg = this.add.image(centerX, centerY, 'background1').setOrigin(0.5).setDepth(-1000);
+    // Scale background to cover entire screen
+    const scaleX = width / bg.width;
+    const scaleY = height / bg.height;
+    const scale = Math.max(scaleX, scaleY);
+    bg.setScale(scale);
 
     // Title
     const titleText = this.add.text(centerX, 120, 'CHAOS CRUCIBLE', {
@@ -72,9 +70,6 @@ export class MenuScene extends Phaser.Scene {
       stroke: '#550000',
       strokeThickness: 10
     }).setOrigin(0.5).setDepth(1002);
-
-    // Add burning flame effect around the title
-    this.createTitleFlames(titleText, centerX, 120);
 
     // Buttons with interactive areas
     const buttons = [
@@ -113,38 +108,150 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createButton(x, y, width, height, config) {
-    const button = this.add.rectangle(x, y, width, height, config.color, 0.9)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+    const BUTTON_COLOR = 0xDD6600;
+    const GLOW_COLOR = 0xFFAA55;
+    const CORNER_RADIUS = 20;
 
-    const text = this.add.text(x, y, config.label.toUpperCase(), {
+    // Create a container to hold all button visual elements
+    const buttonContainer = this.add.container(x, y);
+    buttonContainer.setDepth(1000);
+
+    // Create main button with rounded corners in container
+    const buttonGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    buttonGraphics.fillStyle(BUTTON_COLOR, 0.85);
+    buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(buttonGraphics);
+
+    // Add border/outline effect
+    const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    borderGraphics.lineStyle(3, 0xFFFFFF);
+    borderGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(borderGraphics);
+
+    // Add inner highlight for 3D effect
+    const highlightGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    highlightGraphics.fillStyle(0xFFFFFF, 0.15);
+    highlightGraphics.fillRoundedRect(-width / 2, -height / 2 + 5, width, height * 0.18, CORNER_RADIUS / 2);
+    buttonContainer.add(highlightGraphics);
+
+    // Create button text in container
+    const text = this.add.text(0, 0, config.label.toUpperCase(), {
       font: 'bold 24px Arial',
-      fill: '#fff',
-      stroke: '#000',
-      strokeThickness: 4
-    }).setOrigin(0.5);
+      fill: '#ffffff',
+      align: 'center',
+      wordWrap: { width: width - 20 }
+      }).setOrigin(0.5);
+    buttonContainer.add(text);
 
-    button.on('pointerover', () => {
-      this.tweens.add({
-        targets: [button, text],
-        scaleX: 1.15,
-        scaleY: 1.15,
-        duration: 200,
-        ease: 'Power2'
+    // Create invisible hitbox for interaction
+    const hitBox = this.add.rectangle(x, y, width, height)
+      .setOrigin(0.5)
+      .setFillStyle(0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1001);
+
+    // Particle emitter for hover effect
+    const particles = this.add.particles(GLOW_COLOR, {
+      speed: { min: -100, max: 100 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 600
+    }).setDepth(999);
+    particles.stop();
+
+    let scaleTween = null;
+    let idleTween = null;
+    let isHovering = false;
+
+    // Idle animation - subtle pulse
+    const startIdleAnimation = () => {
+      idleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        duration: 2000,
+        delay: Phaser.Math.Between(0, 1000),
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
       });
+    };
+
+    startIdleAnimation();
+
+    hitBox.on('pointerover', () => {
+      isHovering = true;
+
+      // Stop idle animation
+      if (idleTween) {
+        idleTween.stop();
+        idleTween = null;
+      }
+
+      // Stop previous tweens
+      if (scaleTween) scaleTween.stop();
+
+      // Button scale - only scale the visual container
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 250,
+        ease: 'Back.easeOut'
+      });
+
+      // Emit particles on hover
+      for (let i = 0; i < 5; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 3, width / 3),
+          y + Phaser.Math.Between(-height / 3, height / 3)
+        );
+      }
     });
 
-    button.on('pointerout', () => {
-      this.tweens.add({
-        targets: [button, text],
+    hitBox.on('pointerout', () => {
+      isHovering = false;
+
+      // Stop previous tweens
+      if (scaleTween) scaleTween.stop();
+
+      // Reset scale - only reset the visual container
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
         scaleX: 1,
         scaleY: 1,
-        duration: 200,
-        ease: 'Power2'
+        duration: 300,
+        ease: 'Back.easeOut'
+      });
+
+      // Resume idle animation after reset completes
+      this.time.delayedCall(300, () => {
+        if (!isHovering) {
+          startIdleAnimation();
+        }
       });
     });
 
-    button.on('pointerdown', () => {
+    hitBox.on('pointerdown', () => {
+      // Click feedback - only scale the visual container
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Sine.easeOut',
+        yoyo: true
+      });
+
+      // Emit burst of particles on click
+      for (let i = 0; i < 12; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 2, width / 2),
+          y + Phaser.Math.Between(-height / 2, height / 2)
+        );
+      }
+
       if (config.scene) {
         // Ensure target scene exists, then start it so current scene stops cleanly
         if (!this.scene.get(config.scene) && window.sceneClasses[config.scene]) {
@@ -156,343 +263,5 @@ export class MenuScene extends Phaser.Scene {
         config.action();
       }
     });
-  }
-
-  createLavaAnimation(width, height) {
-    const createTexture = (key, color, size, radius) => {
-      if (this.textures.exists(key)) return;
-      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
-      graphics.fillStyle(color, 1);
-      graphics.fillCircle(size / 2, size / 2, radius);
-      graphics.generateTexture(key, size, size);
-      graphics.destroy();
-    };
-
-    createTexture('menuLavaBubble', 0xffb347, 12, 6);
-    createTexture('menuLavaSpark', 0xffe2a8, 6, 3);
-    createTexture('menuLavaBurst', 0xff6a1a, 18, 9);
-
-    const lavaBackGlow = this.add.ellipse(width / 2, height * 0.92, width * 1.26, height * 0.5, 0x8f1100, 0.38).setDepth(-650);
-    const lavaCoreGlow = this.add.ellipse(width / 2, height * 0.95, width * 1.02, height * 0.35, 0xff4f00, 0.3).setDepth(-648);
-    const lavaHotBand = this.add.ellipse(width / 2, height * 0.9, width * 0.8, height * 0.16, 0xffa033, 0.22).setDepth(-647);
-    const lavaSurfaceDeep = this.add.graphics().setDepth(-646);
-    const lavaSurfaceTop = this.add.graphics().setDepth(-644);
-    const lavaSurfaceHighlight = this.add.graphics().setDepth(-643);
-
-    const drawLava = (phase) => {
-      const baseY = height * 0.875;
-      const step = 20;
-
-      lavaSurfaceDeep.clear();
-      lavaSurfaceDeep.fillStyle(0x6a0d00, 0.98);
-      lavaSurfaceDeep.beginPath();
-      lavaSurfaceDeep.moveTo(-40, height + 60);
-      lavaSurfaceDeep.lineTo(-40, baseY + 40);
-      for (let x = -40; x <= width + 40; x += step) {
-        const y = baseY +
-          Math.sin((x * 0.016) + phase * 1.25) * 18 +
-          Math.sin((x * 0.037) - phase * 1.8) * 10;
-        lavaSurfaceDeep.lineTo(x, y + 18);
-      }
-      lavaSurfaceDeep.lineTo(width + 40, height + 60);
-      lavaSurfaceDeep.closePath();
-      lavaSurfaceDeep.fillPath();
-
-      lavaSurfaceTop.clear();
-      lavaSurfaceTop.fillStyle(0xe23a00, 0.92);
-      lavaSurfaceTop.beginPath();
-      lavaSurfaceTop.moveTo(-40, height + 60);
-      lavaSurfaceTop.lineTo(-40, baseY + 30);
-      for (let x = -40; x <= width + 40; x += step) {
-        const y = baseY +
-          Math.sin((x * 0.021) + phase * 1.9) * 14 +
-          Math.sin((x * 0.058) - phase * 1.15) * 6;
-        lavaSurfaceTop.lineTo(x, y + 8);
-      }
-      lavaSurfaceTop.lineTo(width + 40, height + 60);
-      lavaSurfaceTop.closePath();
-      lavaSurfaceTop.fillPath();
-
-      lavaSurfaceHighlight.clear();
-      lavaSurfaceHighlight.lineStyle(4, 0xffc06a, 0.66);
-      for (let x = -20; x <= width + 20; x += 14) {
-        const y = baseY +
-          Math.sin((x * 0.022) + phase * 2.2) * 9 +
-          Math.sin((x * 0.06) - phase * 1.4) * 4;
-        if (x === -20) {
-          lavaSurfaceHighlight.moveTo(x, y + 4);
-        } else {
-          lavaSurfaceHighlight.lineTo(x, y + 4);
-        }
-      }
-      lavaSurfaceHighlight.strokePath();
-    };
-
-    drawLava(0);
-
-    this.tweens.addCounter({
-      from: 0,
-      to: Math.PI * 2,
-      duration: 2800,
-      repeat: -1,
-      ease: 'Linear',
-      onUpdate: (tween) => {
-        drawLava(tween.getValue());
-      }
-    });
-
-    this.tweens.add({
-      targets: [lavaBackGlow, lavaCoreGlow, lavaHotBand],
-      alpha: { from: 0.22, to: 0.5 },
-      duration: 650,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-
-    const bubbleEmitter = this.add.particles(width / 2, height + 14, 'menuLavaBubble', {
-      x: { min: -width * 0.52, max: width * 0.52 },
-      speedY: { min: -175, max: -75 },
-      speedX: { min: -50, max: 50 },
-      scale: { start: 1.05, end: 0 },
-      alpha: { start: 0.8, end: 0 },
-      lifespan: { min: 550, max: 1200 },
-      frequency: 50,
-      blendMode: 'ADD'
-    }).setDepth(-642);
-
-    const sparkEmitter = this.add.particles(width / 2, height - 8, 'menuLavaSpark', {
-      x: { min: -width * 0.5, max: width * 0.5 },
-      speedY: { min: -300, max: -100 },
-      speedX: { min: -95, max: 95 },
-      scale: { start: 1.05, end: 0 },
-      alpha: { start: 0.75, end: 0 },
-      lifespan: { min: 800, max: 1500 },
-      frequency: 36,
-      blendMode: 'ADD'
-    }).setDepth(-641);
-
-    const burstEmitter = this.add.particles(width / 2, height + 18, 'menuLavaBurst', {
-      x: { min: -width * 0.46, max: width * 0.46 },
-      speedY: { min: -420, max: -180 },
-      speedX: { min: -125, max: 125 },
-      scale: { start: 1.35, end: 0 },
-      alpha: { start: 0.52, end: 0 },
-      lifespan: { min: 420, max: 900 },
-      frequency: 95,
-      blendMode: 'ADD'
-    }).setDepth(-640);
-
-    const ventEmitters = [0.2, 0.5, 0.8].map((ratio) => {
-      return this.add.particles(width * ratio, height + 16, 'menuLavaSpark', {
-        x: { min: -36, max: 36 },
-        speedY: { min: -360, max: -170 },
-        speedX: { min: -70, max: 70 },
-        scale: { start: 1.1, end: 0 },
-        alpha: { start: 0.72, end: 0 },
-        lifespan: { min: 420, max: 980 },
-        frequency: 24,
-        blendMode: 'ADD'
-      }).setDepth(-639);
-    });
-
-    for (let i = 0; i < 14; i++) {
-      const blob = this.add.ellipse(
-        Phaser.Math.Between(40, width - 40),
-        Phaser.Math.Between(Math.floor(height * 0.85), Math.floor(height * 0.96)),
-        Phaser.Math.Between(50, 120),
-        Phaser.Math.Between(10, 22),
-        i % 2 === 0 ? 0xff7a1a : 0xff4600,
-        Phaser.Math.FloatBetween(0.22, 0.38)
-      ).setDepth(-645);
-
-      this.tweens.add({
-        targets: blob,
-        x: blob.x + Phaser.Math.Between(-45, 45),
-        y: blob.y + Phaser.Math.Between(-9, 9),
-        alpha: { from: blob.alpha * 0.74, to: Math.min(0.5, blob.alpha + 0.12) },
-        duration: Phaser.Math.Between(1200, 2400),
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.inOut'
-      });
-    }
-
-    this.tweens.add({
-      targets: [bubbleEmitter, sparkEmitter, burstEmitter, ...ventEmitters],
-      alpha: { from: 0.8, to: 1 },
-      duration: 220,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-  }
-
-  createFlameParticles(width, height) {
-    const createTexture = (key, color, size, radius) => {
-      if (this.textures.exists(key)) return;
-      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
-      graphics.fillStyle(color, 1);
-      graphics.fillCircle(size / 2, size / 2, radius);
-      graphics.generateTexture(key, size, size);
-      graphics.destroy();
-    };
-
-    createTexture('menuFlameCore', 0xffa133, 14, 7);
-    createTexture('menuFlameMid', 0xff5a00, 16, 8);
-    createTexture('menuFlameDeep', 0xff2a00, 18, 9);
-    createTexture('menuEmber', 0xffd27a, 8, 3);
-
-    const lowerHeat = this.add.ellipse(width / 2, height * 0.93, width * 1.2, height * 0.42, 0xb22a00, 0.18).setDepth(-620);
-    const lowerHeatCore = this.add.ellipse(width / 2, height * 0.95, width * 0.88, height * 0.25, 0xff6a00, 0.14).setDepth(-618);
-    this.tweens.add({
-      targets: [lowerHeat, lowerHeatCore],
-      alpha: { from: 0.12, to: 0.26 },
-      duration: 900,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-
-    const floorCore = this.add.particles(width / 2, height + 20, 'menuFlameCore', {
-      x: { min: -width * 0.55, max: width * 0.55 },
-      speedY: { min: -340, max: -150 },
-      speedX: { min: -80, max: 80 },
-      scale: { start: 1.5, end: 0 },
-      alpha: { start: 0.95, end: 0 },
-      lifespan: { min: 900, max: 1500 },
-      frequency: 10,
-      blendMode: 'ADD'
-    }).setDepth(-590);
-
-    const floorMid = this.add.particles(width / 2, height + 25, 'menuFlameMid', {
-      x: { min: -width * 0.6, max: width * 0.6 },
-      speedY: { min: -280, max: -120 },
-      speedX: { min: -70, max: 70 },
-      scale: { start: 1.2, end: 0 },
-      alpha: { start: 0.78, end: 0 },
-      lifespan: { min: 1000, max: 1700 },
-      frequency: 12,
-      blendMode: 'ADD'
-    }).setDepth(-592);
-
-    const floorDeep = this.add.particles(width / 2, height + 30, 'menuFlameDeep', {
-      x: { min: -width * 0.62, max: width * 0.62 },
-      speedY: { min: -240, max: -90 },
-      speedX: { min: -60, max: 60 },
-      scale: { start: 1.35, end: 0 },
-      alpha: { start: 0.68, end: 0 },
-      lifespan: { min: 1200, max: 2100 },
-      frequency: 16,
-      blendMode: 'ADD'
-    }).setDepth(-594);
-
-    const embers = this.add.particles(width / 2, height + 10, 'menuEmber', {
-      x: { min: -width * 0.6, max: width * 0.6 },
-      speedY: { min: -260, max: -60 },
-      speedX: { min: -85, max: 85 },
-      scale: { start: 0.9, end: 0 },
-      alpha: { start: 0.8, end: 0 },
-      lifespan: { min: 1500, max: 3200 },
-      frequency: 26,
-      blendMode: 'ADD'
-    }).setDepth(-580);
-
-    this.tweens.add({
-      targets: [floorCore, floorMid, floorDeep, embers],
-      alpha: { from: 0.86, to: 1 },
-      duration: 240,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-  }
-
-  createTitleFlames(titleText, centerX, centerY) {
-    const titleBounds = titleText.getBounds();
-    const titleWidth = titleBounds.width;
-
-    const titleAuraBack = this.add.ellipse(centerX, centerY + 6, titleWidth + 160, 126, 0xff3d00, 0.19).setDepth(995);
-    const titleAuraMid = this.add.ellipse(centerX, centerY + 4, titleWidth + 84, 94, 0xff8a00, 0.14).setDepth(996);
-    const titleAuraFront = this.add.ellipse(centerX, centerY + 4, titleWidth + 28, 72, 0xffd27a, 0.1).setDepth(997);
-
-    const createTexture = (key, color, size, radius) => {
-      if (this.textures.exists(key)) return;
-      const graphics = this.make.graphics({ x: 0, y: 0, add: false });
-      graphics.fillStyle(color, 1);
-      graphics.fillCircle(size / 2, size / 2, radius);
-      graphics.generateTexture(key, size, size);
-      graphics.destroy();
-    };
-
-    createTexture('menuTitleFlameCore', 0xffdd88, 10, 5);
-    createTexture('menuTitleFlameMid', 0xff8a00, 14, 7);
-    createTexture('menuTitleEmber', 0xffc16a, 8, 3);
-
-    const flameBand = this.add.particles(centerX, centerY + 52, 'menuTitleFlameMid', {
-      x: { min: -titleWidth * 0.56, max: titleWidth * 0.56 },
-      speedY: { min: -185, max: -55 },
-      speedX: { min: -42, max: 42 },
-      scale: { start: 1.05, end: 0 },
-      alpha: { start: 0.88, end: 0 },
-      lifespan: { min: 620, max: 1080 },
-      frequency: 14,
-      blendMode: 'ADD'
-    }).setDepth(998);
-
-    const flameBandCore = this.add.particles(centerX, centerY + 52, 'menuTitleFlameCore', {
-      x: { min: -titleWidth * 0.5, max: titleWidth * 0.5 },
-      speedY: { min: -145, max: -40 },
-      speedX: { min: -34, max: 34 },
-      scale: { start: 0.9, end: 0 },
-      alpha: { start: 0.96, end: 0 },
-      lifespan: { min: 500, max: 900 },
-      frequency: 11,
-      blendMode: 'ADD'
-    }).setDepth(999);
-
-    const titleEmbers = this.add.particles(centerX, centerY + 56, 'menuTitleEmber', {
-      x: { min: -titleWidth * 0.6, max: titleWidth * 0.6 },
-      speedY: { min: -230, max: -80 },
-      speedX: { min: -62, max: 62 },
-      scale: { start: 0.8, end: 0 },
-      alpha: { start: 0.72, end: 0 },
-      lifespan: { min: 1200, max: 2200 },
-      frequency: 20,
-      blendMode: 'ADD'
-    }).setDepth(1000);
-
-    this.tweens.add({
-      targets: [titleAuraBack, titleAuraMid, titleAuraFront, flameBand, flameBandCore, titleEmbers],
-      alpha: { from: 0.78, to: 1 },
-      duration: 250,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-
-    this.tweens.add({
-      targets: [titleAuraBack, titleAuraMid, titleAuraFront],
-      scaleX: { from: 0.992, to: 1.01 },
-      scaleY: { from: 0.992, to: 1.02 },
-      duration: 880,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-
-    titleText.setTint(0xfff0d1);
-    this.tweens.add({
-      targets: titleText,
-      alpha: { from: 0.97, to: 1 },
-      duration: 180,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut'
-    });
-  }
-
-  shutdown() {
-    // Called when scene stops
   }
 }

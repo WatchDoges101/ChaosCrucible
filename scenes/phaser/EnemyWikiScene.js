@@ -21,25 +21,28 @@ export class EnemyWikiScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    const bg = this.add.rectangle(centerX, centerY, width, height, 0x150606, 1).setOrigin(0.5);
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x120707, 1).setOrigin(0.5);
     bg.setDepth(-1000);
 
-    this.add.text(centerX, 80, 'ENEMY WIKI', {
-      font: 'bold 56px Impact',
+    this.add.text(centerX, 90, 'ENEMIES', {
+      font: 'bold 72px Impact',
       fill: '#ffffff',
       stroke: '#550000',
-      strokeThickness: 8
+      strokeThickness: 10
     }).setOrigin(0.5);
 
-    this.add.text(centerX, 122, 'Scroll: Mouse Wheel / Arrow Keys', {
-      font: 'bold 20px Arial',
-      fill: '#ffcc99',
-      stroke: '#000000',
-      strokeThickness: 3
+    this.add.text(centerX, 150, 'Scroll: Mouse Wheel / Arrow Keys', {
+      font: 'bold 24px Arial',
+      fill: '#ffcc99'
     }).setOrigin(0.5);
 
-    this.createBackButton(90, 50);
-    this.createEnemyList(centerX, centerY + 36);
+    this.createButton(100, 55, 170, 60, {
+      label: 'BACK',
+      scene: 'WikiScene',
+      fontSize: 22
+    });
+    this.createEnemyList(centerX, centerY + 70);
+    this.createBottomWanderers();
 
     this.wheelHandler = (pointer, _gameObjects, _deltaX, deltaY) => {
       if (!this.scrollState) {
@@ -81,37 +84,139 @@ export class EnemyWikiScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
-  createBackButton(x, y) {
-    const text = this.add.text(x, y, 'BACK', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+  createButton(x, y, width, height, config) {
+    const BUTTON_COLOR = 0xDD6600;
+    const GLOW_COLOR = 0xFFAA55;
+    const CORNER_RADIUS = 20;
+    const fontSize = config.fontSize || 24;
 
-    text.on('pointerover', () => {
-      this.tweens.add({
-        targets: text,
-        scaleX: 1.08,
-        scaleY: 1.08,
-        duration: 150,
-        ease: 'Power2'
+    const buttonContainer = this.add.container(x, y);
+    buttonContainer.setDepth(1000);
+
+    const buttonGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    buttonGraphics.fillStyle(BUTTON_COLOR, 0.85);
+    buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(buttonGraphics);
+
+    const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    borderGraphics.lineStyle(3, 0xFFFFFF);
+    borderGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(borderGraphics);
+
+    const highlightGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    highlightGraphics.fillStyle(0xFFFFFF, 0.15);
+    highlightGraphics.fillRoundedRect(-width / 2, -height / 2 + 5, width, height * 0.18, CORNER_RADIUS / 2);
+    buttonContainer.add(highlightGraphics);
+
+    const text = this.add.text(0, 0, config.label.toUpperCase(), {
+      font: `bold ${fontSize}px Arial`,
+      fill: '#ffffff',
+      align: 'center',
+      wordWrap: { width: width - 20 }
+    }).setOrigin(0.5);
+    buttonContainer.add(text);
+
+    const hitBox = this.add.rectangle(x, y, width, height)
+      .setOrigin(0.5)
+      .setFillStyle(0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1001);
+
+    const particles = this.add.particles(GLOW_COLOR, {
+      speed: { min: -100, max: 100 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 600
+    }).setDepth(999);
+    particles.stop();
+
+    let scaleTween = null;
+    let idleTween = null;
+    let isHovering = false;
+
+    const startIdleAnimation = () => {
+      idleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        duration: 2000,
+        delay: Phaser.Math.Between(0, 1000),
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
       });
+    };
+
+    startIdleAnimation();
+
+    hitBox.on('pointerover', () => {
+      isHovering = true;
+      if (idleTween) {
+        idleTween.stop();
+        idleTween = null;
+      }
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 250,
+        ease: 'Back.easeOut'
+      });
+
+      for (let i = 0; i < 5; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 3, width / 3),
+          y + Phaser.Math.Between(-height / 3, height / 3)
+        );
+      }
     });
 
-    text.on('pointerout', () => {
-      this.tweens.add({
-        targets: text,
+    hitBox.on('pointerout', () => {
+      isHovering = false;
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
         scaleX: 1,
         scaleY: 1,
-        duration: 150,
-        ease: 'Power2'
+        duration: 300,
+        ease: 'Back.easeOut'
+      });
+
+      this.time.delayedCall(300, () => {
+        if (!isHovering) {
+          startIdleAnimation();
+        }
       });
     });
 
-    text.on('pointerdown', () => {
-      this.scene.start('WikiScene');
+    hitBox.on('pointerdown', () => {
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Sine.easeOut',
+        yoyo: true
+      });
+
+      for (let i = 0; i < 12; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 2, width / 2),
+          y + Phaser.Math.Between(-height / 2, height / 2)
+        );
+      }
+
+      if (config.scene) {
+        if (!this.scene.get(config.scene) && window.sceneClasses[config.scene]) {
+          this.scene.add(config.scene, window.sceneClasses[config.scene], false);
+        }
+        this.input.enabled = false;
+        this.scene.start(config.scene);
+      } else if (config.action) {
+        config.action();
+      }
     });
   }
 
@@ -203,12 +308,12 @@ export class EnemyWikiScene extends Phaser.Scene {
       }
     ];
 
-    const itemWidth = Math.min(760, this.scale.width - 80);
-    const itemHeight = 158;
+    const viewportWidth = Math.min(940, this.scale.width - 80);
+    const itemWidth = viewportWidth - 20;
+    const itemHeight = 150;
     const gap = 16;
     const contentPadding = 18;
-    const viewportHeight = Math.min(560, this.scale.height - 205);
-    const viewportWidth = itemWidth + 20;
+    const viewportHeight = Math.min(680, this.scale.height - 170);
     const viewportTop = centerY - viewportHeight / 2;
 
     const viewportFrame = this.add.rectangle(centerX, centerY, viewportWidth, viewportHeight, 0x2b0a0a, 0.26)
@@ -318,6 +423,366 @@ export class EnemyWikiScene extends Phaser.Scene {
     }
 
     this.setScrollPosition(0);
+  }
+
+  createBottomWanderers() {
+    const { width, height } = this.scale;
+    const laneY = height - 28;
+    const leftBound = 16;
+    const rightBound = width - 16;
+
+    const enemies = [
+      { spriteType: 'slime', scale: 1.8 },
+      { spriteType: 'devil', scale: 1.8 },
+      { spriteType: 'skeleton', scale: 1.8 },
+      { spriteType: 'frost_wraith', scale: 1.76 },
+      { spriteType: 'bomber_beetle', scale: 1.8 },
+      { spriteType: 'storm_mage', scale: 1.8 },
+      { spriteType: 'anomaly_rift', scale: 1.64 },
+      { spriteType: 'ironbound_colossus', scale: 1.56 },
+      { spriteType: 'crucible_knight', scale: 1.64 },
+      { spriteType: 'ember_witch', scale: 1.64 }
+    ];
+
+    const spacing = enemies.length > 1
+      ? (rightBound - leftBound) / (enemies.length - 1)
+      : 0;
+
+    enemies.forEach((enemy, index) => {
+      const startX = leftBound + spacing * index;
+      const targetX = Phaser.Math.Between(leftBound, rightBound);
+      const travelDistance = Math.abs(targetX - startX);
+      const pixelsPerSecond = 65;
+      const moveDuration = Math.max(2800, (travelDistance / pixelsPerSecond) * 1000);
+      const mover = this.add.container(startX, laneY);
+      mover.setSize(120, 110);
+      mover.setDepth(30);
+
+      const wanderer = generateEnemySprite(this, 0, 0, enemy.spriteType);
+      wanderer.setScale(enemy.scale);
+      wanderer.baseScale = enemy.scale;
+      wanderer.enemyType = enemy.spriteType;
+      mover.prevX = startX;
+      mover.add(wanderer);
+      mover.setInteractive({ useHandCursor: true });
+
+      this.addEnemyWalkAnimation(wanderer, enemy.spriteType, index);
+
+      // Gentle bob so they feel alive while roaming.
+      this.tweens.add({
+        targets: mover,
+        y: laneY - Phaser.Math.Between(4, 10),
+        duration: Phaser.Math.Between(900, 1400),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: index * 120
+      });
+
+      this.tweens.add({
+        targets: mover,
+        x: targetX,
+        duration: moveDuration,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.inOut',
+        delay: index * 140,
+        onUpdate: (_tween, target) => {
+          const dx = target.x - target.prevX;
+          if (Math.abs(dx) > 0.2) {
+            const facingScale = Math.abs(wanderer.baseScale || enemy.scale);
+            wanderer.scaleX = dx < 0 ? -facingScale : facingScale;
+          }
+          target.prevX = target.x;
+        }
+      });
+
+      mover.on('pointerdown', () => {
+        this.tweens.add({
+          targets: wanderer,
+          y: -22,
+          duration: 120,
+          yoyo: true,
+          ease: 'Quad.out'
+        });
+
+        this.tweens.add({
+          targets: wanderer,
+          scaleY: enemy.scale * 0.92,
+          scaleX: enemy.scale * 1.06,
+          duration: 100,
+          yoyo: true,
+          ease: 'Sine.inOut'
+        });
+      });
+    });
+  }
+
+  addEnemyWalkAnimation(wanderer, type, index) {
+    const phaseDelay = index * 110;
+
+    switch (type) {
+      case 'slime':
+        // Slime bounces/wobbles as it moves
+        this.tweens.add({
+          targets: wanderer,
+          scaleY: wanderer.scaleY * 1.08,
+          scaleX: wanderer.scaleX * 0.96,
+          duration: 260,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay
+        });
+        break;
+
+      case 'devil':
+        if (wanderer.wings) {
+          this.tweens.add({
+            targets: wanderer.wings,
+            scaleY: 0.85,
+            duration: 220,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Quad.inOut',
+            delay: phaseDelay
+          });
+        }
+        if (wanderer.tail) {
+          this.tweens.add({
+            targets: wanderer.tail,
+            angle: -8,
+            duration: 380,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 50
+          });
+        }
+        break;
+
+      case 'skeleton':
+        if (wanderer.leftArm) {
+          this.tweens.add({
+            targets: wanderer.leftArm,
+            angle: 12,
+            duration: 340,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay
+          });
+        }
+        if (wanderer.rightArm) {
+          this.tweens.add({
+            targets: wanderer.rightArm,
+            angle: -12,
+            duration: 340,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 170
+          });
+        }
+        if (wanderer.weapon) {
+          this.tweens.add({
+            targets: wanderer.weapon,
+            angle: 6,
+            duration: 280,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 80
+          });
+        }
+        break;
+
+      case 'frost_wraith':
+        this.tweens.add({
+          targets: wanderer,
+          y: wanderer.y - 10,
+          duration: 2000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay
+        });
+
+        this.tweens.add({
+          targets: wanderer,
+          angle: 5,
+          duration: 3000,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay + 100
+        });
+
+        if (wanderer.aura) {
+          this.tweens.add({
+            targets: wanderer.aura,
+            alpha: 0.3,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay
+          });
+        }
+
+        if (wanderer.crystals) {
+          this.tweens.add({
+            targets: wanderer.crystals,
+            alpha: 0.7,
+            duration: 800,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 300
+          });
+        }
+
+        if (wanderer.tail) {
+          this.tweens.add({
+            targets: wanderer.tail,
+            alpha: 0.4,
+            scaleY: 0.9,
+            duration: 1200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 200
+          });
+        }
+
+        if (wanderer.shards) {
+          this.tweens.add({
+            targets: wanderer.shards,
+            angle: 360,
+            duration: 8000,
+            repeat: -1,
+            ease: 'Linear',
+            delay: phaseDelay
+          });
+        }
+        break;
+
+      case 'bomber_beetle':
+        if (wanderer.antennae) {
+          this.tweens.add({
+            targets: wanderer.antennae,
+            angle: 8,
+            duration: 240,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay
+          });
+        }
+        if (wanderer.legs) {
+          this.tweens.add({
+            targets: wanderer.legs,
+            scaleX: 1.04,
+            duration: 200,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 50
+          });
+        }
+        break;
+
+      case 'storm_mage':
+        if (wanderer.leftArm) {
+          this.tweens.add({
+            targets: wanderer.leftArm,
+            angle: -10,
+            duration: 420,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay
+          });
+        }
+        if (wanderer.rightArm) {
+          this.tweens.add({
+            targets: wanderer.rightArm,
+            angle: 10,
+            duration: 440,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 50
+          });
+        }
+        if (wanderer.staff) {
+          this.tweens.add({
+            targets: wanderer.staff,
+            angle: 8,
+            duration: 360,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay + 100
+          });
+        }
+        break;
+
+      case 'anomaly_rift':
+      case 'ironbound_colossus':
+      case 'crucible_knight':
+      case 'ember_witch':
+        this.tweens.add({
+          targets: wanderer,
+          y: wanderer.y - 8,
+          duration: 1500,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay
+        });
+
+        this.tweens.add({
+          targets: wanderer,
+          scaleX: wanderer.scaleX * 1.08,
+          scaleY: wanderer.scaleY * 1.08,
+          duration: 900,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay + 150
+        });
+
+        if (wanderer.aura) {
+          this.tweens.add({
+            targets: wanderer.aura,
+            alpha: 0.2,
+            scaleX: 1.35,
+            scaleY: 1.35,
+            duration: 1100,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.inOut',
+            delay: phaseDelay
+          });
+        }
+        break;
+
+      default:
+        // Generic walk/bob for unknown types
+        this.tweens.add({
+          targets: wanderer,
+          angle: 2,
+          duration: 400,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.inOut',
+          delay: phaseDelay
+        });
+        break;
+    }
   }
 
   createWikiEnemySprite(enemy) {

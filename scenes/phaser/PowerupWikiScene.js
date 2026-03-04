@@ -16,18 +16,27 @@ export class PowerupWikiScene extends Phaser.Scene {
     const centerX = width / 2;
     const centerY = height / 2;
 
-    const bg = this.add.rectangle(centerX, centerY, width, height, 0x150606, 1).setOrigin(0.5);
+    const bg = this.add.rectangle(centerX, centerY, width, height, 0x120707, 1).setOrigin(0.5);
     bg.setDepth(-1000);
 
-    this.add.text(centerX, 80, 'POWERUP WIKI', {
-      font: 'bold 56px Impact',
+    this.add.text(centerX, 90, 'POWERUPS', {
+      font: 'bold 72px Impact',
       fill: '#ffffff',
       stroke: '#550000',
-      strokeThickness: 8
+      strokeThickness: 10
     }).setOrigin(0.5);
 
-    this.createBackButton(90, 50);
-    this.createPowerupList(centerX, centerY + 40);
+    this.add.text(centerX, 150, 'Buff effects, durations, and use cases', {
+      font: 'bold 24px Arial',
+      fill: '#ffcc99'
+    }).setOrigin(0.5);
+
+    this.createButton(100, 55, 170, 60, {
+      label: 'BACK',
+      scene: 'WikiScene',
+      fontSize: 22
+    });
+    this.createPowerupList(centerX, centerY + 70);
 
     this.escBackHandler = () => {
       this.scene.start('WikiScene');
@@ -35,37 +44,139 @@ export class PowerupWikiScene extends Phaser.Scene {
     this.input.keyboard.on('keydown-ESC', this.escBackHandler);
   }
 
-  createBackButton(x, y) {
-    const text = this.add.text(x, y, 'BACK', {
-      font: 'bold 22px Arial',
-      fill: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
+  createButton(x, y, width, height, config) {
+    const BUTTON_COLOR = 0xDD6600;
+    const GLOW_COLOR = 0xFFAA55;
+    const CORNER_RADIUS = 20;
+    const fontSize = config.fontSize || 24;
 
-    text.on('pointerover', () => {
-      this.tweens.add({
-        targets: text,
-        scaleX: 1.08,
-        scaleY: 1.08,
-        duration: 150,
-        ease: 'Power2'
+    const buttonContainer = this.add.container(x, y);
+    buttonContainer.setDepth(1000);
+
+    const buttonGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    buttonGraphics.fillStyle(BUTTON_COLOR, 0.85);
+    buttonGraphics.fillRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(buttonGraphics);
+
+    const borderGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    borderGraphics.lineStyle(3, 0xFFFFFF);
+    borderGraphics.strokeRoundedRect(-width / 2, -height / 2, width, height, CORNER_RADIUS);
+    buttonContainer.add(borderGraphics);
+
+    const highlightGraphics = this.make.graphics({ x: 0, y: 0, add: false });
+    highlightGraphics.fillStyle(0xFFFFFF, 0.15);
+    highlightGraphics.fillRoundedRect(-width / 2, -height / 2 + 5, width, height * 0.18, CORNER_RADIUS / 2);
+    buttonContainer.add(highlightGraphics);
+
+    const text = this.add.text(0, 0, config.label.toUpperCase(), {
+      font: `bold ${fontSize}px Arial`,
+      fill: '#ffffff',
+      align: 'center',
+      wordWrap: { width: width - 20 }
+    }).setOrigin(0.5);
+    buttonContainer.add(text);
+
+    const hitBox = this.add.rectangle(x, y, width, height)
+      .setOrigin(0.5)
+      .setFillStyle(0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(1001);
+
+    const particles = this.add.particles(GLOW_COLOR, {
+      speed: { min: -100, max: 100 },
+      angle: { min: 0, max: 360 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      lifespan: 600
+    }).setDepth(999);
+    particles.stop();
+
+    let scaleTween = null;
+    let idleTween = null;
+    let isHovering = false;
+
+    const startIdleAnimation = () => {
+      idleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.03,
+        scaleY: 1.03,
+        duration: 2000,
+        delay: Phaser.Math.Between(0, 1000),
+        yoyo: true,
+        loop: -1,
+        ease: 'Sine.easeInOut'
       });
+    };
+
+    startIdleAnimation();
+
+    hitBox.on('pointerover', () => {
+      isHovering = true;
+      if (idleTween) {
+        idleTween.stop();
+        idleTween = null;
+      }
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.12,
+        scaleY: 1.12,
+        duration: 250,
+        ease: 'Back.easeOut'
+      });
+
+      for (let i = 0; i < 5; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 3, width / 3),
+          y + Phaser.Math.Between(-height / 3, height / 3)
+        );
+      }
     });
 
-    text.on('pointerout', () => {
-      this.tweens.add({
-        targets: text,
+    hitBox.on('pointerout', () => {
+      isHovering = false;
+      if (scaleTween) scaleTween.stop();
+      scaleTween = this.tweens.add({
+        targets: buttonContainer,
         scaleX: 1,
         scaleY: 1,
-        duration: 150,
-        ease: 'Power2'
+        duration: 300,
+        ease: 'Back.easeOut'
+      });
+
+      this.time.delayedCall(300, () => {
+        if (!isHovering) {
+          startIdleAnimation();
+        }
       });
     });
 
-    text.on('pointerdown', () => {
-      this.scene.start('WikiScene');
+    hitBox.on('pointerdown', () => {
+      this.tweens.add({
+        targets: buttonContainer,
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 100,
+        ease: 'Sine.easeOut',
+        yoyo: true
+      });
+
+      for (let i = 0; i < 12; i++) {
+        particles.emitParticleAt(
+          x + Phaser.Math.Between(-width / 2, width / 2),
+          y + Phaser.Math.Between(-height / 2, height / 2)
+        );
+      }
+
+      if (config.scene) {
+        if (!this.scene.get(config.scene) && window.sceneClasses[config.scene]) {
+          this.scene.add(config.scene, window.sceneClasses[config.scene], false);
+        }
+        this.input.enabled = false;
+        this.scene.start(config.scene);
+      } else if (config.action) {
+        config.action();
+      }
     });
   }
 
@@ -73,11 +184,17 @@ export class PowerupWikiScene extends Phaser.Scene {
     const powerupOrder = ['blood_orb', 'fury_totem', 'time_shard', 'iron_aegis'];
     const powerups = powerupOrder.map(type => ({ type, ...POWERUP_WIKI_DATA[type] }));
 
-    const itemWidth = Math.min(760, this.scale.width - 80);
-    const itemHeight = 130;
-    const gap = 20;
+    const frameWidth = Math.min(940, this.scale.width - 80);
+    const frameHeight = Math.min(620, this.scale.height - 180);
+    const itemWidth = frameWidth - 30;
+    const itemHeight = 120;
+    const gap = 16;
     const totalHeight = powerups.length * itemHeight + (powerups.length - 1) * gap;
     const startY = -totalHeight / 2 + itemHeight / 2;
+
+    this.add.rectangle(centerX, centerY, frameWidth, frameHeight, 0x2b0a0a, 0.26)
+      .setOrigin(0.5)
+      .setStrokeStyle(2, 0xff8844, 0.7);
 
     const listContainer = this.add.container(centerX, centerY);
 
